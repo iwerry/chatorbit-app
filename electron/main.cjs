@@ -658,7 +658,20 @@ function createWindow() {
 }
 
 app.setAppUserModelId('com.orbix.orbi')
+// One Orbi at a time: opening it again focuses the open window instead of starting a second copy.
+const gotLock = !!process.env.ORBI_SNAPSHOT || app.requestSingleInstanceLock()
+if (!gotLock) app.quit()
+app.on('second-instance', () => {
+  const w = win || [...windows][0]
+  if (w) {
+    if (w.isMinimized()) w.restore()
+    w.show()
+    w.focus()
+  }
+})
+
 app.whenReady().then(async () => {
+  if (!gotLock) return
   await db.open(app.getPath('userData'))
   // First run: pre-install the lightweight (prompt-only) starters — two skills and one agent per profession.
   if (!getSetting('librarySeeded')) {

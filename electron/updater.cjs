@@ -119,7 +119,8 @@ function install(beforeQuit) {
   if (state.status !== 'ready' || !state.file || !fs.existsSync(state.file)) throw new Error('The update is not downloaded yet.')
   set({ status: 'installing' })
   beforeQuit?.()
-  const child = spawn(state.file, ['/S', '/UPDATE'], { detached: true, stdio: 'ignore', windowsHide: false })
+  // Not silent: the installer shows a small progress window so it is clear Orbi is updating.
+  const child = spawn(state.file, ['/UPDATE'], { detached: true, stdio: 'ignore', windowsHide: false })
   child.unref()
   setTimeout(() => app.quit(), 400)
   return true

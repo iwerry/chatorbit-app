@@ -109,7 +109,7 @@ const CATALOG = [
     ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '8', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 768, height: 768 } },
   { id: 'flux2-klein-4b', kind: 'image', tier: 'medium', name: 'FLUX.2 klein 4B', license: 'Apache-2.0', size: 5.3, req: { ram: 8, vram: 4 },
     description: 'Newest FLUX: sharp detail, great prompt following and image editing in 4 steps.', files: [
-      { role: 'diffusion', repo: 'leejet/FLUX.2-klein-4B-GGUF', pattern: 'q4_k[^/]*\\.gguf$' },
+      { role: 'diffusion', repo: 'leejet/FLUX.2-klein-4B-GGUF', file: 'flux2-klein-4b-q4_0.gguf' },
       { role: 'llm', repo: 'unsloth/Qwen3-4B-GGUF', file: 'Qwen3-4B-Q4_K_M.gguf' },
       { role: 'vae', repo: 'Comfy-Org/flux2-dev', file: 'split_files/vae/flux2-vae.safetensors' },
     ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '4', '--sampling-method', 'euler', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 1024, height: 1024 } },
@@ -289,8 +289,10 @@ async function resolveFile(f) {
   if (!res.ok) throw new Error(`Hugging Face: could not list ${f.repo} (${res.status}).`)
   const json = await res.json()
   const re = new RegExp(f.pattern, 'i')
-  const hit = (json.siblings || []).map((s) => s.rfilename).find((n) => re.test(n))
-  if (!hit) throw new Error(`No file matching ${f.pattern} in ${f.repo}.`)
+  const names = (json.siblings || []).map((s) => s.rfilename)
+  // Exact pattern first; otherwise the first model file at the root of the repo (repos rename quantizations over time).
+  const hit = names.find((n) => re.test(n)) || names.find((n) => /^[^/]+\.(gguf|safetensors)$/i.test(n) && !/vae|clip|t5|encoder|mmproj/i.test(n))
+  if (!hit) throw new Error(`${f.repo} has no compatible model file anymore. Pick another model or search Hugging Face.`)
   f.file = hit
   return { url: `${HF}/${f.repo}/resolve/main/${hit.split('/').map(encodeURIComponent).join('/')}`, file: path.basename(hit) }
 }

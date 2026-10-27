@@ -30,27 +30,51 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 VIAddVersionKey "LegalCopyright" "© 2026 Daniel Rodrigues · ${COMPANY}"
 
 !include "MUI2.nsh"
+!include "FileFunc.nsh"
+
+; Set when Orbi starts this installer to update itself (/UPDATE).
+Var IsUpdate
 !define MUI_ICON "icon.ico"
 !define MUI_UNICON "icon.ico"
 !define MUI_ABORTWARNING
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${APP_NAME}.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Launch ${APP_NAME}"
 
+; Updates skip the questions and show only the progress bar, then reopen Orbi.
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipOnUpdate
 !insertmacro MUI_PAGE_WELCOME
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipOnUpdate
 !insertmacro MUI_PAGE_DIRECTORY
+!define MUI_PAGE_HEADER_TEXT "Installing ${APP_NAME} ${VERSION}"
+!define MUI_PAGE_HEADER_SUBTEXT "Orbi reopens by itself when this finishes. Please don't open it manually."
 !insertmacro MUI_PAGE_INSTFILES
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipOnUpdate
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "PortugueseBR"
 
+Function SkipOnUpdate
+  StrCmp $IsUpdate "1" 0 +2
+    Abort
+FunctionEnd
+
 Function .onInit
-  ; In-app updates run silently (/S): give Orbi a moment to save and close by itself.
-  IfSilent 0 +2
+  StrCpy $IsUpdate "0"
+  ${GetParameters} $R0
+  ClearErrors
+  ${GetOptions} $R0 "/UPDATE" $R1
+  IfErrors done_args
+    StrCpy $IsUpdate "1"
+    ; Older Orbi versions start updates with /S; show the progress window anyway.
+    SetSilent normal
+  done_args:
+  StrCmp $IsUpdate "1" 0 +2
     Sleep 2500
-  ; Close a running copy before upgrading.
-  nsExec::Exec 'taskkill /IM "${APP_NAME}.exe" /F'
+  ; Close a running copy (and its helper processes) before upgrading.
+  nsExec::Exec 'taskkill /IM "${APP_NAME}.exe" /F /T'
+  Sleep 500
 FunctionEnd
 
 Section "Install"
@@ -72,8 +96,9 @@ Section "Install"
   WriteRegDWORD HKCU "${UNINST_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${UNINST_KEY}" "NoRepair" 1
 
-  ; After an in-app update, open Orbi again.
-  IfSilent 0 +2
+  ; After an in-app update, open Orbi again and close this window.
+  StrCmp $IsUpdate "1" 0 +3
+    SetAutoClose true
     Exec '"$INSTDIR\${APP_NAME}.exe" --updated'
 SectionEnd
 
