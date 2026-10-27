@@ -209,6 +209,10 @@ export default function App() {
   const [activeAgents, setActiveAgents] = useState<string[]>([])
   const [responseType, setResponseType] = useState<ResponseType>('Instant')
   const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>('Medium')
+  const [prefsReady, setPrefsReady] = useState(false)
+  useEffect(() => {
+    if (prefsReady) api.setSetting('chatPrefs', { agents: activeAgents, compare: additionalModels, mode: responseType, effort: reasoningEffort })
+  }, [activeAgents, additionalModels, responseType, reasoningEffort, prefsReady])
   const [responseMenuOpen, setResponseMenuOpen] = useState(false)
   const [memoryEnabled, setMemoryEnabled] = useState(true)
 
@@ -300,6 +304,15 @@ export default function App() {
       api.localStatus().then(setLocalStatus)
       api.getSetting('terminalOpen', false).then((v) => v && openTerminal())
       setMemoryEnabled(await api.getSetting('memoryEnabled', true))
+      // Chat preferences survive restarts and updates.
+      const prefs = await api.getSetting<{ agents?: string[]; compare?: string[]; mode?: ResponseType; effort?: ReasoningEffort } | null>('chatPrefs', null)
+      if (prefs) {
+        if (Array.isArray(prefs.agents)) setActiveAgents(prefs.agents)
+        if (Array.isArray(prefs.compare)) setAdditionalModels(prefs.compare)
+        if (prefs.mode) setResponseType(prefs.mode)
+        if (prefs.effort) setReasoningEffort(prefs.effort)
+      }
+      setPrefsReady(true)
       await refreshLists()
       await loadModels()
     })()

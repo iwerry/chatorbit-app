@@ -109,7 +109,7 @@ function run(sql, params = []) {
 
 function scheduleSave() {
   clearTimeout(saveTimer)
-  saveTimer = setTimeout(flush, 400)
+  saveTimer = setTimeout(flush, 150)
 }
 
 function flush() {

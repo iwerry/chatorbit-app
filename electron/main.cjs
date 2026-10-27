@@ -640,6 +640,9 @@ function createWindow() {
   })
   w.on('focus', () => (win = w))
   w.once('ready-to-show', () => w.show())
+  // Windows logoff/shutdown can end the app without before-quit: save first.
+  w.on('session-end', () => db.flush())
+  w.on('close', () => db.flush())
   if (process.argv.includes('--updated')) w.webContents.once('did-finish-load', () => w.webContents.send('update:done', app.getVersion()))
   w.webContents.on('found-in-page', (_e, r) => w.webContents.send('find:result', { matches: r.matches, active: r.activeMatchOrdinal }))
   w.webContents.setWindowOpenHandler(({ url }) => {
