@@ -42,16 +42,19 @@ res.outputResource(exe)
 fs.writeFileSync(exePath, Buffer.from(exe.generate()))
 console.log('icon + version applied to', exePath)
 
-const nsisDir = fs
-  .readdirSync(path.join(require('node:os').homedir(), '.cache', 'electron-builder'))
-  .filter((d) => d.startsWith('nsis-3'))
-  .map((d) => path.join(require('node:os').homedir(), '.cache', 'electron-builder', d))
-  .flatMap((d) => fs.readdirSync(d).map((x) => path.join(d, x)).filter((x) => fs.statSync(x).isDirectory()))
-  .find((d) => fs.existsSync(path.join(d, 'linux', 'makensis')))
-if (!nsisDir) throw new Error('NSIS not found — run electron-builder once to download it')
-
-execFileSync(path.join(nsisDir, 'linux', 'makensis'), ['-V2', `-DVERSION=${pkg.version}`, `-DNUMVER=${numeric}`, path.join(__dirname, 'installer.nsi')], {
+// NSIS: the copy electron-builder downloads (local builds), or the system makensis (CI: apt install nsis).
+const cache = path.join(require('node:os').homedir(), '.cache', 'electron-builder')
+const nsisDir = fs.existsSync(cache)
+  ? fs
+      .readdirSync(cache)
+      .filter((d) => d.startsWith('nsis-3'))
+      .map((d) => path.join(cache, d))
+      .flatMap((d) => fs.readdirSync(d).map((x) => path.join(d, x)).filter((x) => fs.statSync(x).isDirectory()))
+      .find((d) => fs.existsSync(path.join(d, 'linux', 'makensis')))
+  : null
+const makensis = nsisDir ? path.join(nsisDir, 'linux', 'makensis') : 'makensis'
+execFileSync(makensis, ['-V2', `-DVERSION=${pkg.version}`, `-DNUMVER=${numeric}`, path.join(__dirname, 'installer.nsi')], {
   stdio: 'inherit',
-  env: { ...process.env, NSISDIR: nsisDir },
+  env: nsisDir ? { ...process.env, NSISDIR: nsisDir } : process.env,
 })
 console.log('installer:', path.join(root, 'release', `Orbi-Setup-${pkg.version}.exe`))
