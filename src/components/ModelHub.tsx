@@ -238,6 +238,19 @@ export function ModelHub({ status, onChanged, initialTab = 'text', onOpenSetup }
         })
       )}
 
+      {tab === 'image' && status.models.some((m) => m.kind === 'upscale') && (
+        <div className="hub-group">
+          <p className="hub-tier">
+            {t('Upscalers')}
+            <small>{t('Make images bigger and sharper')}</small>
+          </p>
+          {status.models
+            .filter((m) => m.kind === 'upscale')
+            .map((m) => (
+              <ModelRow key={m.id} m={m} recommended={false} queued={!!status.queue?.includes(m.id)} onChanged={onChanged} />
+            ))}
+        </div>
+      )}
       {(tab === 'text' || tab === 'image') && <HfSearch kind={tab} onChanged={onChanged} />}
     </div>
   )

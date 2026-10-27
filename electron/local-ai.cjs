@@ -111,26 +111,26 @@ const CATALOG = [
   // IMAGE (stable-diffusion.cpp)
   { id: 'sdxs-512', kind: 'image', tier: 'light', name: 'SDXS 512', license: 'see model card', size: 1.2, req: { ram: 3, vram: 0 },
     description: 'Instant 512×512 sketches in one step — runs on any CPU. Good for ideas and thumbnails.', files: [{ role: 'model', repo: 'akleine/sdxs-512', pattern: '^[^/]+\\.(safetensors|gguf)$' }],
-    args: { model: '-m', extra: ['--steps', '1', '--cfg-scale', '1'], width: 512, height: 512, fixedSteps: true } },
+    args: { model: '-m', extra: ['--steps', '1', '--cfg-scale', '1'], width: 512, height: 512, fixedSteps: true, presets: [1, 1, 1] } },
   { id: 'z-image-turbo', kind: 'image', tier: 'medium', name: 'Z-Image Turbo', license: 'Apache-2.0', size: 5.8, req: { ram: 8, vram: 4 },
     description: 'Photorealistic images and readable text in 8 steps. Runs on 4 GB GPUs.', files: [
       { role: 'diffusion', repo: 'leejet/Z-Image-Turbo-GGUF', file: 'z_image_turbo-Q3_K.gguf', pattern: 'Q3_K\\.gguf$' },
       { role: 'llm', repo: 'unsloth/Qwen3-4B-Instruct-2507-GGUF', file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf' },
       { role: 'vae', repo: 'Green-Sky/flux.1-schnell-GGUF', file: 'ae-f16.gguf' },
-    ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '8', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 768, height: 768 } },
+    ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '8', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 768, height: 768, presets: [6, 8, 12] } },
   { id: 'flux2-klein-4b', kind: 'image', tier: 'medium', name: 'FLUX.2 klein 4B', license: 'Apache-2.0', size: 5.3, req: { ram: 8, vram: 4 },
     description: 'Newest FLUX: sharp detail, great prompt following and image editing in 4 steps.', files: [
       { role: 'diffusion', repo: 'leejet/FLUX.2-klein-4B-GGUF', file: 'flux2-klein-4b-q4_0.gguf' },
       { role: 'llm', repo: 'unsloth/Qwen3-4B-GGUF', file: 'Qwen3-4B-Q4_K_M.gguf' },
       { role: 'vae', repo: 'Comfy-Org/flux2-dev', file: 'split_files/vae/flux2-vae.safetensors' },
-    ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '4', '--sampling-method', 'euler', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 1024, height: 1024 } },
+    ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '4', '--sampling-method', 'euler', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 1024, height: 1024, presets: [4, 6, 8], ref: true } },
   { id: 'flux-schnell', kind: 'image', tier: 'heavy', name: 'FLUX.1 schnell', license: 'Apache-2.0', size: 9.7, req: { ram: 12, vram: 8 },
     description: 'Excellent prompt following and detail. 4 steps.', files: [
       { role: 'diffusion', repo: 'Green-Sky/flux.1-schnell-GGUF', file: 'flux1-schnell-q4_k.gguf' },
       { role: 'vae', repo: 'Green-Sky/flux.1-schnell-GGUF', file: 'ae-f16.gguf' },
       { role: 'clip_l', repo: 'Green-Sky/flux.1-schnell-GGUF', file: 'clip_l-q8_0.gguf' },
       { role: 't5xxl', repo: 'Green-Sky/flux.1-schnell-GGUF', file: 't5xxl_q4_k.gguf' },
-    ], args: { diffusion: '--diffusion-model', vae: '--vae', clip_l: '--clip_l', t5xxl: '--t5xxl', extra: ['--cfg-scale', '1', '--steps', '4', '--sampling-method', 'euler', '--offload-to-cpu', '--vae-tiling'], width: 1024, height: 1024 } },
+    ], args: { diffusion: '--diffusion-model', vae: '--vae', clip_l: '--clip_l', t5xxl: '--t5xxl', extra: ['--cfg-scale', '1', '--steps', '4', '--sampling-method', 'euler', '--offload-to-cpu', '--vae-tiling'], width: 1024, height: 1024, presets: [4, 6, 8] } },
 
   // VIDEO (stable-diffusion.cpp, Wan)
   { id: 'wan2.1-1.3b', kind: 'video', tier: 'light', name: 'Wan 2.1 1.3B', license: 'Apache-2.0', size: 6.2, req: { ram: 8, vram: 4 },
@@ -138,23 +138,29 @@ const CATALOG = [
       { role: 'diffusion', repo: 'Comfy-Org/Wan_2.1_ComfyUI_repackaged', file: 'split_files/diffusion_models/wan2.1_t2v_1.3B_fp16.safetensors' },
       { role: 'vae', repo: 'Comfy-Org/Wan_2.1_ComfyUI_repackaged', file: 'split_files/vae/wan_2.1_vae.safetensors' },
       { role: 't5xxl', repo: 'city96/umt5-xxl-encoder-gguf', file: 'umt5-xxl-encoder-Q3_K_M.gguf' },
-    ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '33', '--flow-shift', '3.0', '--offload-to-cpu', '--vae-tiling'], width: 832, height: 480, steps: 20 } },
+    ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '33', '--flow-shift', '3.0', '--offload-to-cpu', '--vae-tiling'], width: 832, height: 480, presets: [12, 20, 30], fps: 16 } },
   { id: 'wan2.2-5b-q3', kind: 'video', tier: 'medium', name: 'Wan 2.2 TI2V 5B (Q3)', license: 'Apache-2.0', size: 7.0, req: { ram: 12, vram: 6 },
     description: 'Text or image to video, better motion. Best with 6–8 GB VRAM.', files: [
       { role: 'diffusion', repo: 'QuantStack/Wan2.2-TI2V-5B-GGUF', file: 'Wan2.2-TI2V-5B-Q3_K_M.gguf' },
       { role: 'vae', repo: 'Comfy-Org/Wan_2.2_ComfyUI_Repackaged', file: 'split_files/vae/wan2.2_vae.safetensors' },
       { role: 't5xxl', repo: 'city96/umt5-xxl-encoder-gguf', file: 'umt5-xxl-encoder-Q3_K_M.gguf' },
-    ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '33', '--flow-shift', '3.0', '--offload-to-cpu', '--vae-tiling'], width: 704, height: 480, steps: 20, image: true } },
+    ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '33', '--flow-shift', '3.0', '--offload-to-cpu', '--vae-tiling'], width: 704, height: 480, presets: [12, 20, 30], fps: 24, image: true, end: true } },
   { id: 'wan2.2-5b-q4', kind: 'video', tier: 'heavy', name: 'Wan 2.2 TI2V 5B (Q4)', license: 'Apache-2.0', size: 8.5, req: { ram: 16, vram: 8 },
     description: 'Best local video quality here. 8 GB+ VRAM recommended.', files: [
       { role: 'diffusion', repo: 'QuantStack/Wan2.2-TI2V-5B-GGUF', file: 'Wan2.2-TI2V-5B-Q4_K_M.gguf' },
       { role: 'vae', repo: 'Comfy-Org/Wan_2.2_ComfyUI_Repackaged', file: 'split_files/vae/wan2.2_vae.safetensors' },
       { role: 't5xxl', repo: 'city96/umt5-xxl-encoder-gguf', file: 'umt5-xxl-encoder-Q4_K_M.gguf' },
-    ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '49', '--flow-shift', '3.0', '--offload-to-cpu', '--vae-tiling'], width: 1280, height: 704, steps: 20, image: true } },
+    ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '49', '--flow-shift', '3.0', '--offload-to-cpu', '--vae-tiling'], width: 1280, height: 704, presets: [12, 20, 30], fps: 24, image: true, end: true } },
+
+  // UPSCALE (stable-diffusion.cpp ESRGAN)
+  { id: 'realesrgan-x4', kind: 'upscale', tier: 'light', name: 'Real-ESRGAN 4×', license: 'BSD-3-Clause', size: 0.067, req: { ram: 2, vram: 0 },
+    description: 'Makes images 4× bigger and sharper. Small and fast.', files: [{ role: 'model', url: 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth', file: 'RealESRGAN_x4plus.pth' }] },
+  { id: 'realesrgan-x4-anime', kind: 'upscale', tier: 'light', name: 'Real-ESRGAN 4× Anime', license: 'BSD-3-Clause', size: 0.018, req: { ram: 2, vram: 0 },
+    description: '4× upscaler tuned for illustrations, anime and flat colors.', files: [{ role: 'model', url: 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth', file: 'RealESRGAN_x4plus_anime_6B.pth' }] },
 ]
 // Models removed from the catalog because the engine rejects them; their files are cleaned up on start.
 const RETIRED = ['tiny-sd-turbo']
-const ENGINE_FOR = { text: 'llama', image: 'sd', video: 'sd', stt: 'whisper' }
+const ENGINE_FOR = { text: 'llama', image: 'sd', video: 'sd', upscale: 'sd', stt: 'whisper' }
 
 // ---------- state ----------
 let root = null
@@ -268,6 +274,7 @@ function status() {
       size: Math.round((m.size || 0) * GB), req: m.req, ram: m.req?.ram ? `${m.req.ram} GB RAM` : '',
       badge: m.tier === 'light' ? 'Light' : m.tier === 'medium' ? 'Medium' : m.tier === 'heavy' ? 'Heavy' : 'Custom',
       fit: fitFor(m), installed: isInstalled(m), engineSupported: engineSupported(m.kind), vision: !!m.vision, visionReady: hasVision(m),
+      gen: m.args ? { presets: m.args.presets || [20, 28, 40], fixedSteps: !!m.args.fixedSteps, width: m.args.width, height: m.args.height, fps: m.args.fps || 0, image: m.kind === 'image' || !!m.args.image, ref: !!m.args.ref, end: !!m.args.end } : null,
       downloading: job ? { received: job.received, total: job.total, label: job.label } : null,
     }
   })
@@ -670,7 +677,7 @@ function runProcess(bin, args, onLine, signal) {
   })
 }
 
-async function generateMedia({ modelId, prompt, negative, width, height, steps, seed, initImage, mask, strength, frames }, onProgress) {
+async function generateMedia({ modelId, prompt, negative, width, height, steps, seed, initImage, mask, strength, frames, fps, refImages, endImage, jobId }, onProgress) {
   const m = allModels().find((x) => x.id === modelId)
   if (!m || !['image', 'video'].includes(m.kind)) throw new Error('Unknown local image/video model.')
   if (!isInstalled(m)) throw new Error(`${m.name} is not downloaded yet.`)
@@ -694,9 +701,14 @@ async function generateMedia({ modelId, prompt, negative, width, height, steps, 
     else extra.push('--steps', String(steps))
   }
   if (frames && a.mode === 'vid_gen') {
+    // Wan needs 4n+1 frames.
+    const f = Math.max(5, Math.round((frames - 1) / 4) * 4 + 1)
     const i = extra.indexOf('--video-frames')
-    if (i >= 0) extra[i + 1] = String(frames)
+    if (i >= 0) extra[i + 1] = String(f)
   }
+  if (a.mode === 'vid_gen') extra.push('--fps', String(fps || a.fps || 16))
+  if (refImages?.length && a.ref) for (const r of refImages) extra.push('-r', r)
+  if (endImage && a.end) extra.push('--end-img', endImage)
   args.push(...extra)
   args.push('-W', String(width || a.width), '-H', String(height || a.height), '-t', String(threads()))
   if (seed !== undefined && seed !== null && seed !== '') args.push('--seed', String(seed))
@@ -705,12 +717,14 @@ async function generateMedia({ modelId, prompt, negative, width, height, steps, 
   const out = path.join(os.tmpdir(), `orbi-${Date.now()}.${m.kind === 'video' ? 'webm' : 'png'}`)
   args.push('-o', out)
   const controller = new AbortController()
-  const runId = String(Date.now())
+  const runId = jobId || String(Date.now())
   activeRuns.set(runId, controller)
   try {
     await runProcess(bin, args, (line) => {
       const p = line.match(/\|\s*(\d+)\/(\d+)\s*-/) || line.match(/(\d+)\/(\d+)/)
-      if (p) onProgress?.({ step: Number(p[1]), total: Number(p[2]), line })
+      if (p) onProgress?.({ jobId: runId, step: Number(p[1]), total: Number(p[2]), line })
+      else if (/load|loading/i.test(line)) onProgress?.({ jobId: runId, step: 0, total: 0, phase: 'loading' })
+      else if (/decod/i.test(line)) onProgress?.({ jobId: runId, step: 0, total: 0, phase: 'decoding' })
     }, controller.signal).catch((e) => {
       throw new Error(friendly(String(e.message || e), m))
     })
@@ -734,8 +748,37 @@ function friendly(raw, m) {
   return `${m.name} failed: ${tail}`
 }
 
-function cancelMedia() {
+function cancelMedia(jobId) {
+  if (jobId) return activeRuns.get(jobId)?.abort()
   for (const c of activeRuns.values()) c.abort()
+}
+
+// 4x upscale with an ESRGAN model (sd-cli -M upscale).
+async function upscaleImage({ modelId, inputPath, jobId }, onProgress) {
+  const m = allModels().find((x) => x.id === modelId && x.kind === 'upscale') || allModels().find((x) => x.kind === 'upscale' && isInstalled(x))
+  if (!m || !isInstalled(m)) throw new Error('Download an upscaler first (Settings → Local models → Image → Upscalers).')
+  const bin = engineBinary('sd')
+  if (!bin) throw new Error('The image engine is not installed.')
+  const out = path.join(os.tmpdir(), `orbi-up-${Date.now()}.png`)
+  const controller = new AbortController()
+  const runId = jobId || String(Date.now())
+  activeRuns.set(runId, controller)
+  onProgress?.({ jobId: runId, step: 0, total: 0, phase: 'upscaling' })
+  try {
+    await runProcess(bin, ['-M', 'upscale', '--upscale-model', path.join(modelsDir(), localName(m.files[0])), '-i', inputPath, '-o', out, '-t', String(threads())], null, controller.signal).catch((e) => {
+      throw new Error(friendly(String(e.message || e), m))
+    })
+  } finally {
+    activeRuns.delete(runId)
+  }
+  if (!fs.existsSync(out)) throw new Error('The upscaler finished without writing an image.')
+  const buffer = fs.readFileSync(out)
+  fs.rmSync(out, { force: true })
+  return { buffer, mime: 'image/png', model: m.name }
+}
+
+function runningJobs() {
+  return [...activeRuns.keys()]
 }
 
 // ---------- speech to text: whisper-cli ----------
@@ -779,5 +822,5 @@ async function refreshHardware() {
 
 module.exports = {
   init, status, installEngine, installModel, addCustomModel, removeModel, cancel, ensureRunning, stop, installedModels,
-  generateMedia, cancelMedia, transcribe, refreshHardware, hfSearch, hfFiles, enqueue, clearQueue, removeAll, activeWork, CTX, CATALOG,
+  generateMedia, cancelMedia, upscaleImage, runningJobs, transcribe, refreshHardware, hfSearch, hfFiles, enqueue, clearQueue, removeAll, activeWork, CTX, CATALOG,
 }

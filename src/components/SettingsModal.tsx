@@ -350,7 +350,8 @@ export function SettingsModal({
                 {t('Version')} {info?.version}
               </p>
               <p className="about-credit">
-                {t('Developed by')} <strong>{info?.author ?? 'Daniel Rodrigues'}</strong>
+                <strong>{info?.company ?? 'Draft Creative Studio Ltda'}</strong>
+                <span>{info?.tagline ?? 'Creative Design & Software Development'}</span>
               </p>
               <p className="orbi-muted">{t('Chats, projects, memories and generated media are stored locally in a SQLite database and a media folder.')}</p>
               <div className="about-grid">

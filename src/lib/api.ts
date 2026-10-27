@@ -97,7 +97,7 @@ export type McpServer = {
 export type CatalogEntry = Omit<McpServer, 'status' | 'error' | 'tools' | 'enabled'>
 export type Plugin = { id: string; name: string; description: string; servers: string[]; skills: string[]; enabled: boolean }
 
-export type ModelKind = 'text' | 'image' | 'video' | 'stt'
+export type ModelKind = 'text' | 'image' | 'video' | 'stt' | 'upscale'
 export type Tier = 'light' | 'medium' | 'heavy' | 'custom'
 export type Fit = { level: 'ok' | 'slow' | 'no'; reason: string; vars?: Record<string, string | number> }
 export type LocalModel = {
@@ -117,7 +117,9 @@ export type LocalModel = {
   downloading: { received: number; total: number; label?: string } | null
   vision?: boolean
   visionReady?: boolean
+  gen?: GenInfo | null
 }
+export type GenInfo = { presets: [number, number, number]; fixedSteps: boolean; width: number; height: number; fps: number; image: boolean; ref: boolean; end: boolean }
 export type Hardware = {
   platform: string
   arch: string
@@ -186,7 +188,7 @@ export type MediaItem = {
   params?: string
 }
 
-export type AppInfo = { version: string; platform: string; userName: string; dataDir: string; author?: string }
+export type AppInfo = { version: string; platform: string; userName: string; dataDir: string; author?: string; company?: string; tagline?: string }
 
 type Bridge = {
   invoke: (channel: string, ...args: unknown[]) => Promise<any>
@@ -337,9 +339,14 @@ export const api = {
     mask?: string
     strength?: number
     frames?: number
+    fps?: number
+    refImages?: string[]
+    endImage?: string
+    jobId?: string
     board?: string
   }): Promise<MediaItem> => bridge.invoke('local:generate', p),
-  cancelLocalGenerate: () => bridge.invoke('local:cancelGenerate'),
+  cancelLocalGenerate: (jobId?: string) => bridge.invoke('local:cancelGenerate', jobId),
+  upscale: (p: { mediaId: string; modelId?: string; jobId?: string; board?: string }): Promise<MediaItem> => bridge.invoke('local:upscale', p),
   mediaDataUrl: (id: string): Promise<string | null> => bridge.invoke('media:dataUrl', id),
   saveCanvas: (dataUrl: string, meta: { name?: string; board?: string; prompt?: string }): Promise<MediaItem | null> => bridge.invoke('media:saveCanvas', dataUrl, meta),
   setMediaBoard: (id: string, board: string) => bridge.invoke('media:setBoard', id, board),
@@ -353,7 +360,6 @@ export const api = {
   installLibrarySkill: (id: string) => bridge.invoke('library:installSkill', id),
   installLibraryAgent: (id: string) => bridge.invoke('library:installAgent', id),
   installKit: (id: string) => bridge.invoke('library:installKit', id),
-  detectInvoke: (): Promise<{ url: string; version: string } | null> => bridge.invoke('invoke:detect'),
 
   termInfo: (): Promise<{ shell: string; platform: string; available: boolean; error: string | null }> => bridge.invoke('term:info'),
   termCreate: (o: { id: string; cols: number; rows: number; cwd?: string }): Promise<{ pid: number; shell: string; cwd: string }> => bridge.invoke('term:create', o),

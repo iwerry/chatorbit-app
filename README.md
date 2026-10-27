@@ -4,10 +4,10 @@ AI chat and creative studio by **OrbiX**: one app for chats, projects, agents, s
 
 React 19 · Vite · Tailwind 4 · TypeScript, packaged with Electron. Local data lives in SQLite (sql.js/WASM).
 
-> Status: **0.1.27-2**, a desktop preview for Windows. Linux and macOS builds come from the same code.
+> Status: **0.1.27-7**, a desktop preview for Windows. Linux and macOS builds come from the same code.
 > Versions follow `0.1.DD-N`: DD is the day of the month, N is the build of that day.
 >
-> Developed by **Daniel Rodrigues**.
+> **Draft Creative Studio Ltda** — Creative Design & Software Development. Developed by Daniel Rodrigues.
 
 ## What's in 0.1.27-2
 
@@ -39,8 +39,8 @@ React 19 · Vite · Tailwind 4 · TypeScript, packaged with Electron. Local data
   - Each model shows whether it fits this PC (runs well, slow, or won't fit, and why). Models that don't fit stay listed, with **Install anyway**.
   - Engines are downloaded with the first model of each kind: llama.cpp b11800, stable-diffusion.cpp and whisper.cpp. GPU builds (Vulkan) are used when there is a GPU with 2 GB+ VRAM.
   - Text: SmolLM2 135M/360M, Qwen2.5 0.5B/1.5B/7B, Llama 3.2 3B. Image: Tiny SD Turbo, Z-Image Turbo, FLUX.1 schnell. Video: Wan 2.1 1.3B, Wan 2.2 5B. Voice input: Whisper tiny/base/small/turbo.
-- **Creative studio**, organized like InvokeAI but with Orbi's own look:
-  - **Launchpad**: generate an image or video, edit an image, or build a workflow. Also shows engine status and detects a running InvokeAI.
+- **Creative studio** with Orbi's own layout:
+  - **Launchpad**: generate an image or video, edit an image, or build a workflow. Also shows which engines and models are ready.
   - **Canvas**: prompt and negative prompt, model, aspect presets, width/height, seed, steps, frames and count. Inpainting uses a mask brush and image-to-image strength, with live progress and cancel.
   - **Workflows**: the node canvas.
   - **Gallery**, with **Boards** and **Layers**.

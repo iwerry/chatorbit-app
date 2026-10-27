@@ -29,8 +29,8 @@ info.setStringValues(
   {
     ProductName: 'Orbi',
     FileDescription: 'Orbi',
-    CompanyName: 'OrbiX',
-    LegalCopyright: '© 2026 Daniel Rodrigues · OrbiX',
+    CompanyName: 'Draft Creative Studio Ltda',
+    LegalCopyright: '© 2026 Draft Creative Studio Ltda — Creative Design & Software Development',
     OriginalFilename: 'Orbi.exe',
     InternalName: 'Orbi',
     FileVersion: numeric,

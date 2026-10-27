@@ -8,7 +8,12 @@ import {
   Download,
   FileText,
   FolderInput,
+  FileDown,
+  FileUp,
   Image as ImageIcon,
+  Maximize2,
+  Paintbrush,
+  WandSparkles,
   LayoutTemplate,
   Loader2,
   Maximize,
@@ -25,10 +30,12 @@ import {
 } from 'lucide-react'
 import { api, on, type Board, type LocalStatus, type MediaItem, type ModelInfo } from '../lib/api'
 import { t } from '../lib/i18n'
+import { activity } from '../lib/activity'
+import { importComfy } from '../lib/comfy'
 
 // ---------- types ----------
 type PortType = 'text' | 'image' | 'video' | 'audio' | 'media'
-type Kind = 'prompt' | 'llm' | 'image' | 'video' | 'load' | 'voice' | 'output' | 'note'
+type Kind = 'prompt' | 'llm' | 'image' | 'video' | 'load' | 'edit' | 'inpaint' | 'upscale' | 'voice' | 'output' | 'note'
 type Media = { id: string; url: string; name: string; kind: string }
 type Val = { text?: string; media?: Media }
 type FNode = {
@@ -83,6 +90,42 @@ const DEFS: Record<Kind, Def> = {
     ],
     outputs: [{ id: 'video', label: 'Video', type: 'video' }],
     data: () => ({ frames: 33 }),
+  },
+  edit: {
+    title: 'Edit image',
+    hint: 'Change an image with words (FLUX.2 klein)',
+    icon: WandSparkles,
+    color: '#6f8fe0',
+    group: 'Image',
+    inputs: [
+      { id: 'image', label: 'Image', type: 'image' },
+      { id: 'prompt', label: 'What to change', type: 'text' },
+    ],
+    outputs: [{ id: 'image', label: 'Image', type: 'image' }],
+    data: () => ({}),
+  },
+  inpaint: {
+    title: 'Inpaint',
+    hint: 'Repaint only the area you mask',
+    icon: Paintbrush,
+    color: '#d06fa0',
+    group: 'Image',
+    inputs: [
+      { id: 'image', label: 'Image', type: 'image' },
+      { id: 'prompt', label: 'What to paint', type: 'text' },
+    ],
+    outputs: [{ id: 'image', label: 'Image', type: 'image' }],
+    data: () => ({ strength: 0.85 }),
+  },
+  upscale: {
+    title: 'Upscale 4×',
+    hint: 'Bigger and sharper (Real-ESRGAN)',
+    icon: Maximize2,
+    color: '#5fb0c0',
+    group: 'Image',
+    inputs: [{ id: 'image', label: 'Image', type: 'image' }],
+    outputs: [{ id: 'image', label: 'Image', type: 'image' }],
+    data: () => ({}),
   },
   load: { title: 'Load image', hint: 'Use an image from your library', icon: FolderInput, color: '#7aa36b', group: 'Image', inputs: [], outputs: [{ id: 'image', label: 'Image', type: 'image' }], data: () => ({}) },
   voice: {
@@ -150,6 +193,27 @@ function template(id: string): { nodes: FNode[]; edges: FEdge[] } {
     const o = n('output', 800, 200)
     return { nodes: [ld, p, v, o], edges: [e(ld, 'image', v, 'image'), e(p, 'text', v, 'prompt'), e(v, 'video', o, 'media')] }
   }
+  if (id === 'edit') {
+    const ld = n('load', 80, 100)
+    const p = n('prompt', 80, 380, { text: 'Make it a snowy winter evening, keep the subject the same' })
+    const ed = n('edit', 440, 160)
+    const o = n('output', 800, 200)
+    return { nodes: [ld, p, ed, o], edges: [e(ld, 'image', ed, 'image'), e(p, 'text', ed, 'prompt'), e(ed, 'image', o, 'media')] }
+  }
+  if (id === 'inpaint') {
+    const ld = n('load', 80, 100)
+    const p = n('prompt', 80, 380, { text: 'a vase of red flowers' })
+    const ip = n('inpaint', 440, 160)
+    const o = n('output', 800, 200)
+    return { nodes: [ld, p, ip, o], edges: [e(ld, 'image', ip, 'image'), e(p, 'text', ip, 'prompt'), e(ip, 'image', o, 'media')] }
+  }
+  if (id === 'upscale') {
+    const p = n('prompt', 60, 160, { text: 'Detailed portrait of an astronaut, studio light' })
+    const i = n('image', 400, 100)
+    const up = n('upscale', 760, 140)
+    const o = n('output', 1110, 160)
+    return { nodes: [p, i, up, o], edges: [e(p, 'text', i, 'prompt'), e(i, 'image', up, 'image'), e(up, 'image', o, 'media')] }
+  }
   // campaign
   const p = n('prompt', 40, 260, { text: 'Launch of a minimalist smartwatch: calm, premium, soft light' })
   const l1 = n('llm', 370, 80, { preset: 'image' })
@@ -167,10 +231,13 @@ const TEMPLATES = [
   { id: 'text-image', label: 'Text → image' },
   { id: 'idea-image', label: 'Idea → AI prompt → image' },
   { id: 'image-video', label: 'Image → video' },
+  { id: 'edit', label: 'Edit an image with words' },
+  { id: 'inpaint', label: 'Inpaint: repaint one area' },
+  { id: 'upscale', label: 'Generate and upscale 4×' },
   { id: 'campaign', label: 'Campaign: image, video and voiceover' },
 ]
 
-export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels }: { models: ModelInfo[]; localStatus: LocalStatus | null; onMediaCreated: (m: MediaItem) => void; onOpenModels: () => void }) {
+export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, visible = true }: { models: ModelInfo[]; localStatus: LocalStatus | null; onMediaCreated: (m: MediaItem) => void; onOpenModels: () => void; visible?: boolean }) {
   const [nodes, setNodes] = useState<FNode[]>([])
   const [edges, setEdges] = useState<FEdge[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -190,6 +257,12 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels }: 
   edgesRef.current = edges
   const stopRef = useRef(false)
   const activeMediaNode = useRef<string | null>(null)
+  const jobNode = useRef(new Map<string, string>())
+  const jobFor = (nodeId: string) => {
+    const j = `${nodeId}-${Date.now().toString(36)}`
+    jobNode.current.set(j, nodeId)
+    return j
+  }
   const mediaLock = useRef<Promise<unknown>>(Promise.resolve())
 
   // model choices
@@ -201,6 +274,16 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels }: 
     ],
     [models, localStatus],
   )
+  const editChoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'image' && m.installed && m.gen?.ref).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
+  const localImageChoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'image' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
+  const upscalers = useMemo(() => localStatus?.models.filter((m) => m.kind === 'upscale' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
+  const [maskFor, setMaskFor] = useState<string | null>(null)
+  const inputImageOf = (id: string) => {
+    const e = edges.find((x) => x.to === id && x.toPort === 'image')
+    const src = e ? nodes.find((x) => x.id === e.from) : undefined
+    const m = src?.out?.media || (src?.kind === 'load' ? media.find((x) => x.id === src.data.mediaId) : undefined)
+    return m && m.kind === 'image' ? m.url : null
+  }
   const videoChoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'video' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
 
   // load / save
@@ -233,8 +316,8 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels }: 
   }, [toast])
   useEffect(
     () =>
-      on('local:progress', (p: { step: number; total: number }) => {
-        const id = activeMediaNode.current
+      on('local:progress', (p: { jobId?: string; step: number; total: number }) => {
+        const id = p.jobId ? jobNode.current.get(p.jobId) : undefined
         if (id && p.total) patch(id, { progress: p.step / p.total })
       }),
     [],
@@ -445,7 +528,9 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels }: 
             if (choice.startsWith('local::')) {
               const initImage = init && init.kind === 'image' ? (await api.mediaDataUrl(init.id)) || undefined : undefined
               return await api.generateLocal({
+                jobId: jobFor(n.id),
                 modelId: choice.slice(7),
+                negative: n.data.negative ? String(n.data.negative) : undefined,
                 prompt,
                 width,
                 height,
@@ -475,11 +560,51 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels }: 
           activeMediaNode.current = n.id
           try {
             const initImage = init && init.kind === 'image' ? (await api.mediaDataUrl(init.id)) || undefined : undefined
-            return await api.generateLocal({ modelId, prompt, frames: Number(n.data.frames) || 33, initImage, seed: Math.floor(Math.random() * 2 ** 31) })
+            return await api.generateLocal({ jobId: jobFor(n.id), modelId, prompt, frames: Number(n.data.frames) || 33, fps: Number(n.data.fps) || undefined, initImage, seed: Math.floor(Math.random() * 2 ** 31) })
           } finally {
             activeMediaNode.current = null
           }
         })
+        onMediaCreated(item)
+        return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
+      }
+      case 'edit':
+      case 'inpaint': {
+        const img = firstMedia('image')
+        if (!img || img.kind !== 'image') throw new Error(t('Connect an image to this node.'))
+        const prompt = firstText('prompt')
+        if (!prompt) throw new Error(t('Connect a prompt to this node.'))
+        const list = n.kind === 'edit' ? editChoices : localImageChoices
+        const modelId = String(n.data.model || list[0]?.key || '')
+        if (!modelId) throw new Error(n.kind === 'edit' ? t('Image editing needs FLUX.2 klein 4B — download it in Models.') : t('No image model yet — download one in Models or connect a provider.'))
+        if (n.kind === 'inpaint' && !n.data.mask) throw new Error(t('Paint the area to change first (Paint mask).'))
+        const dataUrl = (await api.mediaDataUrl(img.id)) || undefined
+        const size = await new Promise<{ w: number; h: number }>((ok) => {
+          const im = new Image()
+          im.onload = () => ok({ w: im.naturalWidth, h: im.naturalHeight })
+          im.onerror = () => ok({ w: 768, h: 768 })
+          im.src = img.url
+        })
+        const scaleTo = Math.min(1, 1024 / Math.max(size.w, size.h))
+        const item = await withMediaLock(() =>
+          api.generateLocal({
+            jobId: jobFor(n.id),
+            modelId,
+            prompt,
+            width: snap64(size.w * scaleTo),
+            height: snap64(size.h * scaleTo),
+            ...(n.kind === 'edit' ? { refImages: dataUrl ? [dataUrl] : [] } : { initImage: dataUrl, mask: String(n.data.mask), strength: Number(n.data.strength) || 0.85 }),
+            seed: Math.floor(Math.random() * 2 ** 31),
+          }),
+        )
+        onMediaCreated(item)
+        return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
+      }
+      case 'upscale': {
+        const img = firstMedia('image')
+        if (!img || img.kind !== 'image') throw new Error(t('Connect an image to this node.'))
+        if (!upscalers.length) throw new Error(t('Download an upscaler in Models (Image → Upscalers).'))
+        const item = await withMediaLock(() => api.upscale({ mediaId: img.id, modelId: String(n.data.model || upscalers[0].key), jobId: jobFor(n.id) }))
         onMediaCreated(item)
         return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
       }
@@ -530,17 +655,22 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels }: 
   const runOne = async (id: string) => {
     stopRef.current = false
     setRunning(true)
+    const n = nodesRef.current.find((x) => x.id === id)
+    const act = activity.start({ area: 'creative', kind: 'workflow', label: `${t('Workflow')} · ${t(DEFS[n?.kind || 'image'].title)}` })
+    let ok = true
     try {
       await runNode(id, new Map(), (nid) => nid === id)
     } catch {
-      /* shown on the node */
+      ok = false
     } finally {
       setRunning(false)
+      activity.end(act, { ok, message: ok ? t('Workflow node finished.') : t('A workflow node failed.') })
     }
   }
   const runAll = async () => {
     stopRef.current = false
     setRunning(true)
+    const act = activity.start({ area: 'creative', kind: 'workflow', label: t('Workflow') })
     const memo = new Map<string, Promise<Val | undefined>>()
     const ends = nodesRef.current.filter((n) => n.kind !== 'note' && !edgesRef.current.some((e) => e.from === n.id))
     let failed = 0
@@ -553,12 +683,62 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels }: 
       if (stopRef.current) break
     }
     setRunning(false)
+    activity.end(act, { ok: !failed && !stopRef.current, message: stopRef.current ? t('Workflow stopped.') : failed ? t('Workflow finished with errors — check the red notes on the nodes.') : t('Workflow finished. Results are in your Gallery.') })
     api.media().then(setMedia)
     setToast(stopRef.current ? t('Workflow stopped.') : failed ? t('Workflow finished with errors — check the red notes on the nodes.') : t('Workflow finished. Results are in your Gallery.'))
   }
   const stopAll = () => {
     stopRef.current = true
-    api.cancelLocalGenerate()
+    for (const j of jobNode.current.keys()) api.cancelLocalGenerate(j)
+  }
+
+  // ---------- files: Orbi workflow JSON and ComfyUI import ----------
+  const fileRef = useRef<HTMLInputElement>(null)
+  const pickLocal = (names: string[], kind: 'image' | 'video') => {
+    const installed = localStatus?.models.filter((m) => m.kind === kind && m.installed) ?? []
+    const hint = names.join(' ').toLowerCase()
+    const rules: [RegExp, string][] = [
+      [/z[_-]?image/, 'z-image-turbo'],
+      [/flux[_.-]?2|klein/, 'flux2-klein-4b'],
+      [/flux/, 'flux-schnell'],
+      [/wan2[._]?2|ti2v/, 'wan2.2-5b-q4'],
+      [/wan/, 'wan2.1-1.3b'],
+    ]
+    for (const [re, id] of rules) if (re.test(hint) && installed.some((m) => m.id === id)) return id
+    return installed[0]?.id
+  }
+  const importFile = async (file: File) => {
+    try {
+      const json = JSON.parse(await file.text())
+      if (json?.orbi === 'workflow' && Array.isArray(json.nodes)) {
+        setNodes(json.nodes.map((n: FNode) => ({ ...n, status: 'idle', out: n.kind === 'prompt' || n.kind === 'note' ? n.out : undefined })))
+        setEdges(json.edges || [])
+        setToast(t('Workflow imported.'))
+      } else {
+        const r = importComfy(json)
+        const img = pickLocal(r.models, 'image')
+        const vid = pickLocal(r.models, 'video')
+        setNodes(
+          r.nodes.map((n) => ({
+            ...n,
+            data: { ...DEFS[n.kind as Kind].data(), ...n.data, ...(n.kind === 'image' && img ? { model: `local::${img}` } : {}), ...(n.kind === 'video' && vid ? { model: vid } : {}) },
+          })) as FNode[],
+        )
+        setEdges(r.edges)
+        setToast(r.unsupported.length ? t('ComfyUI workflow imported. Not available yet: {list}', { list: r.unsupported.slice(0, 4).join(', ') }) : t('ComfyUI workflow imported.'))
+      }
+      setTimeout(fit, 50)
+    } catch (e) {
+      setToast(`${t('Could not import')}: ${cleanErr(e)}`)
+    }
+  }
+  const exportFile = () => {
+    const data = JSON.stringify({ orbi: 'workflow', version: 1, nodes: nodes.map(({ out, status, error, progress, ...n }) => ({ ...n, ...(n.kind === 'prompt' || n.kind === 'note' ? { out } : {}) })), edges }, null, 2)
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([data], { type: 'application/json' }))
+    a.download = 'orbi-workflow.json'
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000)
   }
 
   // ---------- render ----------
@@ -566,7 +746,7 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels }: 
   const quickItems = quickAdd ? libItems.filter((d) => `${t(d.title)} ${d.title} ${t(d.hint)}`.toLowerCase().includes(quickAdd.q.toLowerCase())) : []
 
   return (
-    <div className="flow-wrap">
+    <div className="flow-wrap" style={visible ? undefined : { display: 'none' }}>
       <div className="flow-bar">
         <button className={`orbi-btn ${libOpen ? 'orbi-btn-soft' : ''}`} onClick={() => setLibOpen((v) => !v)}>
           <Plus size={13} /> {t('Nodes')}
@@ -582,6 +762,23 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels }: 
             ))}
           </select>
         </label>
+        <button className="orbi-btn" onClick={() => fileRef.current?.click()} title={t('Open an Orbi or ComfyUI workflow (.json)')}>
+          <FileUp size={13} /> {t('Import')}
+        </button>
+        <button className="orbi-btn" onClick={exportFile} title={t('Save this workflow as .json')}>
+          <FileDown size={13} /> {t('Export')}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".json,application/json"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) importFile(f)
+            e.target.value = ''
+          }}
+        />
         <span className="flow-hint">{t('Drag from a ● output to an input · double-click the canvas to add · scroll to zoom')}</span>
         <span className="flex-1" />
         <button className="orbi-btn" onClick={() => setNodes((cur) => cur.map((n) => ({ ...n, out: n.kind === 'prompt' || n.kind === 'note' ? n.out : undefined, status: 'idle', error: undefined })))} title={t('Clear results')}>
@@ -705,6 +902,7 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels }: 
                     media={media}
                     boards={boards}
                     onOpenModels={onOpenModels}
+                    extra={{ editChoices, localImageChoices, upscalers, onPaintMask: () => setMaskFor(n.id), hasInputImage: !!inputImageOf(n.id) }}
                   />
                   {n.status === 'running' && n.progress !== undefined && (
                     <div className="local-bar">
@@ -806,10 +1004,23 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels }: 
           </div>
         )}
         {toast && <div className="flow-toast">{toast}</div>}
+        {maskFor && inputImageOf(maskFor) && (
+          <MaskPainter
+            imageUrl={inputImageOf(maskFor)!}
+            onClose={() => setMaskFor(null)}
+            onSave={(mask) => {
+              setData(maskFor, { mask })
+              setMaskFor(null)
+            }}
+          />
+        )}
       </div>
     </div>
   )
 }
+
+type Choice = { key: string; label: string }
+type Extra = { editChoices: Choice[]; localImageChoices: Choice[]; upscalers: Choice[]; onPaintMask: () => void; hasInputImage: boolean }
 
 function NodeBody({
   n,
@@ -820,7 +1031,9 @@ function NodeBody({
   media,
   boards,
   onOpenModels,
+  extra,
 }: {
+  extra: Extra
   n: FNode
   setData: (d: FNode['data']) => void
   chatModels: ModelInfo[]
@@ -921,8 +1134,19 @@ function NodeBody({
           )}
           <label className="flow-row flow-label">
             <span>{t('Frames')}</span>
-            <input className="ab-input num" type="number" min={9} max={81} step={8} value={Number(n.data.frames) || 33} onChange={(e) => setData({ frames: Number(e.target.value) })} />
+            <input className="ab-input num" type="number" min={5} max={241} step={4} value={Number(n.data.frames) || 33} onChange={(e) => setData({ frames: Number(e.target.value) })} />
           </label>
+          <label className="flow-row flow-label">
+            <span>FPS</span>
+            <select className="ab-input" value={Number(n.data.fps) || 16} onChange={(e) => setData({ fps: Number(e.target.value) })}>
+              {[8, 12, 16, 24, 30, 60].map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="flow-hint-text num">{t('≈ {s} s of video', { s: ((Number(n.data.frames) || 33) / (Number(n.data.fps) || 16)).toFixed(1) })}</p>
           {preview}
         </>
       )
@@ -946,6 +1170,54 @@ function NodeBody({
         </>
       )
     }
+    case 'edit':
+    case 'inpaint': {
+      const list = n.kind === 'edit' ? extra.editChoices : extra.localImageChoices
+      return (
+        <>
+          {list.length ? (
+            <select className="ab-input" value={String(n.data.model || list[0].key)} onChange={(e) => setData({ model: e.target.value })}>
+              {list.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            missing(n.kind === 'edit' ? t('Download FLUX.2 klein 4B to edit images') : t('Download an image model'))
+          )}
+          {n.kind === 'inpaint' && (
+            <>
+              <button className="flow-missing" onClick={extra.onPaintMask} disabled={!extra.hasInputImage} title={extra.hasInputImage ? '' : t('Run the node that feeds the image first.')}>
+                <Paintbrush size={12} className="inline" /> {n.data.mask ? t('Edit mask') : t('Paint mask')}
+              </button>
+              <label className="flow-row flow-label">
+                <span>{t('Change')}</span>
+                <input className="ab-input num" type="number" min={0.1} max={1} step={0.05} value={Number(n.data.strength) || 0.85} onChange={(e) => setData({ strength: Number(e.target.value) })} />
+              </label>
+            </>
+          )}
+          {preview}
+        </>
+      )
+    }
+    case 'upscale':
+      return (
+        <>
+          {extra.upscalers.length ? (
+            <select className="ab-input" value={String(n.data.model || extra.upscalers[0].key)} onChange={(e) => setData({ model: e.target.value })}>
+              {extra.upscalers.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            missing(t('Download an upscaler'))
+          )}
+          {preview}
+        </>
+      )
     case 'voice':
       return (
         <>
@@ -972,4 +1244,94 @@ function NodeBody({
         </>
       )
   }
+}
+
+// Paint the area to repaint (white) over the input image; saved as a black/white mask at the image size.
+function MaskPainter({ imageUrl, onSave, onClose }: { imageUrl: string; onSave: (mask: string) => void; onClose: () => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null)
+  const [brush, setBrush] = useState(40)
+  useEffect(() => {
+    const im = new Image()
+    im.onload = () => setSize({ w: im.naturalWidth, h: im.naturalHeight })
+    im.src = imageUrl
+  }, [imageUrl])
+  const draw = (e: RPointerEvent<HTMLCanvasElement>) => {
+    const c = canvasRef.current!
+    const ctx = c.getContext('2d')!
+    const r = c.getBoundingClientRect()
+    const at = (ev: { clientX: number; clientY: number }) => ({ x: ((ev.clientX - r.left) / r.width) * c.width, y: ((ev.clientY - r.top) / r.height) * c.height })
+    const k = c.width / r.width
+    let last = at(e)
+    ctx.strokeStyle = ctx.fillStyle = '#ffffff'
+    ctx.lineWidth = brush * k
+    ctx.lineCap = ctx.lineJoin = 'round'
+    ctx.globalCompositeOperation = e.button === 2 || e.altKey ? 'destination-out' : 'source-over'
+    ctx.beginPath()
+    ctx.arc(last.x, last.y, (brush * k) / 2, 0, Math.PI * 2)
+    ctx.fill()
+    c.setPointerCapture(e.pointerId)
+    const move = (ev: PointerEvent) => {
+      const p = at(ev)
+      ctx.beginPath()
+      ctx.moveTo(last.x, last.y)
+      ctx.lineTo(p.x, p.y)
+      ctx.stroke()
+      last = p
+    }
+    const up = () => {
+      c.removeEventListener('pointermove', move)
+      c.removeEventListener('pointerup', up)
+    }
+    c.addEventListener('pointermove', move)
+    c.addEventListener('pointerup', up)
+  }
+  const save = () => {
+    const c = canvasRef.current
+    if (!c) return
+    const out = document.createElement('canvas')
+    out.width = c.width
+    out.height = c.height
+    const ctx = out.getContext('2d')!
+    ctx.fillStyle = '#000'
+    ctx.fillRect(0, 0, out.width, out.height)
+    ctx.drawImage(c, 0, 0)
+    onSave(out.toDataURL('image/png'))
+  }
+  return (
+    <div className="orbi-modal-backdrop" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="mask-painter" role="dialog" aria-label={t('Paint mask')}>
+        <div className="flex items-center justify-between gap-3">
+          <strong>{t('Paint the area to change')}</strong>
+          <label className="studio-brush">
+            <span className="num">{brush}px</span>
+            <input type="range" min={6} max={160} value={brush} onChange={(e) => setBrush(Number(e.target.value))} />
+          </label>
+        </div>
+        <div className="mask-stage">
+          {size && (
+            <div className="mask-frame" style={(() => {
+              const k = Math.min(860 / size.w, (window.innerHeight * 0.66) / size.h, 1.5)
+              return { width: size.w * k, height: size.h * k }
+            })()}>
+              <img src={imageUrl} alt="" draggable={false} />
+              <canvas ref={canvasRef} width={size.w} height={size.h} onPointerDown={draw} onContextMenu={(e) => e.preventDefault()} />
+            </div>
+          )}
+        </div>
+        <p className="flow-hint-text">{t('Paint with the mouse · right-click or Alt to erase')}</p>
+        <div className="flex justify-end gap-2">
+          <button className="orbi-btn" onClick={() => canvasRef.current?.getContext('2d')!.clearRect(0, 0, 99999, 99999)}>
+            {t('Clear')}
+          </button>
+          <button className="orbi-btn" onClick={onClose}>
+            {t('Cancel')}
+          </button>
+          <button className="orbi-btn orbi-btn-primary" onClick={save}>
+            {t('Use this mask')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }

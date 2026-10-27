@@ -5,7 +5,9 @@ ManifestDPIAware true
 
 !define APP_NAME "Orbi"
 !define APP_ID "com.orbix.orbi"
-!define COMPANY "OrbiX"
+!define COMPANY "Draft Creative Studio Ltda"
+; Registry path stays the same so updates find the existing install.
+!define REG_COMPANY "OrbiX"
 !ifndef VERSION
   !define VERSION "0.1.0"
 !endif
@@ -14,7 +16,7 @@ ManifestDPIAware true
 Name "${APP_NAME}"
 OutFile "..\release\Orbi-Setup-${VERSION}.exe"
 InstallDir "$LOCALAPPDATA\Programs\${APP_NAME}"
-InstallDirRegKey HKCU "Software\${COMPANY}\${APP_NAME}" "InstallDir"
+InstallDirRegKey HKCU "Software\${REG_COMPANY}\${APP_NAME}" "InstallDir"
 RequestExecutionLevel user
 BrandingText "${COMPANY} · ${APP_NAME} ${VERSION}"
 
@@ -27,7 +29,7 @@ VIAddVersionKey "CompanyName" "${COMPANY}"
 VIAddVersionKey "FileDescription" "${APP_NAME} Setup"
 VIAddVersionKey "FileVersion" "${NUMVER}"
 VIAddVersionKey "ProductVersion" "${VERSION}"
-VIAddVersionKey "LegalCopyright" "© 2026 Daniel Rodrigues · ${COMPANY}"
+VIAddVersionKey "LegalCopyright" "© 2026 ${COMPANY} — Creative Design & Software Development"
 
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
@@ -86,7 +88,7 @@ Section "Install"
   CreateShortCut "$SMPROGRAMS\${APP_NAME}.lnk" "$INSTDIR\${APP_NAME}.exe" "" "$INSTDIR\${APP_NAME}.exe" 0
   CreateShortCut "$DESKTOP\${APP_NAME}.lnk" "$INSTDIR\${APP_NAME}.exe" "" "$INSTDIR\${APP_NAME}.exe" 0
 
-  WriteRegStr HKCU "Software\${COMPANY}\${APP_NAME}" "InstallDir" "$INSTDIR"
+  WriteRegStr HKCU "Software\${REG_COMPANY}\${APP_NAME}" "InstallDir" "$INSTDIR"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "${APP_NAME}"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "${UNINST_KEY}" "Publisher" "${COMPANY}"
@@ -108,6 +110,6 @@ Section "Uninstall"
   Delete "$DESKTOP\${APP_NAME}.lnk"
   RMDir /r "$INSTDIR"
   DeleteRegKey HKCU "${UNINST_KEY}"
-  DeleteRegKey HKCU "Software\${COMPANY}\${APP_NAME}"
+  DeleteRegKey HKCU "Software\${REG_COMPANY}\${APP_NAME}"
   ; Your chats and media in %APPDATA%\Orbi are kept on purpose.
 SectionEnd

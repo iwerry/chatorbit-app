@@ -79,6 +79,7 @@ const TerminalPanel = lazy(() => import('./components/TerminalPanel').then((m) =
 import { RunCodeContext } from './components/Markdown'
 import { ThemeSwitcher, type ThemeMode } from './components/ThemeSwitcher'
 import { recordWav } from './lib/voice'
+import { activity, useActivities, type ActivityDone } from './lib/activity'
 
 const SettingsModal = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal })))
 const VoiceSettings = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.VoiceSettings })))
@@ -168,6 +169,9 @@ export default function App() {
   })
   const [themeReady, setThemeReady] = useState(false)
   const [setupOpen, setSetupOpen] = useState<null | number>(null)
+  const [creativeMounted, setCreativeMounted] = useState(false)
+  const [doneToast, setDoneToast] = useState<ActivityDone | null>(null)
+  const activities = useActivities()
   const [panelOpen, setPanelOpen] = useState(false)
   const [activeNav, setActiveNav] = useState<NavKey>('chats')
   const [profileOpen, setProfileOpen] = useState(false)
@@ -243,6 +247,29 @@ export default function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const isStreaming = messages.some((m) => m.streaming)
+  useEffect(() => {
+    if (!isStreaming) return
+    const id = activity.start({ area: 'chats', kind: 'chat', label: t('Writing an answer') })
+    return () => activity.end(id, { ok: true, message: t('The answer is ready.') })
+  }, [isStreaming])
+  const activeNavRef = useRef(activeNav)
+  activeNavRef.current = activeNav
+  useEffect(
+    () =>
+      activity.onDone((a) => {
+        // Only announce when the user is somewhere else.
+        if (activeNavRef.current !== a.area) setDoneToast(a)
+      }),
+    [],
+  )
+  useEffect(() => {
+    if (!doneToast) return
+    const tm = setTimeout(() => setDoneToast(null), 9000)
+    return () => clearTimeout(tm)
+  }, [doneToast])
+  useEffect(() => {
+    if (activeNav === 'creative') setCreativeMounted(true)
+  }, [activeNav])
   const currentModel = models.find((m) => m.key === selectedModel)
   const chatModels = useMemo(() => models.filter((m) => !m.image || !/image/i.test(m.id)), [models])
 
@@ -1024,13 +1051,14 @@ export default function App() {
             return (
               <button
                 key={item.id}
-                className={`rail-button ${selected ? 'rail-button-active' : ''}`}
+                className={`rail-button ${selected ? 'rail-button-active' : ''} ${activities.some((a) => a.area === item.id) ? 'rail-busy' : ''}`}
                 onClick={() => toggleNavigation(item.id)}
                 aria-label={t(item.label)}
                 aria-pressed={selected}
                 title={t(item.label)}
               >
                 <Icon size={18} strokeWidth={1.8} />
+                {activities.some((a) => a.area === item.id) && <span className="rail-busy-count num">{activities.filter((a) => a.area === item.id).length}</span>}
               </button>
             )
           })}
@@ -1140,9 +1168,11 @@ export default function App() {
         </>
       )}
 
-      {activeNav === 'creative' ? (
-        <Suspense fallback={<main className="view-loading" />}>
+      {/* Creative stays mounted after the first visit so renders keep running in the background. */}
+      {(creativeMounted || activeNav === 'creative') && (
+        <Suspense fallback={activeNav === 'creative' ? <main className="view-loading" /> : null}>
           <CreativeStudio
+            visible={activeNav === 'creative'}
             themeMode={themeMode}
             setThemeMode={setThemeMode}
             onBack={() => {
@@ -1155,7 +1185,8 @@ export default function App() {
             onMediaCreated={(m) => setMedia((cur) => [m, ...cur])}
           />
         </Suspense>
-      ) : activeNav === 'explore' ? (
+      )}
+      {activeNav === 'creative' ? null : activeNav === 'explore' ? (
         <Suspense fallback={<main className="view-loading" />}>
           <Explore
             onBack={() => {
@@ -2049,6 +2080,28 @@ export default function App() {
       )}
 
       {notice && <div className="orbi-toast">{notice}</div>}
+      {doneToast && (
+        <div className={`done-toast ${doneToast.ok ? '' : 'done-toast-error'}`} role="status">
+          <span className={`done-toast-dot kind-${doneToast.kind}`} />
+          <span className="min-w-0 flex-1">
+            <strong>{doneToast.ok ? doneToast.message || t('Finished') : t('Something went wrong')}</strong>
+            <small className="truncate">{doneToast.ok ? doneToast.label : doneToast.message}</small>
+          </span>
+          <button
+            className="orbi-btn orbi-btn-primary"
+            onClick={() => {
+              toggleNavigation(doneToast.area === 'creative' ? 'creative' : 'chats')
+              if (doneToast.area === 'chats') setPanelOpen(false)
+              setDoneToast(null)
+            }}
+          >
+            {t('Open')}
+          </button>
+          <button className="update-x" onClick={() => setDoneToast(null)} aria-label={t('Close')}>
+            <X size={13} />
+          </button>
+        </div>
+      )}
       {isDesktop && (
         <Suspense fallback={null}>
           <UpdateCenter />

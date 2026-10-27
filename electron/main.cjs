@@ -89,6 +89,8 @@ const api = {
     userName: getSetting('userName') || os.userInfo().username || 'there',
     dataDir: app.getPath('userData'),
     author: 'Daniel Rodrigues',
+    company: 'Draft Creative Studio Ltda',
+    tagline: 'Creative Design & Software Development',
   }),
   'settings:get': (key, fallback) => getSetting(key, fallback),
   'settings:set': (key, value) => setSetting(key, value),
@@ -312,7 +314,13 @@ const api = {
     }
     try {
       const { buffer, mime, model } = await localAI.generateMedia(
-        { ...payload, initImage: payload.initImage && writeTemp(payload.initImage, 'init'), mask: payload.mask && writeTemp(payload.mask, 'mask') },
+        {
+          ...payload,
+          initImage: payload.initImage && writeTemp(payload.initImage, 'init'),
+          mask: payload.mask && writeTemp(payload.mask, 'mask'),
+          endImage: payload.endImage && writeTemp(payload.endImage, 'end'),
+          refImages: (payload.refImages || []).map((r, i) => writeTemp(r, `ref${i}`)).filter(Boolean),
+        },
         (p) => !sender.isDestroyed() && sender.send('local:progress', p),
       )
       const kind = mime.startsWith('video') ? 'video' : 'image'
@@ -322,7 +330,14 @@ const api = {
       for (const f of tmp) fs.rmSync(f, { force: true })
     }
   },
-  'local:cancelGenerate': () => localAI.cancelMedia(),
+  'local:cancelGenerate': (jobId) => localAI.cancelMedia(jobId),
+  'local:upscale': async ({ mediaId, modelId, jobId, board }) => {
+    const sender = currentSender
+    const r = db.get('SELECT * FROM media WHERE id = ?', [mediaId])
+    if (!r) throw new Error('Image not found.')
+    const { buffer, mime, model } = await localAI.upscaleImage({ modelId, inputPath: path.join(mediaDir(), r.file), jobId }, (p) => !sender.isDestroyed() && sender.send('local:progress', p))
+    return saveMedia({ buffer, mime, kind: 'image', name: `${path.basename(r.name, path.extname(r.name))}-4x.png`, prompt: r.prompt, model, source: 'creative', board: board ?? r.board })
+  },
   'media:dataUrl': (id) => {
     const r = db.get('SELECT * FROM media WHERE id = ?', [id])
     if (!r) return null
@@ -409,17 +424,6 @@ const api = {
   },
 
   // ---------- InvokeAI (optional external engine) ----------
-  'invoke:detect': async () => {
-    for (const port of [9090]) {
-      try {
-        const r = await fetch(`http://127.0.0.1:${port}/api/v1/app/version`, { signal: AbortSignal.timeout(1500) })
-        if (r.ok) return { url: `http://127.0.0.1:${port}`, version: (await r.json()).version }
-      } catch {
-        /* not running */
-      }
-    }
-    return null
-  },
 
 
   // workflows (Creative)
