@@ -22,6 +22,7 @@ export type ModelInfo = {
   providerName: string
   mode: 'API' | 'Local'
   image: boolean
+  vision?: boolean
 }
 
 export type Project = { id: string; name: string; created_at: number }
@@ -114,6 +115,8 @@ export type LocalModel = {
   installed: boolean
   engineSupported: boolean
   downloading: { received: number; total: number; label?: string } | null
+  vision?: boolean
+  visionReady?: boolean
 }
 export type Hardware = {
   platform: string

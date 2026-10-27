@@ -1,7 +1,9 @@
-## Orbi 0.1.27-5
+## Orbi 0.1.27-6
 
-**Fixes**
-- Your chat preferences are now remembered after restarts and updates: active agents, compared models, and Instant/Thinking mode.
-- Saving is faster and also happens when the window closes or Windows signs out, so recent changes (skills, MCP servers, plugins) are never lost.
+**Images in local chats**
+- Gemma 3 4B and Gemma 3 12B can now see images you attach (they download a small image projector).
+- New model: **Qwen3-VL 4B**, which reads screenshots, documents and photos.
+- Already have Gemma 3? Click **Enable image input** in Settings → Local models.
+- Text-only models (like Qwen3 4B) no longer fail with "image input is not supported". They answer from the text and tell you which models can see images.
 
 Developed by Daniel Rodrigues.

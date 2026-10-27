@@ -89,6 +89,7 @@ function ModelRow({ m, recommended, queued, onChanged }: { m: LocalModel; recomm
         <p className="hub-model-title">
           <strong>{m.name}</strong>
           {recommended && !m.installed && <span className="hub-badge hub-badge-rec">{t('Recommended')}</span>}
+          {m.vision && <span className="hub-badge">{t('Sees images')}</span>}
           <span className="hub-meta num">{[fmtBytes(m.size), m.req?.ram ? `${m.req.ram} GB RAM` : '', m.req?.vram ? `${m.req.vram} GB VRAM` : '', m.license].filter(Boolean).join(' · ')}</span>
         </p>
         <p className="hub-desc">{t(m.description)}</p>
@@ -111,6 +112,12 @@ function ModelRow({ m, recommended, queued, onChanged }: { m: LocalModel; recomm
       <div className="hub-actions">
         {m.installed ? (
           <>
+            {m.vision && !m.visionReady && !m.downloading && (
+              <button className="orbi-btn" disabled={busy} onClick={() => run(() => api.installLocalModel(m.id))} title={t('Downloads the image projector (≈0.8 GB)')}>
+                <ImageIcon size={13} /> {t('Enable image input')}
+              </button>
+            )}
+            {m.downloading && <span className="provider-status num">{pct}%</span>}
             <span className="provider-status">
               <Check size={12} className="inline" /> {t('Ready')}
             </span>

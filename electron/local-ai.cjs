@@ -76,16 +76,27 @@ const CATALOG = [
     description: 'Good everyday assistant on a normal laptop.', files: [{ role: 'model', repo: 'bartowski/Qwen2.5-1.5B-Instruct-GGUF', file: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf' }] },
   { id: 'llama3.2-3b', kind: 'text', tier: 'medium', name: 'Llama 3.2 3B', license: 'Llama 3.2 Community', size: 2.02, req: { ram: 5, vram: 0 },
     description: 'Solid writing and reasoning for its size.', files: [{ role: 'model', repo: 'bartowski/Llama-3.2-3B-Instruct-GGUF', file: 'Llama-3.2-3B-Instruct-Q4_K_M.gguf' }] },
-  { id: 'gemma3-4b', kind: 'text', tier: 'medium', name: 'Gemma 3 4B', license: 'Gemma', size: 2.49, req: { ram: 6, vram: 0 },
-    description: 'Strong writer with wide language coverage. Great default for 8–16 GB PCs.', files: [{ role: 'model', repo: 'unsloth/gemma-3-4b-it-GGUF', file: 'gemma-3-4b-it-Q4_K_M.gguf' }] },
+  { id: 'gemma3-4b', kind: 'text', tier: 'medium', name: 'Gemma 3 4B', license: 'Gemma', size: 3.3, req: { ram: 6, vram: 0 }, vision: true,
+    description: 'Strong writer with wide language coverage — and it can see images you attach.', files: [
+      { role: 'model', repo: 'unsloth/gemma-3-4b-it-GGUF', file: 'gemma-3-4b-it-Q4_K_M.gguf' },
+      { role: 'mmproj', repo: 'unsloth/gemma-3-4b-it-GGUF', pattern: '^mmproj[^/]*\\.gguf$', optional: true },
+    ] },
+  { id: 'qwen3-vl-4b', kind: 'text', tier: 'medium', name: 'Qwen3-VL 4B', license: 'Apache-2.0', size: 3.3, req: { ram: 6, vram: 0 }, vision: true,
+    description: 'Sees images: reads screenshots, documents and photos, and describes or answers about them.', files: [
+      { role: 'model', repo: 'Qwen/Qwen3-VL-4B-Instruct-GGUF', pattern: 'Q4_K_M\\.gguf$' },
+      { role: 'mmproj', repo: 'Qwen/Qwen3-VL-4B-Instruct-GGUF', pattern: '^mmproj[^/]*F16[^/]*\\.gguf$|^mmproj[^/]*\\.gguf$', optional: true },
+    ] },
   { id: 'qwen3-4b', kind: 'text', tier: 'medium', name: 'Qwen3 4B Instruct', license: 'Apache-2.0', size: 2.5, req: { ram: 6, vram: 0 },
     description: 'The best small all-rounder: reasoning, code, tools and Portuguese. Fast with any GPU.', files: [{ role: 'model', repo: 'unsloth/Qwen3-4B-Instruct-2507-GGUF', file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf' }] },
   { id: 'qwen2.5-7b', kind: 'text', tier: 'heavy', name: 'Qwen2.5 7B', license: 'Apache-2.0', size: 4.68, req: { ram: 10, vram: 6 },
     description: 'Strong local model. Best with a GPU (6 GB+) or 16 GB RAM.', files: [{ role: 'model', repo: 'bartowski/Qwen2.5-7B-Instruct-GGUF', file: 'Qwen2.5-7B-Instruct-Q4_K_M.gguf' }] },
   { id: 'qwen3-8b', kind: 'text', tier: 'heavy', name: 'Qwen3 8B', license: 'Apache-2.0', size: 5.03, req: { ram: 10, vram: 6 },
     description: 'Thinks before answering. Excellent reasoning and code on a 6–8 GB GPU.', files: [{ role: 'model', repo: 'unsloth/Qwen3-8B-GGUF', file: 'Qwen3-8B-Q4_K_M.gguf' }] },
-  { id: 'gemma3-12b', kind: 'text', tier: 'heavy', name: 'Gemma 3 12B', license: 'Gemma', size: 7.3, req: { ram: 16, vram: 10 },
-    description: 'Near cloud-level writing. Needs a strong GPU or 16 GB+ RAM.', files: [{ role: 'model', repo: 'unsloth/gemma-3-12b-it-GGUF', file: 'gemma-3-12b-it-Q4_K_M.gguf' }] },
+  { id: 'gemma3-12b', kind: 'text', tier: 'heavy', name: 'Gemma 3 12B', license: 'Gemma', size: 8.2, req: { ram: 16, vram: 10 }, vision: true,
+    description: 'Near cloud-level writing, and it sees images. Needs a strong GPU or 16 GB+ RAM.', files: [
+      { role: 'model', repo: 'unsloth/gemma-3-12b-it-GGUF', file: 'gemma-3-12b-it-Q4_K_M.gguf' },
+      { role: 'mmproj', repo: 'unsloth/gemma-3-12b-it-GGUF', pattern: '^mmproj[^/]*\\.gguf$', optional: true },
+    ] },
 
   // SPEECH TO TEXT (whisper.cpp)
   { id: 'whisper-tiny', kind: 'stt', tier: 'light', name: 'Whisper Tiny', license: 'MIT', size: 0.075, req: { ram: 1, vram: 0 },
@@ -205,8 +216,16 @@ function allModels() {
 function localName(f) {
   return path.basename(f.file || f.url || '')
 }
+function fileOf(m, role) {
+  const f = m.files.find((x) => x.role === role)
+  return f?.file && fs.existsSync(path.join(modelsDir(), localName(f))) ? path.join(modelsDir(), localName(f)) : null
+}
+// A text model sees images only when its vision projector (mmproj) is on disk.
+function hasVision(m) {
+  return !!(m.vision && fileOf(m, 'mmproj'))
+}
 function isInstalled(m) {
-  return m.files.every((f) => f.file && fs.existsSync(path.join(modelsDir(), localName(f))))
+  return m.files.every((f) => f.optional || (f.file && fs.existsSync(path.join(modelsDir(), localName(f)))))
 }
 
 function fitFor(m) {
@@ -248,7 +267,7 @@ function status() {
       id: m.id, kind: m.kind, tier: m.tier, name: m.name, description: m.description, license: m.license,
       size: Math.round((m.size || 0) * GB), req: m.req, ram: m.req?.ram ? `${m.req.ram} GB RAM` : '',
       badge: m.tier === 'light' ? 'Light' : m.tier === 'medium' ? 'Medium' : m.tier === 'heavy' ? 'Heavy' : 'Custom',
-      fit: fitFor(m), installed: isInstalled(m), engineSupported: engineSupported(m.kind),
+      fit: fitFor(m), installed: isInstalled(m), engineSupported: engineSupported(m.kind), vision: !!m.vision, visionReady: hasVision(m),
       downloading: job ? { received: job.received, total: job.total, label: job.label } : null,
     }
   })
@@ -291,7 +310,7 @@ async function resolveFile(f) {
   const re = new RegExp(f.pattern, 'i')
   const names = (json.siblings || []).map((s) => s.rfilename)
   // Exact pattern first; otherwise the first model file at the root of the repo (repos rename quantizations over time).
-  const hit = names.find((n) => re.test(n)) || names.find((n) => /^[^/]+\.(gguf|safetensors)$/i.test(n) && !/vae|clip|t5|encoder|mmproj/i.test(n))
+  const hit = names.find((n) => re.test(n) && (f.role === 'mmproj' || !/mmproj/i.test(n))) || (['model', 'diffusion'].includes(f.role) ? names.find((n) => /^[^/]+\.(gguf|safetensors)$/i.test(n) && !/vae|clip|t5|encoder|mmproj/i.test(n)) : null)
   if (!hit) throw new Error(`${f.repo} has no compatible model file anymore. Pick another model or search Hugging Face.`)
   f.file = hit
   return { url: `${HF}/${f.repo}/resolve/main/${hit.split('/').map(encodeURIComponent).join('/')}`, file: path.basename(hit) }
@@ -380,10 +399,16 @@ async function installModel(id) {
   let done = 0
   try {
     for (const f of m.files) {
-      const { url, file } = await resolveFile(f)
-      const dest = path.join(modelsDir(), file)
-      if (!fs.existsSync(dest)) await download(url, dest, id, `${m.name} · ${file}`, done, total)
-      done += fs.existsSync(dest) ? fs.statSync(dest).size : 0
+      try {
+        const { url, file } = await resolveFile(f)
+        const dest = path.join(modelsDir(), file)
+        if (!fs.existsSync(dest)) await download(url, dest, id, `${m.name} · ${file}`, done, total)
+        done += fs.existsSync(dest) ? fs.statSync(dest).size : 0
+      } catch (e) {
+        // Optional extras (like the image projector) must not block the model itself.
+        if (!f.optional || jobs.get(id)?.controller.signal.aborted) throw e
+        send('local:error', { id, message: `${m.name}: image input could not be added (${String(e.message || e).slice(0, 160)})` })
+      }
     }
     if (m.files.some((f) => f.pattern)) saveResolved(m)
   } finally {
@@ -562,9 +587,11 @@ function threads() {
 }
 
 async function ensureRunning(modelId) {
-  if (server && server.modelId === modelId && server.proc.exitCode === null) return server
+  const want = allModels().find((x) => x.id === modelId)
+  const visionNow = !!(want && hasVision(want))
+  if (server && server.modelId === modelId && server.proc.exitCode === null && server.vision === visionNow) return server
   if (starting) await starting.catch(() => {})
-  if (server && server.modelId === modelId) return server
+  if (server && server.modelId === modelId && server.vision === visionNow) return server
   starting = (async () => {
     stop()
     const bin = engineBinary('llama') || legacyLlama()
@@ -575,10 +602,12 @@ async function ensureRunning(modelId) {
     const port = await freePort()
     // llama.cpp fits GPU layers to the free VRAM by itself (--fit is on by default), so -ngl is left to it.
     const args = ['-m', file, '--host', '127.0.0.1', '--port', String(port), '--alias', modelId, '-c', String(CTX), '-t', String(threads()), '--jinja']
+    const mmproj = m.vision ? fileOf(m, 'mmproj') : null
+    if (mmproj) args.push('--mmproj', mmproj)
     const proc = spawn(bin, args, { cwd: path.dirname(bin), windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] })
     let log = ''
     proc.stderr.on('data', (d) => (log = (log + d).slice(-4000)))
-    server = { proc, port, modelId }
+    server = { proc, port, modelId, vision: !!mmproj }
     proc.on('exit', () => {
       if (server?.proc === proc) server = null
       emit()
@@ -618,7 +647,7 @@ function stop() {
 function installedModels(kind = 'text') {
   return allModels()
     .filter((m) => m.kind === kind && isInstalled(m))
-    .map((m) => ({ id: m.id, name: `${m.name} (local)`, image: kind === 'image', video: kind === 'video' }))
+    .map((m) => ({ id: m.id, name: `${m.name} (local)`, image: kind === 'image', video: kind === 'video', vision: hasVision(m) }))
 }
 
 // ---------- image & video: sd-cli ----------

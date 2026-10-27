@@ -522,7 +522,14 @@ export default function App() {
     const local = target.provider === 'orbi'
     const webCtx = extra?.context ? (local ? extra.context.slice(0, 5000) : extra.context) : ''
     const sys = [systemPrompt(target), webCtx].filter(Boolean).join('\n\n')
-    const payloadMsgs = history.filter((m) => !m.error).map(toPayloadMessage)
+    let payloadMsgs = history.filter((m) => !m.error).map(toPayloadMessage)
+    // Text-only local models reject images: send a note instead and say which models can see.
+    if (local && !target.vision && payloadMsgs.some((m) => m.images?.length)) {
+      payloadMsgs = payloadMsgs.map((m) =>
+        m.images?.length ? { ...m, images: undefined, content: `${m.content}\n\n[${m.images.length} image(s) attached — this model cannot see images, answer from the text only.]` } : m,
+      )
+      setNotice(t('{model} can’t see images. For pictures, use Gemma 3 4B or Qwen3-VL 4B (Settings → Local models) or a cloud model.', { model: target.name.replace(' (local)', '') }))
+    }
     const invoked = api.sendChat(reqId, {
       providerId: target.provider,
       model: target.id,
