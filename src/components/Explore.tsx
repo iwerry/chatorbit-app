@@ -15,7 +15,7 @@ const SIGNALS: [keyof SkillSignals, string][] = [
   ['open', 'Published on GitHub with an open-source license'],
 ]
 
-function Stars({ skill }: { skill: LibrarySkill }) {
+function Stars({ skill }: { skill: Rated }) {
   const tip = SIGNALS.map(([k, label]) => `${skill.signals[k] ? '★' : '☆'} ${t(label)}`).join('\n')
   return (
     <span className="lib-stars" title={tip} aria-label={t('{n} of 5 stars', { n: skill.rating })}>
@@ -27,6 +27,7 @@ function Stars({ skill }: { skill: LibrarySkill }) {
 }
 
 type Tab = 'skills' | 'agents' | 'kits'
+type Rated = Pick<LibrarySkill, 'rating' | 'signals' | 'author' | 'kind' | 'license' | 'source'>
 
 export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void; onChanged: () => void; onUseAgent: (handle: string) => void }) {
   const [lib, setLib] = useState<Library | null>(null)
@@ -135,12 +136,12 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
               ))}
             </div>
           )}
-          {tab === 'skills' && (
+          {tab !== 'kits' && (
             <details className="lib-howto">
               <summary>
                 <Star size={12} /> {t('How the stars work')}
               </summary>
-              <p>{t('Each star is a quality signal anyone can check in the skill’s repository. Skills are ranked by stars and each profession shows its top 10.')}</p>
+              <p>{t('Each star is a quality signal anyone can check in the repository. Skills and agents are ranked by stars and each profession shows its top 10. Orbi’s own skills are published in the Orbi repository under Apache-2.0 and scored the same way.')}</p>
               <ul>
                 {SIGNALS.map(([k, label]) => (
                   <li key={k}>★ {t(label)}</li>
@@ -156,7 +157,7 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
               const handle = 'handle' in it ? (it as LibraryAgent).handle : null
               const kit = 'servers' in it ? (it as LibraryKit) : null
               const link = 'repo' in it ? (it as LibraryLink) : null
-              const skill = tab === 'skills' && !link ? (it as LibrarySkill) : null
+              const skill = tab !== 'kits' && !link ? (it as unknown as Rated) : null
               return (
                 <li key={id} className={`explore-row ${installed ? 'installed' : ''}`}>
                   <div className="min-w-0 flex-1">
@@ -174,7 +175,7 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
                       <p className="lib-author">
                         <span className={`lib-author-name ${skill.author === 'Daniel Rodrigues' ? 'mine' : ''}`}>{t('by {name}', { name: skill.author })}</span>
                         {skill.license && <span>{skill.license}</span>}
-                        {skill.signals.references ? <span>{t('{n} reference files', { n: skill.signals.references })}</span> : null}
+                        {skill.signals?.references ? <span>{t('{n} reference files', { n: skill.signals.references })}</span> : null}
                         {skill.source && (
                           <button className="lib-source" onClick={() => api.openExternal(skill.source!)}>
                             GitHub <ExternalLink size={11} />

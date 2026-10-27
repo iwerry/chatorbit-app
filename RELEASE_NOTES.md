@@ -1,4 +1,13 @@
-## Orbi 0.1.27-9
+## Orbi 0.1.27-10
+
+**Agents and skills, completed**
+- **37 agents from GitHub** (Seth Hobson's MIT collection): Kubernetes Architect, Incident Responder, AI Engineer, Prompt Engineer, Data Engineer, Business Analyst, Accessibility Expert, Content Marketer and more. Agents now have **stars, author, license and GitHub link**, and each profession shows its top 10, the same as skills.
+- **IT & Infrastructure, Journalism and Education** gained 35 skills from GitHub: incident runbooks, postmortems, connectivity triage, CI/CD, Terraform, SLOs, zero trust and IAM; desk research, interview research, research ethics and avoiding AI-sounding writing; training material and research design.
+- **All of Orbi's own skills and agents were rewritten as structured playbooks** (approach, deliverables and what to avoid) and are scored with the same rules as GitHub skills. Orbi is published under Apache-2.0, so they earn the open-license star.
+- Skills and agents you already installed are upgraded to the new playbooks automatically, **unless you edited them**.
+- **Daniskills now has 5 stars**, since its repository now has a license.
+
+## Orbi 0.1.27-9 (previous)
 
 **Explore, reviewed and completed**
 - **131 skills from GitHub**, each checked: the repository exists, it really contains the skill, and its license allows bundling it. Every card shows the author, license, number of reference files and a GitHub link.

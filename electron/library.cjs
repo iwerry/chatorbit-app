@@ -315,6 +315,7 @@ const KITS = [
 // Skills published on GitHub (vendored by build/sync-skills.cjs, with author, source link and a verifiable star score).
 const GITHUB = require('./library-github.json')
 SKILLS.push(...GITHUB.skills)
+for (const a of GITHUB.agents || []) AGENTS.push({ ...a, category: PROFESSIONS.find((p) => p.id === a.profession)?.name || 'General' })
 const LINKS = GITHUB.links
 const DIRECTORIES = GITHUB.directories
 
@@ -330,19 +331,34 @@ const PLATFORMS = [
 ]
 for (const k of SKILLS) k.platforms = k.profession === 'social' ? PLATFORMS.filter(([, re]) => re.test(k.name + ' ' + k.description)).map(([n]) => n) : []
 
-// Built-in skills are short single-file playbooks: ★ purpose, plus ★ method when the instructions give a concrete procedure.
-for (const k of SKILLS) {
-  if (k.rating) continue
+// Orbi's own skills and agents are published in iwerry/chatorbit-app (Apache-2.0) and are scored
+// with exactly the same signals as GitHub skills: purpose, structured method (3+ sections or 1,500+
+// characters), reference files, checks and an open license.
+const PLAYBOOKS = require('./library-playbooks.cjs')
+const ORBI_SOURCE = 'https://github.com/iwerry/chatorbit-app/blob/main/electron/library.cjs'
+function scoreBuiltin(k, playbook) {
+  if (playbook) {
+    k.legacy = k.instructions
+    k.instructions = playbook
+  }
+  const method = (k.instructions.match(/^#{2,3} /gm) || []).length >= 3 || k.instructions.length >= 1500
   k.author = 'Orbi'
-  k.rating = 1 + (k.instructions.length >= 150 && k.instructions.split(/[.;:]\s/).length >= 2 ? 1 : 0)
-  k.signals = { purpose: true, method: k.rating > 1, knowledge: false, checks: false, open: false }
+  k.kind = 'orbi'
+  k.source = ORBI_SOURCE
+  k.license = 'Apache-2.0'
+  k.signals = { purpose: true, method, knowledge: false, checks: false, open: true }
+  k.rating = 2 + (method ? 1 : 0)
 }
+for (const k of SKILLS) if (!k.rating) scoreBuiltin(k, PLAYBOOKS.SKILLS[k.id])
+
+// Built-in agents are scored the same way.
+for (const a of AGENTS) if (!a.rating) scoreBuiltin(a, PLAYBOOKS.AGENTS[a.id])
 
 // Top 10 per profession, best first. Installed skills always stay visible.
-function topSkills(installed) {
+function topSkills(installed, SKILLS = module.exports.SKILLS) {
   const order = new Map(SKILLS.map((k, i) => [k.id, i]))
   const out = []
-  const KIND = { own: 0, official: 1, community: 2 }
+  const KIND = { own: 0, official: 1, community: 2, orbi: 3 }
   const norm = (n) => n.toLowerCase().replace(/[^a-z0-9]+/g, '')
   for (const p of PROFESSIONS) {
     const list = SKILLS.filter((k) => k.profession === p.id).sort((a, b) => b.rating - a.rating || (KIND[a.kind] ?? 3) - (KIND[b.kind] ?? 3) || order.get(a.id) - order.get(b.id))
@@ -361,4 +377,6 @@ function topSkills(installed) {
   return out
 }
 
-module.exports = { PROFESSIONS, SKILLS, AGENTS, KITS, LINKS, DIRECTORIES, topSkills }
+const topAgents = (installed) => topSkills(installed, AGENTS)
+
+module.exports = { PROFESSIONS, SKILLS, AGENTS, KITS, LINKS, DIRECTORIES, topSkills, topAgents }

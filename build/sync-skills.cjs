@@ -15,9 +15,9 @@ const { execSync } = require('child_process')
 const root = path.resolve(process.argv[2] || '.')
 const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'skill-sources.json'), 'utf8'))
 const OPEN = ['MIT', 'Apache-2.0', 'BSD', 'GPL-3.0', 'CC BY']
-const ACRONYMS = { seo: 'SEO', ai: 'AI', cro: 'CRO', ux: 'UX', ui: 'UI', mcp: 'MCP', d3: 'D3', x: 'X', ab: 'A/B', tiktok: 'TikTok', youtube: 'YouTube', linkedin: 'LinkedIn', ffmpeg: 'FFmpeg', moviepy: 'MoviePy', sw: '' }
+const ACRONYMS = { seo: 'SEO', ai: 'AI', cro: 'CRO', ux: 'UX', ui: 'UI', mcp: 'MCP', d3: 'D3', x: 'X', ab: 'A/B', tiktok: 'TikTok', youtube: 'YouTube', linkedin: 'LinkedIn', ffmpeg: 'FFmpeg', moviepy: 'MoviePy', sw: '', github: 'GitHub', slo: 'SLO', devops: 'DevOps', typescript: 'TypeScript', sql: 'SQL', ml: 'ML', k8s: 'Kubernetes' }
 
-const NAMES = { 'emil-design-eng': 'Design Engineering', hyperframes: 'HyperFrames', 'short-form-video-script': 'Short-Form Video Script', pixel2motion: 'Pixel2Motion', 'lemo-opuscar': 'Lemo Opuscar (code films)', 'sw-truby-anatomy': 'Truby Story Anatomy', 'sw-premise-theme': 'Premise & Theme', 'sw-character-conflict': 'Character & Conflict', 'sw-format-adaptation': 'Format & Adaptation', 'sw-series-engine-bible': 'Series Engine & Bible', 'sw-writers-room': 'Writers’ Room', '': '' }
+const NAMES = { 'emil-design-eng': 'Design Engineering', hyperframes: 'HyperFrames', 'short-form-video-script': 'Short-Form Video Script', pixel2motion: 'Pixel2Motion', 'lemo-opuscar': 'Lemo Opuscar (code films)', 'sw-truby-anatomy': 'Truby Story Anatomy', 'sw-premise-theme': 'Premise & Theme', 'sw-character-conflict': 'Character & Conflict', 'sw-format-adaptation': 'Format & Adaptation', 'sw-series-engine-bible': 'Series Engine & Bible', 'sw-writers-room': 'Writers’ Room', 'ui-ux-designer': 'UI/UX Designer', 'on-call-handoff-patterns': 'On-Call Handoff', '': '' }
 const SMALL = new Set(['and', 'to', 'of', 'the', 'for', 'in', 'on', 'with'])
 const repoDir = (repo) => path.join(root, repo.replace('/', '_'))
 
@@ -156,22 +156,64 @@ for (const src of cfg.skills) {
   })
 }
 
+
+// Agents (persona prompts) from GitHub, scored with the same signals. The plugin folder around
+// the agent counts for knowledge (skills/references) and checks (scripts/tests).
+const agents = []
+for (const src of cfg.agents || []) {
+  const rd = repoDir(src.repo)
+  const hit = walk(path.join(rd, 'plugins')).filter((f) => f.endsWith(`/agents/${src.name}.md`)).sort((a, b) => fs.statSync(b).size - fs.statSync(a).size)[0]
+  if (!hit) {
+    console.warn('missing agent', src.name)
+    continue
+  }
+  const raw = fs.readFileSync(hit, 'utf8')
+  const { meta, body } = front(raw)
+  const plugin = path.dirname(path.dirname(hit))
+  const pfiles = walk(plugin).map((f) => path.relative(plugin, f))
+  const refs = pfiles.filter((f) => /^skills\//.test(f) && /\.(md|ya?ml|json)$/i.test(f))
+  const checks = pfiles.filter((f) => /(^|\/)(scripts|tests?|evals?)\//.test(f) && /\.(py|js|mjs|cjs|ts|sh)$/.test(f))
+  const license = findLicense(plugin, rd)
+  const sections = (body.match(/^#{2,3} /gm) || []).length
+  const signals = { purpose: !!meta.description, method: sections >= 3 || body.length >= 1500, knowledge: refs.length >= 3, checks: checks.length > 0, open: OPEN.includes(license) }
+  if (!signals.open) continue
+  const rel = path.relative(rd, hit)
+  const url = `https://github.com/${src.repo}/blob/main/${rel}`
+  const name = humanize(src.name).replace(/ Pro$/, ' Expert')
+  agents.push({
+    id: `${src.profession}:gh-${src.name}`,
+    profession: src.profession,
+    handle: '@' + src.name.replace(/-/g, '_'),
+    name,
+    description: shortDesc(meta.description || name),
+    instructions: `[${name} — by ${src.author}. Source: ${url} (${license}).]\n\n${body.trim()}`,
+    starters: [],
+    author: src.author,
+    kind: 'community',
+    source: url,
+    license,
+    rating: Object.values(signals).filter(Boolean).length,
+    signals: { ...signals, references: refs.length, checkFiles: checks.length },
+  })
+}
+
 const links = cfg.links.map((l) => {
   const rd = repoDir(l.repo)
   return { ...l, id: `link:${l.repo.toLowerCase()}`, source: `https://github.com/${l.repo}`, license: findLicense(rd, rd) || 'None', kind: 'link' }
 })
 const directories = cfg.directories.map((d) => ({ ...d, source: `https://github.com/${d.repo}` }))
 
-fs.writeFileSync(path.join(__dirname, '..', 'electron', 'library-github.json'), JSON.stringify({ skills, links, directories }, null, 1) + '\n')
+fs.writeFileSync(path.join(__dirname, '..', 'electron', 'library-github.json'), JSON.stringify({ skills, agents, links, directories }, null, 1) + '\n')
 const by = {}
 for (const s of skills) (by[s.profession] ||= []).push(s)
 for (const [p, list] of Object.entries(by)) console.log(p.padEnd(12), list.length, list.map((s) => `${s.rating}★ ${s.name}`).join(' · '))
+console.log('agents:', agents.map((a) => `${a.rating}★ ${a.name}`).join(' · '))
 console.log('links:', links.map((l) => `${l.name} (${l.license})`).join(', '))
 
 // License notices for every bundled repository (MIT/Apache/BSD require keeping them).
 const notice = ['# Third-party skills bundled in Orbi', '', 'Each skill keeps its author, source link and license in the library. License texts follow.', '']
-for (const repo of [...new Set(cfg.skills.map((s) => s.repo))]) {
-  if (!skills.some((s) => s.source.startsWith(`https://github.com/${repo}`))) continue
+for (const repo of [...new Set([...cfg.skills, ...(cfg.agents || [])].map((s) => s.repo))]) {
+  if (![...skills, ...agents].some((s) => s.source.startsWith(`https://github.com/${repo}`))) continue
   const rd = repoDir(repo)
   const files = walk(rd).filter((f) => /(^|\/)(LICEN[CS]E|NOTICE)[^/]*$/i.test(f) && path.relative(rd, f).split('/').length <= 4).slice(0, 6)
   notice.push(`## ${repo}`, '', `https://github.com/${repo}`, '')

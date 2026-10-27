@@ -948,6 +948,223 @@
    "path": "skills/ai-seo",
    "author": "Corey Haines",
    "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "path": "plugins/incident-response/skills/incident-runbook-templates",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "path": "plugins/incident-response/skills/connectivity-triage",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "path": "plugins/incident-response/skills/postmortem-writing",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "path": "plugins/incident-response/skills/on-call-handoff-patterns",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "path": "plugins/shell-scripting/skills/bash-defensive-patterns",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "path": "plugins/kubernetes-operations/skills/k8s-security-policies",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "path": "plugins/cicd-automation/skills/github-actions-templates",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "path": "plugins/cicd-automation/skills/deployment-pipeline-design",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "path": "plugins/cicd-automation/skills/secrets-management",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "path": "plugins/cloud-infrastructure/skills/terraform-module-library",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "path": "plugins/cloud-infrastructure/skills/cost-optimization",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "path": "plugins/observability-monitoring/skills/slo-implementation",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "path": "plugins/observability-monitoring/skills/grafana-dashboards",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "it",
+   "path": "skills/cybersecurity/incident-response",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "it",
+   "path": "skills/cybersecurity/vulnerability-management",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "it",
+   "path": "skills/cybersecurity/identity-and-access-management",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "it",
+   "path": "skills/cybersecurity/zero-trust-architecture",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "it",
+   "path": "skills/cybersecurity/backup-and-recovery-security",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "it",
+   "path": "skills/cybersecurity/endpoint-security",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "it",
+   "path": "skills/cybersecurity/phishing-and-social-engineering",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "journalism",
+   "path": "skills/research/desk-research",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "journalism",
+   "path": "skills/research/interview-research",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "journalism",
+   "path": "skills/research/research-ethics",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "journalism",
+   "path": "skills/research/secondary-data-analysis",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "journalism",
+   "path": "skills/document-production/press-release",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "journalism",
+   "path": "plugins/avoid-ai-writing/skills/avoid-ai-writing",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "journalism",
+   "path": "plugins/content-marketing/skills/social-evidence-research",
+   "author": "Seth Hobson (wshobson)",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "education",
+   "path": "skills/document-production/training-material",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "education",
+   "path": "skills/document-production/user-guide-and-manual",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "education",
+   "path": "skills/research/research-design",
+   "author": "itsual",
+   "kind": "community"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "profession": "education",
+   "path": "skills/research/survey-design",
+   "author": "itsual",
+   "kind": "community"
   }
  ],
  "links": [
@@ -1038,6 +1255,230 @@
   {
    "repo": "j1ngg/awesome-marketing-agents",
    "description": "Marketing agents"
+  }
+ ],
+ "agents": [
+  {
+   "repo": "wshobson/agents",
+   "profession": "dev",
+   "name": "backend-architect",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "dev",
+   "name": "frontend-developer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "dev",
+   "name": "python-pro",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "dev",
+   "name": "typescript-pro",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "dev",
+   "name": "prompt-engineer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "dev",
+   "name": "ai-engineer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "dev",
+   "name": "test-automator",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "dev",
+   "name": "performance-engineer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "dev",
+   "name": "docs-architect",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "name": "incident-responder",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "name": "devops-troubleshooter",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "name": "kubernetes-architect",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "name": "cloud-architect",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "name": "terraform-specialist",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "name": "bash-pro",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "name": "observability-engineer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "name": "deployment-engineer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "name": "security-auditor",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "it",
+   "name": "threat-modeling-expert",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "data",
+   "name": "data-scientist",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "data",
+   "name": "data-engineer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "data",
+   "name": "business-analyst",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "data",
+   "name": "sql-pro",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "data",
+   "name": "database-optimizer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "data",
+   "name": "ml-engineer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "marketing",
+   "name": "content-marketer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "marketing",
+   "name": "seo-content-writer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "marketing",
+   "name": "seo-keyword-strategist",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "marketing",
+   "name": "seo-content-planner",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "marketing",
+   "name": "startup-analyst",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "marketing",
+   "name": "customer-support",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "ux",
+   "name": "ui-ux-designer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "ux",
+   "name": "accessibility-expert",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "ux",
+   "name": "design-system-architect",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "ux",
+   "name": "ui-designer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "education",
+   "name": "tutorial-engineer",
+   "author": "Seth Hobson (wshobson)"
+  },
+  {
+   "repo": "wshobson/agents",
+   "profession": "journalism",
+   "name": "search-specialist",
+   "author": "Seth Hobson (wshobson)"
   }
  ]
 }

@@ -402,7 +402,7 @@ const api = {
     return {
       professions: library.PROFESSIONS,
       skills: library.topSkills((k) => installedSkills.has(k.id) || installedSkills.has(k.name)).map((k) => ({ ...k, installed: installedSkills.has(k.id) || installedSkills.has(k.name) })),
-      agents: library.AGENTS.map((a) => ({ ...a, installed: installedAgents.has(a.handle) })),
+      agents: library.topAgents((a) => installedAgents.has(a.handle)).map((a) => ({ ...a, installed: installedAgents.has(a.handle) })),
       links: library.LINKS,
       directories: library.DIRECTORIES,
       kits: library.KITS.map((k) => ({ ...k, installed: k.skills.every((s) => installedSkills.has(s)) && k.agents.every((a) => installedAgents.has(library.AGENTS.find((x) => x.id === a)?.handle)) })),
@@ -689,6 +689,9 @@ app.on('second-instance', () => {
 app.whenReady().then(async () => {
   if (!gotLock) return
   await db.open(app.getPath('userData'))
+  // Upgrade installed library skills/agents to the new playbooks, only when the user never edited them.
+  for (const k of library.SKILLS) if (k.legacy) db.run('UPDATE skills SET instructions = ? WHERE library_id = ? AND instructions = ?', [k.instructions, k.id, k.legacy])
+  for (const a of library.AGENTS) if (a.legacy) db.run('UPDATE agents SET instructions = ? WHERE handle = ? AND instructions = ?', [a.instructions, a.handle, a.legacy])
   // First run: pre-install the lightweight (prompt-only) starters — two skills and one agent per profession.
   if (!getSetting('librarySeeded')) {
     for (const p of library.PROFESSIONS) {
