@@ -83,6 +83,8 @@ import { recordWav } from './lib/voice'
 const SettingsModal = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal })))
 const VoiceSettings = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.VoiceSettings })))
 const CreativeStudio = lazy(() => import('./components/CreativeStudio').then((m) => ({ default: m.CreativeStudio })))
+const UpdateCenter = lazy(() => import('./components/UpdateCenter').then((m) => ({ default: m.UpdateCenter })))
+const SetupWizard = lazy(() => import('./components/SetupWizard').then((m) => ({ default: m.SetupWizard })))
 const Explore = lazy(() => import('./components/Explore').then((m) => ({ default: m.Explore })))
 
 type Suggest = { kind: 'skill' | 'command' | 'agent'; id: string; label: string; hint: string; insert: string }
@@ -109,6 +111,23 @@ const starterPrompts = [
 
 function timeOf(ts: number) {
   return fmtTime(ts)
+}
+// ~3 characters per token; 8192-token window minus room for the answer.
+const LOCAL_BUDGET = (8192 - 1800) * 3
+function fitToBudget<T extends { content: string }>(msgs: T[], budget: number): T[] {
+  const out: T[] = []
+  let used = 0
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i]
+    const len = m.content.length + 20
+    if (used + len > budget) {
+      if (!out.length) out.unshift({ ...m, content: m.content.slice(-Math.max(500, budget - used)) })
+      break
+    }
+    out.unshift(m)
+    used += len
+  }
+  return out
 }
 function hostOf(url: string) {
   try {
@@ -140,7 +159,15 @@ function initials(name: string) {
 export default function App() {
   const [info, setInfo] = useState<AppInfo | null>(null)
   const [userName, setUserName] = useState('')
-  const [themeMode, setThemeMode] = useState<ThemeMode>('light')
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
+    try {
+      return (localStorage.getItem('orbi-theme') as ThemeMode) || 'light'
+    } catch {
+      return 'light'
+    }
+  })
+  const [themeReady, setThemeReady] = useState(false)
+  const [setupOpen, setSetupOpen] = useState<null | number>(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [activeNav, setActiveNav] = useState<NavKey>('chats')
   const [profileOpen, setProfileOpen] = useState(false)
@@ -177,6 +204,7 @@ export default function App() {
   const [alwaysAllow, setAlwaysAllow] = useState(false)
   const terminalRef = useRef<TerminalHandle>(null)
   const activeOverride = useRef<string[]>([])
+  const installedSig = useRef<string | null>(null)
   const activeSkills = useMemo(() => skills.filter((k) => k.enabled).map((k) => k.name), [skills])
   const [activeAgents, setActiveAgents] = useState<string[]>([])
   const [responseType, setResponseType] = useState<ResponseType>('Instant')
@@ -259,7 +287,10 @@ export default function App() {
       const i = await api.info()
       setInfo(i)
       setUserName(i.userName)
-      setThemeMode(await api.getSetting<ThemeMode>('theme', 'light'))
+      const savedTheme = await api.getSetting<ThemeMode | null>('theme', null)
+      if (savedTheme) setThemeMode(savedTheme)
+      setThemeReady(true)
+      if (!(await api.getSetting('onboarded', false))) setSetupOpen(0)
       const l = await api.getSetting<Lang>('language', 'en')
       applyLang(l)
       setLangState(l)
@@ -276,15 +307,28 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode
-    api.setSetting('theme', themeMode)
-  }, [themeMode])
+    try {
+      localStorage.setItem('orbi-theme', themeMode)
+    } catch {
+      /* storage unavailable */
+    }
+    // Save only after the stored choice was loaded, so the default never overwrites it.
+    if (themeReady) api.setSetting('theme', themeMode)
+  }, [themeMode, themeReady])
   useEffect(() => {
     if (selectedModel) api.setSetting('selectedModel', selectedModel)
   }, [selectedModel])
   // live updates from the main process
   useEffect(() => {
     const offs = [
-      on('local:status', (s: LocalStatus) => setLocalStatus(s)),
+      on('local:status', (s: LocalStatus) => {
+        setLocalStatus(s)
+        // A model finished downloading: refresh the model menus.
+        const sig = s.models.filter((m) => m.installed).map((m) => m.id).join(',')
+        if (installedSig.current !== null && installedSig.current !== sig) loadModels()
+        installedSig.current = sig
+      }),
+      on('local:error', (e: { id: string; message: string }) => setNotice(`${e.id}: ${e.message}`)),
       on('data:changed', () => refreshLists()),
       on('tool:approve', (id: string, req: { server: string; tool: string; message: string }) => setApproval({ id, ...req })),
       on('find:result', (r: { matches: number; active: number }) => setFindResult(r)),
@@ -461,13 +505,18 @@ export default function App() {
     buffers.current.set(msgId, '')
     setMessages((cur) => [...cur, placeholder])
     const finished = new Promise<{ ok: boolean; error?: string; aborted?: boolean }>((resolve) => finishers.current.set(reqId, resolve))
+    // Local models have an 8k-token window: keep the system prompt, web results and history inside it.
+    const local = target.provider === 'orbi'
+    const webCtx = extra?.context ? (local ? extra.context.slice(0, 5000) : extra.context) : ''
+    const sys = [systemPrompt(target), webCtx].filter(Boolean).join('\n\n')
+    const payloadMsgs = history.filter((m) => !m.error).map(toPayloadMessage)
     const invoked = api.sendChat(reqId, {
       providerId: target.provider,
       model: target.id,
-      system: [systemPrompt(target), extra?.context].filter(Boolean).join('\n\n'),
+      system: local ? sys.slice(0, LOCAL_BUDGET / 3) : sys,
       thinking: responseType === 'Thinking',
       effort: reasoningEffort,
-      messages: history.filter((m) => !m.error).map(toPayloadMessage),
+      messages: local ? fitToBudget(payloadMsgs, LOCAL_BUDGET - Math.min(sys.length, LOCAL_BUDGET / 3)) : payloadMsgs,
       toolServers: agentToolServers(),
     })
     // Wait for the in-band "done" event; fall back to the invoke reply if it never comes (browser preview).
@@ -815,13 +864,14 @@ export default function App() {
     { id: 'term.workspace', category: 'Terminal', label: 'Open Workspace Folder in Terminal', run: async () => { const dir = await api.workspaceDir(); runInTerminal(`cd "${dir}"`) } },
     // Help
     { id: 'help.welcome', category: 'Help', label: 'Welcome', run: () => { setTemporaryChat(false); startNewChat(); setActiveNav('chats') } },
+    { id: 'help.setup', category: 'Help', label: 'Setup Assistant…', run: () => setSetupOpen(0) },
     { id: 'help.commands', category: 'Help', label: 'Show All Commands', shortcut: 'Ctrl+Shift+P', run: () => setPalette('commands') },
     { id: 'help.docs', category: 'Help', label: 'Documentation', run: () => api.openExternal('https://github.com/iwerry/chatorbit-app#readme') },
     { id: 'help.issue', category: 'Help', label: 'Report Issue', run: () => api.openExternal('https://github.com/iwerry/chatorbit-app/issues/new') },
     { id: 'help.devtools', category: 'Help', label: 'Toggle Developer Tools', shortcut: 'Ctrl+Shift+I', run: () => api.win.devtools() },
     { id: 'help.reload', category: 'Help', label: 'Reload Window', shortcut: 'Ctrl+R', run: () => api.win.reload() },
     { id: 'help.data', category: 'Help', label: 'Open Data Folder', run: () => api.revealData() },
-    { id: 'help.updates', category: 'Help', label: 'Check for Updates…', run: () => api.openExternal('https://github.com/iwerry/chatorbit-app/releases') },
+    { id: 'help.updates', category: 'Help', label: 'Check for Updates…', run: () => api.checkUpdate().then((s) => setNotice(s.status === 'current' ? t('You have the latest version.') : s.status === 'error' ? `${t('Could not check')}: ${s.error}` : t('Version {v} is available.', { v: s.latest?.version || '' }))) },
     { id: 'help.about', category: 'Help', label: 'About Orbi', run: () => setSettingsOpen('about') },
   ]
   const commands = Object.fromEntries(commandList.map((c) => [c.id, c]))
@@ -832,7 +882,7 @@ export default function App() {
     { label: 'View', items: ['view.palette', '-', 'go.chats', 'go.creative', 'go.explore', 'go.agents', 'go.skills', 'go.mcp', 'go.media', '-', 'view.sidebar', 'view.workspace', 'view.terminal', '-', { label: 'Appearance', submenu: ['view.light', 'view.dark', 'view.terminalTheme'] }, 'view.zoomIn', 'view.zoomOut', 'view.zoomReset', 'view.fullscreen'] },
     { label: 'Go', items: ['go.chats', 'go.creative', 'go.explore', 'go.agents', 'go.skills', 'go.mcp', 'go.scheduled', 'go.memory', 'go.bookmarks', 'go.media', '-', 'go.nextChat', 'go.prevChat', '-', 'go.chat'] },
     { label: 'Terminal', items: ['term.new', 'term.toggle', '-', 'term.runSelection', 'term.runLastCode', 'term.workspace', '-', 'term.clear', 'term.kill'] },
-    { label: 'Help', items: ['help.welcome', 'help.commands', 'help.docs', '-', 'help.issue', '-', 'help.devtools', 'help.reload', 'help.data', '-', 'help.updates', 'help.about'] },
+    { label: 'Help', items: ['help.welcome', 'help.setup', 'help.commands', 'help.docs', '-', 'help.issue', '-', 'help.devtools', 'help.reload', 'help.data', '-', 'help.updates', 'help.about'] },
   ]
 
   // keyboard shortcuts (native editing keys stay with the browser)
@@ -1195,6 +1245,15 @@ export default function App() {
                               >
                                 <Plug size={15} />
                                 <span>{t('Manage providers')}</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setHeaderMenu(null)
+                                  setSettingsOpen('models')
+                                }}
+                              >
+                                <Cpu size={15} />
+                                <span>{t('Local models')}</span>
                               </button>
                               <button onClick={() => loadModels()}>
                                 <RotateCcw size={15} />
@@ -1911,6 +1970,34 @@ export default function App() {
             onLocalChanged={() => api.localStatus().then(setLocalStatus)}
             lang={lang}
             setLang={changeLang}
+            onOpenSetup={() => {
+              setSettingsOpen(null)
+              setSetupOpen(1)
+            }}
+          />
+        </Suspense>
+      )}
+      {setupOpen !== null && (
+        <Suspense fallback={null}>
+          <SetupWizard
+            startStep={setupOpen}
+            status={localStatus}
+            userName={userName}
+            setUserName={setUserName}
+            lang={lang}
+            setLang={changeLang}
+            themeMode={themeMode}
+            setThemeMode={setThemeMode}
+            onDone={({ sttModel }) => {
+              setSetupOpen(null)
+              api.setSetting('onboarded', true)
+              if (sttModel && !voiceMode) {
+                const m = { type: 'local' as const, modelId: sttModel }
+                api.setSetting('voiceMode', m)
+                setVoiceMode(m)
+              }
+              loadModels()
+            }}
           />
         </Suspense>
       )}
@@ -1942,6 +2029,11 @@ export default function App() {
       )}
 
       {notice && <div className="orbi-toast">{notice}</div>}
+      {isDesktop && (
+        <Suspense fallback={null}>
+          <UpdateCenter />
+        </Suspense>
+      )}
       {!isDesktop && <div className="orbi-preview-badge">{t('Browser preview')}</div>}
       {findOpen && (
         <FindBar

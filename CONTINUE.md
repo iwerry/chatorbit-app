@@ -1,30 +1,42 @@
-# Where we stopped — Orbi 0.1.27-1
+# Where we stopped — Orbi 0.1.27-2
 
-Versioning: `0.1.DD-N` (DD = day of the month, N = build of the day). Windows version resources use `0.1.DD.N`.
+Versioning: `0.1.DD-N` (DD = day of the month, N = build of the day). Windows resources use `0.1.DD.N`.
+The updater compares the release's publish date with this build's `electron/build-info.json`. That file is written by `build/stamp.cjs`, so the day-of-month scheme still works across months.
 
-## Done in 0.1.27-1
-- Hardware detection (`electron/hardware.cjs`), with a Light/Medium/Heavy model hub for text, image, video and voice input (`electron/local-ai.cjs`, `src/components/ModelHub.tsx`). Incompatible models are marked, but **Install anyway** still works.
-- Creative studio in the InvokeAI organization (`src/components/CreativeStudio.tsx`): Launchpad, Canvas with inpaint mask, Workflows (embedded node canvas), Gallery, Boards and Layers.
-- Microphone setup on first click: local Whisper or an API (OpenAI/Groq). Recording uses `src/lib/voice.ts`, which produces a 16 kHz WAV. Read-aloud uses system voices.
-- Web search for any model: the globe toggle or `/web`. Answers show source cards. Tool-calling models also get a `web_search` built-in tool.
-- Explore (`src/components/Explore.tsx`, `electron/library.cjs`): 8 professions with 80 skills, 80 agents and 8 kits. On first run, 2 skills and 1 agent per profession are seeded.
-- Composer `/` and `@` autocomplete.
-- i18n: English by default, plus pt-BR, es and fr (`src/lib/i18n-dicts.ts`, about 520 strings).
-- designerx pass (`src/studio.css`). Lazy loading for the studio, explore, settings and terminal.
-- About page signed "Developed by Daniel Rodrigues". Copyright is in the exe and installer.
+## Release flow (automatic updates)
+1. Bump `package.json` → `pnpm dist:win` (stamps build-info, builds, makes `release/Orbi-Setup-<v>.exe`).
+2. Push to `main`.
+3. Create GitHub Release `v<version>` and attach the installer. Installed apps (0.1.27-2+) show the update card within ~15 s of starting, or every 4 h.
+4. The installer runs silently (`/S`), closes Orbi, replaces the files and relaunches with `--updated`.
+
+## Done in 0.1.27-2
+- First-run setup wizard (`SetupWizard.tsx`): name, language and theme, then recommended models per kind. Downloads go to a queue in the main process (`local:enqueue`).
+- New catalog (`electron/local-ai.cjs`):
+  - Text: Gemma 3, Llama 3.2 1B, Qwen3 4B and 8B.
+  - Image: SDXS 512, FLUX.2 klein 4B, and Z-Image Turbo for 4 GB GPUs.
+  - Video: Wan 2.1 1.3B, now usable on 4 GB GPUs.
+  - Fit tolerance of +0.6 GB RAM. Video is not recommended without a GPU.
+  - The retired Tiny SD Turbo is cleaned up on start.
+- Hugging Face search, open folder and delete all in the model hub.
+- `NodeFlow.tsx` replaces the old non-working canvas:
+  - Typed ports and drag-to-connect.
+  - Execution with memoization, a media lock and per-node progress.
+  - New IPC: `ai:complete` and `ai:speech`.
+- Updater (`electron/updater.cjs`, `UpdateCenter.tsx`), with a silent install plus relaunch in `build/installer.nsi`.
+- Theme persistence: stored in a setting and in localStorage, and the window background follows the theme.
+- Local chat: 8k context, and history and web results trimmed to fit. llama.cpp auto-fits GPU layers (no `-ngl 99`).
+- Friendly sd-cli errors.
 
 ## Verified here
-- `tsc --noEmit` and `vite build` pass.
-- Screenshots: home, slash and @ menus, studio canvas (cloud generation through the mock provider), launchpad (dark theme), workflows, explore, and settings in Portuguese.
-- The installer builds as `release/Orbi-Setup-0.1.27-1.exe`.
+- Typecheck and build pass.
+- Screenshots: setup wizard, model hub, workflow run end to end with mock chat and image providers (LLM → image → board), wire drag, quick-add and type mismatch, update card, download and confirm via a mock release, theme kept after restart.
+- Recommendation logic tested for 4 hardware profiles.
 
-## Not testable in this sandbox (needs a real Windows PC)
-- Hugging Face model downloads and real sd-cli and whisper-cli runs. The hosts are blocked here; file resolution and engine URLs were tested earlier.
-- Live DuckDuckGo and Wikipedia results. Only the parser was unit-tested on fixtures.
-- The microphone. Electron grants the media permission by default.
+## Not testable here (needs the Windows PC)
+- Real model downloads from Hugging Face (blocked in this sandbox). New repos and patterns come from stable-diffusion.cpp docs, but some file names are resolved at runtime: SDXS, FLUX.2 klein.
+- Real sd-cli and llama runs on GPU, and a real silent install via the updater (first release that can update is the one after 0.1.27-2).
 
 ## Next ideas
-- Movable/scalable canvas layers, upscaling, control images, regional prompts.
-- Kokoro/OuteTTS local voices; whisper on macOS/Linux.
-- Translate library skill/agent descriptions; more languages.
-- Code signing and auto-update.
+- Workflow: upscale node, LoRA picker, image-edit (FLUX.2 klein `-r`) node, batch/variations, shareable workflow files.
+- Model hub: per-model speed benchmark after install; disk usage view.
+- Delta updates (UI-only patches without the full 110 MB installer).

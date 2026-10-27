@@ -10,6 +10,7 @@ const websearch = require('./websearch.cjs')
 const library = require('./library.cjs')
 const mcp = require('./mcp.cjs')
 const localAI = require('./local-ai.cjs')
+const updater = require('./updater.cjs')
 
 const isDev = !!process.env.ORBI_DEV_URL
 let win = null
@@ -151,6 +152,30 @@ const api = {
     }
   },
   'chat:abort': (reqId) => controllers.get(reqId)?.abort(),
+  // One-shot completion used by workflow nodes.
+  'ai:complete': async ({ providerId, model, system, prompt }) => {
+    let text = ''
+    await ai.streamChat(
+      { providerId, model, thinking: false, system: system || 'You are a helpful creative assistant.', messages: [{ role: 'user', content: String(prompt || '') }] },
+      await configFor(providerId, model),
+      (d) => (text += d.text || ''),
+      AbortSignal.timeout(180000),
+    )
+    return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
+  },
+  // Text to speech for workflow voiceover nodes (OpenAI key required).
+  'ai:speech': async ({ text, voice }) => {
+    const cfg = providerConfig('openai')
+    if (!cfg.apiKey) throw new Error('Voiceover needs an OpenAI key (Settings → AI providers).')
+    const res = await fetch(`${(cfg.baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '')}/audio/speech`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${cfg.apiKey}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model: 'gpt-4o-mini-tts', voice: voice || 'alloy', input: String(text).slice(0, 4000), response_format: 'mp3' }),
+    })
+    if (!res.ok) throw new Error(`Voiceover failed: ${res.status} ${(await res.text()).slice(0, 200)}`)
+    const buffer = Buffer.from(await res.arrayBuffer())
+    return saveMedia({ buffer, mime: 'audio/mpeg', kind: 'audio', name: `voiceover-${Date.now()}.mp3`, prompt: String(text).slice(0, 300), model: 'OpenAI TTS', source: 'creative' })
+  },
   'chat:title': async (payload) => {
     try {
       let text = ''
@@ -445,7 +470,28 @@ const api = {
   'local:status': () => localAI.status(),
   'local:installEngine': (key) => localAI.installEngine(key),
   'local:installModel': (id) => localAI.installModel(id),
-  'local:addCustom': (url, name) => localAI.addCustomModel(url, name),
+  'local:addCustom': (input, name) => localAI.addCustomModel(input, name),
+  'local:hfSearch': (q, kind) => localAI.hfSearch(q, kind),
+  'local:hfFiles': (repo, kind) => localAI.hfFiles(repo, kind),
+  'local:enqueue': (ids) => localAI.enqueue(ids),
+  'local:clearQueue': () => localAI.clearQueue(),
+  'local:removeAll': () => localAI.removeAll(),
+  'local:openFolder': () => shell.openPath(path.join(app.getPath('userData'), 'local-ai')),
+
+  // updates
+  'update:state': () => updater.getState(),
+  'update:check': () => updater.check({ manual: true }),
+  'update:download': () => updater.download(),
+  'update:cancel': () => updater.cancel(),
+  'update:activeWork': () => [...localAI.activeWork(), ...(controllers.size ? [{ kind: 'chat', label: 'Answer being written' }] : []), ...terminal.list().map((t) => ({ kind: 'terminal', label: `Terminal ${t}` }))],
+  'update:install': () =>
+    updater.install(() => {
+      for (const c of controllers.values()) c.abort()
+      localAI.cancelMedia()
+      localAI.stop()
+      terminal.killAll()
+      db.flush()
+    }),
   'local:refreshHardware': () => localAI.refreshHardware(),
   'local:remove': (id) => localAI.removeModel(id),
   'local:cancel': (id) => localAI.cancel(id),
@@ -555,6 +601,14 @@ function approve(req, origin) {
   })
 }
 
+// Window colors follow the last theme the user picked, so there is no light flash on start.
+function themeColors() {
+  const t = (db.ready && getSetting('theme', 'light')) || 'light'
+  if (t === 'dark') return { bg: '#0e1012', bar: '#0e1012', fg: '#d6dbd8' }
+  if (t === 'terminal') return { bg: '#040705', bar: '#040705', fg: '#58f28b' }
+  return { bg: '#eef2ef', bar: '#e6ece8', fg: '#27332c' }
+}
+
 function createWindow() {
   const w = new BrowserWindow({
     width: 1440,
@@ -562,14 +616,14 @@ function createWindow() {
     minWidth: 980,
     minHeight: 640,
     title: 'Orbi',
-    backgroundColor: '#101713',
+    backgroundColor: themeColors().bg,
     icon: path.join(__dirname, 'icon.png'),
     show: false,
     // VS Code-style title bar: the app draws its own menu next to the Orbi logo.
     titleBarStyle: 'hidden',
     ...(process.platform === 'darwin'
       ? { trafficLightPosition: { x: 12, y: 10 } }
-      : { titleBarOverlay: { color: '#eef2ef', symbolColor: '#27332c', height: 34 } }),
+      : { titleBarOverlay: { color: themeColors().bar, symbolColor: themeColors().fg, height: 34 } }),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -586,6 +640,7 @@ function createWindow() {
   })
   w.on('focus', () => (win = w))
   w.once('ready-to-show', () => w.show())
+  if (process.argv.includes('--updated')) w.webContents.once('did-finish-load', () => w.webContents.send('update:done', app.getVersion()))
   w.webContents.on('found-in-page', (_e, r) => w.webContents.send('find:result', { matches: r.matches, active: r.activeMatchOrdinal }))
   w.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//.test(url)) shell.openExternal(url)
@@ -621,6 +676,7 @@ app.whenReady().then(async () => {
   await localAI.init(path.join(app.getPath('userData'), 'local-ai'), broadcast, app)
   await mcp.init({ getSetting, setSetting, db, approve, onChange: (what) => broadcast('data:changed', what) })
   createWindow()
+  updater.init(app, broadcast, getSetting)
   // Screenshot hook used for automated checks.
   if (process.env.ORBI_SNAPSHOT) {
     win.webContents.once('did-finish-load', () =>

@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { AudioLines, Check, Cpu, Download, HardDrive, Image as ImageIcon, Link2, Loader2, MemoryStick, MessageSquareText, Mic, MonitorCog, RefreshCw, Square, Trash2, Video, X } from 'lucide-react'
-import { api, type LocalModel, type LocalStatus, type ModelKind } from '../lib/api'
+import { useEffect, useState } from 'react'
+import { AudioLines, Check, Cpu, Download, FolderOpen, HardDrive, Image as ImageIcon, Link2, Loader2, MemoryStick, MessageSquareText, Mic, MonitorCog, RefreshCw, Search, Sparkles, Square, Trash2, Video, X } from 'lucide-react'
+import { api, type HfFile, type HfRepo, type LocalModel, type LocalStatus, type ModelKind } from '../lib/api'
 import { fmtBytes, t } from '../lib/i18n'
 
 type Tab = ModelKind | 'audio'
@@ -65,7 +65,7 @@ export function HardwareCard({ status, onRefresh }: { status: LocalStatus | null
   )
 }
 
-function ModelRow({ m, recommended, onChanged }: { m: LocalModel; recommended: boolean; onChanged: () => void }) {
+function ModelRow({ m, recommended, queued, onChanged }: { m: LocalModel; recommended: boolean; queued: boolean; onChanged: () => void }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const run = async (fn: () => Promise<unknown>) => {
@@ -118,6 +118,8 @@ function ModelRow({ m, recommended, onChanged }: { m: LocalModel; recommended: b
               <Trash2 size={13} />
             </button>
           </>
+        ) : queued && !m.downloading ? (
+          <span className="provider-status">{t('Queued')}</span>
         ) : m.downloading ? (
           <button className="orbi-btn" onClick={() => api.cancelLocal(m.id)}>
             <X size={13} /> {t('Cancel')}
@@ -131,7 +133,7 @@ function ModelRow({ m, recommended, onChanged }: { m: LocalModel; recommended: b
             {busy ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} {t('Install anyway')}
           </button>
         ) : (
-          <button className="orbi-btn orbi-btn-primary" disabled={busy} onClick={() => run(() => api.installLocalModel(m.id))}>
+          <button className={`orbi-btn ${recommended ? 'orbi-btn-primary' : ''}`} disabled={busy} onClick={() => run(() => api.installLocalModel(m.id))}>
             {busy ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} {t('Download')}
           </button>
         )}
@@ -140,10 +142,8 @@ function ModelRow({ m, recommended, onChanged }: { m: LocalModel; recommended: b
   )
 }
 
-export function ModelHub({ status, onChanged, initialTab = 'text' }: { status: LocalStatus | null; onChanged: () => void; initialTab?: Tab }) {
+export function ModelHub({ status, onChanged, initialTab = 'text', onOpenSetup }: { status: LocalStatus | null; onChanged: () => void; initialTab?: Tab; onOpenSetup?: () => void }) {
   const [tab, setTab] = useState<Tab>(initialTab)
-  const [custom, setCustom] = useState('')
-  const [customError, setCustomError] = useState<string | null>(null)
   if (!status) return <div className="hub-skeleton" aria-busy="true" />
   const models = status.models.filter((m) => m.kind === tab)
   const engineKey = tab === 'text' ? 'llama' : tab === 'stt' ? 'whisper' : tab === 'audio' ? null : 'sd'
@@ -151,6 +151,26 @@ export function ModelHub({ status, onChanged, initialTab = 'text' }: { status: L
   return (
     <div className="model-hub">
       <HardwareCard status={status} onRefresh={() => api.refreshHardware().then(onChanged)} />
+      <div className="hub-toolbar">
+        {onOpenSetup && (
+          <button className="orbi-btn orbi-btn-primary" onClick={onOpenSetup}>
+            <Sparkles size={13} /> {t('Recommended setup for this PC')}
+          </button>
+        )}
+        <button className="orbi-btn" onClick={() => api.openModelsFolder()} title={status.paths?.root}>
+          <FolderOpen size={13} /> {t('Open models folder')}
+        </button>
+        <button
+          className="orbi-btn hub-danger"
+          onClick={async () => {
+            if (!confirm(t('Delete every downloaded model and engine? Your chats and images are kept.'))) return
+            await api.removeAllLocal()
+            onChanged()
+          }}
+        >
+          <Trash2 size={13} /> {t('Delete all models')}
+        </button>
+      </div>
       <div className="hub-tabs" role="tablist">
         {TABS.map((x) => {
           const Icon = x.icon
@@ -204,38 +224,126 @@ export function ModelHub({ status, onChanged, initialTab = 'text' }: { status: L
                 <small>{tier === 'light' ? t('Any PC') : tier === 'medium' ? t('8–16 GB RAM') : tier === 'heavy' ? t('Strong GPU') : ''}</small>
               </p>
               {list.map((m) => (
-                <ModelRow key={m.id} m={m} recommended={status.recommended[m.kind] === m.id} onChanged={onChanged} />
+                <ModelRow key={m.id} m={m} recommended={status.recommended[m.kind] === m.id} queued={status.queue?.includes(m.id)} onChanged={onChanged} />
               ))}
             </div>
           )
         })
       )}
 
-      {tab === 'text' && (
-        <div className="hub-custom">
-          <label className="orbi-field">
-            <Link2 size={14} />
-            <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder={t('Paste a .gguf link from Hugging Face')} spellCheck={false} />
-          </label>
-          <button
-            className="orbi-btn"
-            disabled={!custom.trim()}
-            onClick={async () => {
-              setCustomError(null)
-              try {
-                await api.addCustomLocal(custom.trim())
-                setCustom('')
-                onChanged()
-              } catch (e) {
-                setCustomError(cleanErr(e))
-              }
-            }}
-          >
-            <Download size={13} /> {t('Add')}
-          </button>
-          {customError && <p className="provider-status provider-status-error">{customError}</p>}
-        </div>
+      {(tab === 'text' || tab === 'image') && <HfSearch kind={tab} onChanged={onChanged} />}
+    </div>
+  )
+}
+
+// Search Hugging Face and install any compatible file (GGUF for text, single-file checkpoints for images).
+function HfSearch({ kind, onChanged }: { kind: 'text' | 'image'; onChanged: () => void }) {
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState<HfRepo[] | null>(null)
+  const [open, setOpen] = useState<string | null>(null)
+  const [files, setFiles] = useState<HfFile[] | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [link, setLink] = useState('')
+  useEffect(() => {
+    setResults(null)
+    setOpen(null)
+    setFiles(null)
+  }, [kind])
+  const search = async () => {
+    setBusy(true)
+    setError(null)
+    setOpen(null)
+    try {
+      setResults(await api.hfSearch(q.trim(), kind))
+    } catch (e) {
+      setError(cleanErr(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+  const openRepo = async (repo: string) => {
+    if (open === repo) return setOpen(null)
+    setOpen(repo)
+    setFiles(null)
+    try {
+      setFiles(await api.hfFiles(repo, kind))
+    } catch (e) {
+      setError(cleanErr(e))
+    }
+  }
+  const install = async (input: Parameters<typeof api.addCustomLocal>[0]) => {
+    setError(null)
+    try {
+      const p = api.addCustomLocal(input)
+      onChanged()
+      await p
+      onChanged()
+    } catch (e) {
+      setError(cleanErr(e))
+    }
+  }
+  return (
+    <div className="hf-box">
+      <p className="hub-tier">
+        {t('Search Hugging Face')}
+        <small>{kind === 'text' ? t('Any GGUF chat model') : t('Single-file SD 1.5 / SDXL checkpoints')}</small>
+      </p>
+      <form
+        className="hf-row"
+        onSubmit={(e) => {
+          e.preventDefault()
+          search()
+        }}
+      >
+        <label className="orbi-field flex-1">
+          <Search size={14} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={kind === 'text' ? t('e.g. qwen, gemma, llama, mistral') : t('e.g. dreamshaper, juggernaut, realvis')} spellCheck={false} />
+        </label>
+        <button className="orbi-btn" disabled={busy}>
+          {busy ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />} {t('Search')}
+        </button>
+      </form>
+      {results && !results.length && <p className="hub-note">{t('Nothing found. Try another name.')}</p>}
+      {results && results.length > 0 && (
+        <ul className="hf-results">
+          {results.map((r) => (
+            <li key={r.repo} className={open === r.repo ? 'open' : ''}>
+              <button className="hf-repo" onClick={() => openRepo(r.repo)}>
+                <strong>{r.repo}</strong>
+                <span className="num">↓ {new Intl.NumberFormat().format(r.downloads)}</span>
+              </button>
+              {open === r.repo && (
+                <div className="hf-files">
+                  {!files && <Loader2 size={14} className="animate-spin" />}
+                  {files && !files.length && <p className="hub-note">{t('No compatible files in this repository.')}</p>}
+                  {files?.map((f) => (
+                    <div key={f.file} className={`hf-file ${f.fits ? '' : 'too-big'}`}>
+                      <span className="min-w-0 flex-1 truncate" title={f.file}>
+                        {f.quant && <em className="hub-badge">{f.quant}</em>} {f.file}
+                      </span>
+                      <span className="hub-meta num">{fmtBytes(f.size)}</span>
+                      <button className={`orbi-btn ${f.fits ? 'orbi-btn-primary' : ''}`} onClick={() => install({ repo: r.repo, file: f.file, size: f.size, kind, name: `${r.repo.split('/')[1]} ${f.quant}`.trim() })}>
+                        <Download size={12} /> {f.fits ? t('Install') : t('Install anyway')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
+      <div className="hf-row">
+        <label className="orbi-field flex-1">
+          <Link2 size={14} />
+          <input value={link} onChange={(e) => setLink(e.target.value)} placeholder={t('…or paste a direct file link from Hugging Face')} spellCheck={false} />
+        </label>
+        <button className="orbi-btn" disabled={!link.trim()} onClick={() => install({ url: link.trim(), kind }).then(() => setLink(''))}>
+          <Download size={13} /> {t('Add')}
+        </button>
+      </div>
+      {error && <p className="provider-status provider-status-error">{error}</p>}
     </div>
   )
 }

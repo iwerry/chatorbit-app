@@ -97,4 +97,8 @@ function info() {
   return { shell: s.name, platform: process.platform, available: !!loadPty(), error: loadError ? String(loadError.message) : null }
 }
 
-module.exports = { create, write, resize, kill, killAll, info }
+function list() {
+  return [...sessions.keys()]
+}
+
+module.exports = { create, write, resize, kill, killAll, info, list }

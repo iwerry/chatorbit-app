@@ -46,6 +46,9 @@ VIAddVersionKey "LegalCopyright" "© 2026 Daniel Rodrigues · ${COMPANY}"
 !insertmacro MUI_LANGUAGE "PortugueseBR"
 
 Function .onInit
+  ; In-app updates run silently (/S): give Orbi a moment to save and close by itself.
+  IfSilent 0 +2
+    Sleep 2500
   ; Close a running copy before upgrading.
   nsExec::Exec 'taskkill /IM "${APP_NAME}.exe" /F'
 FunctionEnd
@@ -68,6 +71,10 @@ Section "Install"
   WriteRegStr HKCU "${UNINST_KEY}" "UninstallString" '"$INSTDIR\Uninstall ${APP_NAME}.exe"'
   WriteRegDWORD HKCU "${UNINST_KEY}" "NoModify" 1
   WriteRegDWORD HKCU "${UNINST_KEY}" "NoRepair" 1
+
+  ; After an in-app update, open Orbi again.
+  IfSilent 0 +2
+    Exec '"$INSTDIR\${APP_NAME}.exe" --updated'
 SectionEnd
 
 Section "Uninstall"

@@ -1,8 +1,8 @@
 {
   "name": "orbi",
   "productName": "Orbi",
-  "version": "0.1.27-1",
-  "description": "Orbi \u2014 AI chat and creative studio",
+  "version": "0.1.27-2",
+  "description": "Orbi — AI chat and creative studio",
   "author": "Daniel Rodrigues",
   "private": true,
   "type": "module",
@@ -12,7 +12,7 @@
     "build": "tsc --noEmit && vite build",
     "electron": "electron .",
     "pack:win": "electron-builder --win --x64 --dir",
-    "dist:win": "vite build && electron-builder --win --x64 --dir && node build/win-finish.cjs"
+    "dist:win": "node build/stamp.cjs && vite build && electron-builder --win --x64 --dir && node build/win-finish.cjs"
   },
   "build": {
     "appId": "com.orbix.orbi",

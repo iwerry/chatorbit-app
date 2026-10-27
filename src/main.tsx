@@ -7,6 +7,14 @@ import '@fontsource/manrope/500.css'
 import '@fontsource/manrope/600.css'
 import '@fontsource/manrope/700.css'
 import App from './App'
+
+// Apply the last theme before the first paint (the saved setting is confirmed by App right after).
+try {
+  const theme = localStorage.getItem('orbi-theme')
+  if (theme) document.documentElement.dataset.theme = theme
+} catch {
+  /* storage unavailable */
+}
 import './figma.css'
 import './orbi.css'
 import './studio.css'

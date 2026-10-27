@@ -61,19 +61,31 @@ const ENGINES = {
 // req: ram = GB of system memory needed; vram = GB of dedicated video memory for good speed (0 = CPU is fine).
 // files: repo + file, or repo + pattern (resolved with the Hugging Face API on first download).
 const CATALOG = [
-  // TEXT (llama.cpp)
+  // TEXT (llama.cpp) — ordered from lightest to strongest inside each tier; the strongest one that fits is recommended.
   { id: 'smollm2-135m', kind: 'text', tier: 'light', name: 'SmolLM2 135M', license: 'Apache-2.0', size: 0.105, req: { ram: 1, vram: 0 },
     description: 'Tiny and instant. Runs on any PC — great for testing and short answers.', files: [{ role: 'model', repo: 'bartowski/SmolLM2-135M-Instruct-GGUF', file: 'SmolLM2-135M-Instruct-Q4_K_M.gguf' }] },
   { id: 'smollm2-360m', kind: 'text', tier: 'light', name: 'SmolLM2 360M', license: 'Apache-2.0', size: 0.386, req: { ram: 1.5, vram: 0 },
     description: 'Still very light, a bit smarter than 135M.', files: [{ role: 'model', repo: 'bartowski/SmolLM2-360M-Instruct-GGUF', file: 'SmolLM2-360M-Instruct-Q8_0.gguf' }] },
   { id: 'qwen2.5-0.5b', kind: 'text', tier: 'light', name: 'Qwen2.5 0.5B', license: 'Apache-2.0', size: 0.398, req: { ram: 2, vram: 0 },
     description: 'Best of the tiny models. Multilingual, decent Portuguese.', files: [{ role: 'model', repo: 'bartowski/Qwen2.5-0.5B-Instruct-GGUF', file: 'Qwen2.5-0.5B-Instruct-Q4_K_M.gguf' }] },
-  { id: 'qwen2.5-1.5b', kind: 'text', tier: 'medium', name: 'Qwen2.5 1.5B', license: 'Apache-2.0', size: 0.99, req: { ram: 4, vram: 0 },
+  { id: 'gemma3-1b', kind: 'text', tier: 'light', name: 'Gemma 3 1B', license: 'Gemma', size: 0.81, req: { ram: 2, vram: 0 },
+    description: 'Google’s small model. Fast on any laptop, good at short writing tasks.', files: [{ role: 'model', repo: 'unsloth/gemma-3-1b-it-GGUF', file: 'gemma-3-1b-it-Q4_K_M.gguf' }] },
+  { id: 'llama3.2-1b', kind: 'text', tier: 'light', name: 'Llama 3.2 1B', license: 'Llama 3.2 Community', size: 0.81, req: { ram: 2, vram: 0 },
+    description: 'Meta’s small assistant. Quick answers and summaries.', files: [{ role: 'model', repo: 'bartowski/Llama-3.2-1B-Instruct-GGUF', file: 'Llama-3.2-1B-Instruct-Q4_K_M.gguf' }] },
+  { id: 'qwen2.5-1.5b', kind: 'text', tier: 'light', name: 'Qwen2.5 1.5B', license: 'Apache-2.0', size: 0.99, req: { ram: 3, vram: 0 },
     description: 'Good everyday assistant on a normal laptop.', files: [{ role: 'model', repo: 'bartowski/Qwen2.5-1.5B-Instruct-GGUF', file: 'Qwen2.5-1.5B-Instruct-Q4_K_M.gguf' }] },
-  { id: 'llama3.2-3b', kind: 'text', tier: 'medium', name: 'Llama 3.2 3B', license: 'Llama 3.2 Community', size: 2.02, req: { ram: 6, vram: 0 },
+  { id: 'llama3.2-3b', kind: 'text', tier: 'medium', name: 'Llama 3.2 3B', license: 'Llama 3.2 Community', size: 2.02, req: { ram: 5, vram: 0 },
     description: 'Solid writing and reasoning for its size.', files: [{ role: 'model', repo: 'bartowski/Llama-3.2-3B-Instruct-GGUF', file: 'Llama-3.2-3B-Instruct-Q4_K_M.gguf' }] },
-  { id: 'qwen2.5-7b', kind: 'text', tier: 'heavy', name: 'Qwen2.5 7B', license: 'Apache-2.0', size: 4.68, req: { ram: 12, vram: 6 },
+  { id: 'gemma3-4b', kind: 'text', tier: 'medium', name: 'Gemma 3 4B', license: 'Gemma', size: 2.49, req: { ram: 6, vram: 0 },
+    description: 'Strong writer with wide language coverage. Great default for 8–16 GB PCs.', files: [{ role: 'model', repo: 'unsloth/gemma-3-4b-it-GGUF', file: 'gemma-3-4b-it-Q4_K_M.gguf' }] },
+  { id: 'qwen3-4b', kind: 'text', tier: 'medium', name: 'Qwen3 4B Instruct', license: 'Apache-2.0', size: 2.5, req: { ram: 6, vram: 0 },
+    description: 'The best small all-rounder: reasoning, code, tools and Portuguese. Fast with any GPU.', files: [{ role: 'model', repo: 'unsloth/Qwen3-4B-Instruct-2507-GGUF', file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf' }] },
+  { id: 'qwen2.5-7b', kind: 'text', tier: 'heavy', name: 'Qwen2.5 7B', license: 'Apache-2.0', size: 4.68, req: { ram: 10, vram: 6 },
     description: 'Strong local model. Best with a GPU (6 GB+) or 16 GB RAM.', files: [{ role: 'model', repo: 'bartowski/Qwen2.5-7B-Instruct-GGUF', file: 'Qwen2.5-7B-Instruct-Q4_K_M.gguf' }] },
+  { id: 'qwen3-8b', kind: 'text', tier: 'heavy', name: 'Qwen3 8B', license: 'Apache-2.0', size: 5.03, req: { ram: 10, vram: 6 },
+    description: 'Thinks before answering. Excellent reasoning and code on a 6–8 GB GPU.', files: [{ role: 'model', repo: 'unsloth/Qwen3-8B-GGUF', file: 'Qwen3-8B-Q4_K_M.gguf' }] },
+  { id: 'gemma3-12b', kind: 'text', tier: 'heavy', name: 'Gemma 3 12B', license: 'Gemma', size: 7.3, req: { ram: 16, vram: 10 },
+    description: 'Near cloud-level writing. Needs a strong GPU or 16 GB+ RAM.', files: [{ role: 'model', repo: 'unsloth/gemma-3-12b-it-GGUF', file: 'gemma-3-12b-it-Q4_K_M.gguf' }] },
 
   // SPEECH TO TEXT (whisper.cpp)
   { id: 'whisper-tiny', kind: 'stt', tier: 'light', name: 'Whisper Tiny', license: 'MIT', size: 0.075, req: { ram: 1, vram: 0 },
@@ -82,47 +94,55 @@ const CATALOG = [
     description: 'Better accuracy, still fast.', files: [{ role: 'model', repo: 'ggerganov/whisper.cpp', file: 'ggml-base.bin' }] },
   { id: 'whisper-small', kind: 'stt', tier: 'medium', name: 'Whisper Small', license: 'MIT', size: 0.466, req: { ram: 2, vram: 0 },
     description: 'Good accuracy in Portuguese and other languages.', files: [{ role: 'model', repo: 'ggerganov/whisper.cpp', file: 'ggml-small.bin' }] },
-  { id: 'whisper-turbo', kind: 'stt', tier: 'heavy', name: 'Whisper Large v3 Turbo', license: 'MIT', size: 0.547, req: { ram: 4, vram: 2 },
+  { id: 'whisper-turbo', kind: 'stt', tier: 'heavy', name: 'Whisper Large v3 Turbo', license: 'MIT', size: 0.547, req: { ram: 4, vram: 0 },
     description: 'Best accuracy. Needs a decent CPU or a GPU.', files: [{ role: 'model', repo: 'ggerganov/whisper.cpp', file: 'ggml-large-v3-turbo-q5_0.bin' }] },
 
   // IMAGE (stable-diffusion.cpp)
-  { id: 'tiny-sd-turbo', kind: 'image', tier: 'light', name: 'Tiny SD Turbo', license: 'see model card', size: 1.84, req: { ram: 4, vram: 0 },
-    description: '512×512 in one step. Runs on CPU — simple images, fast.', files: [{ role: 'model', repo: 'akleine/tiny-sd-turbo_q8_0', pattern: '\\.gguf$' }],
-    args: { model: '-m', extra: ['--steps', '1', '--cfg-scale', '1'], width: 512, height: 512 } },
-  { id: 'z-image-turbo', kind: 'image', tier: 'medium', name: 'Z-Image Turbo', license: 'Apache-2.0', size: 5.8, req: { ram: 12, vram: 6 },
-    description: 'High quality photos and text in images. 8 steps.', files: [
+  { id: 'sdxs-512', kind: 'image', tier: 'light', name: 'SDXS 512', license: 'see model card', size: 1.2, req: { ram: 3, vram: 0 },
+    description: 'Instant 512×512 sketches in one step — runs on any CPU. Good for ideas and thumbnails.', files: [{ role: 'model', repo: 'akleine/sdxs-512', pattern: '^[^/]+\\.(safetensors|gguf)$' }],
+    args: { model: '-m', extra: ['--steps', '1', '--cfg-scale', '1'], width: 512, height: 512, fixedSteps: true } },
+  { id: 'z-image-turbo', kind: 'image', tier: 'medium', name: 'Z-Image Turbo', license: 'Apache-2.0', size: 5.8, req: { ram: 8, vram: 4 },
+    description: 'Photorealistic images and readable text in 8 steps. Runs on 4 GB GPUs.', files: [
       { role: 'diffusion', repo: 'leejet/Z-Image-Turbo-GGUF', file: 'z_image_turbo-Q3_K.gguf', pattern: 'Q3_K\\.gguf$' },
       { role: 'llm', repo: 'unsloth/Qwen3-4B-Instruct-2507-GGUF', file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf' },
       { role: 'vae', repo: 'Green-Sky/flux.1-schnell-GGUF', file: 'ae-f16.gguf' },
-    ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '8', '--offload-to-cpu', '--diffusion-fa'], width: 768, height: 768 } },
-  { id: 'flux-schnell', kind: 'image', tier: 'heavy', name: 'FLUX.1 schnell', license: 'Apache-2.0', size: 9.7, req: { ram: 16, vram: 8 },
+    ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '8', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 768, height: 768 } },
+  { id: 'flux2-klein-4b', kind: 'image', tier: 'medium', name: 'FLUX.2 klein 4B', license: 'Apache-2.0', size: 5.3, req: { ram: 8, vram: 4 },
+    description: 'Newest FLUX: sharp detail, great prompt following and image editing in 4 steps.', files: [
+      { role: 'diffusion', repo: 'leejet/FLUX.2-klein-4B-GGUF', pattern: 'q4_k[^/]*\\.gguf$' },
+      { role: 'llm', repo: 'unsloth/Qwen3-4B-GGUF', file: 'Qwen3-4B-Q4_K_M.gguf' },
+      { role: 'vae', repo: 'Comfy-Org/flux2-dev', file: 'split_files/vae/flux2-vae.safetensors' },
+    ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '4', '--sampling-method', 'euler', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 1024, height: 1024 } },
+  { id: 'flux-schnell', kind: 'image', tier: 'heavy', name: 'FLUX.1 schnell', license: 'Apache-2.0', size: 9.7, req: { ram: 12, vram: 8 },
     description: 'Excellent prompt following and detail. 4 steps.', files: [
       { role: 'diffusion', repo: 'Green-Sky/flux.1-schnell-GGUF', file: 'flux1-schnell-q4_k.gguf' },
       { role: 'vae', repo: 'Green-Sky/flux.1-schnell-GGUF', file: 'ae-f16.gguf' },
       { role: 'clip_l', repo: 'Green-Sky/flux.1-schnell-GGUF', file: 'clip_l-q8_0.gguf' },
       { role: 't5xxl', repo: 'Green-Sky/flux.1-schnell-GGUF', file: 't5xxl_q4_k.gguf' },
-    ], args: { diffusion: '--diffusion-model', vae: '--vae', clip_l: '--clip_l', t5xxl: '--t5xxl', extra: ['--cfg-scale', '1', '--steps', '4', '--sampling-method', 'euler', '--offload-to-cpu'], width: 1024, height: 1024 } },
+    ], args: { diffusion: '--diffusion-model', vae: '--vae', clip_l: '--clip_l', t5xxl: '--t5xxl', extra: ['--cfg-scale', '1', '--steps', '4', '--sampling-method', 'euler', '--offload-to-cpu', '--vae-tiling'], width: 1024, height: 1024 } },
 
   // VIDEO (stable-diffusion.cpp, Wan)
-  { id: 'wan2.1-1.3b', kind: 'video', tier: 'light', name: 'Wan 2.1 1.3B', license: 'Apache-2.0', size: 6.2, req: { ram: 12, vram: 6 },
-    description: '480p clips of ~2 s. The lightest video model — still needs a GPU to be practical.', files: [
+  { id: 'wan2.1-1.3b', kind: 'video', tier: 'light', name: 'Wan 2.1 1.3B', license: 'Apache-2.0', size: 6.2, req: { ram: 8, vram: 4 },
+    description: '480p text-to-video clips of ~2 s. Made for 4 GB GPUs — on CPU it takes many minutes.', files: [
       { role: 'diffusion', repo: 'Comfy-Org/Wan_2.1_ComfyUI_repackaged', file: 'split_files/diffusion_models/wan2.1_t2v_1.3B_fp16.safetensors' },
       { role: 'vae', repo: 'Comfy-Org/Wan_2.1_ComfyUI_repackaged', file: 'split_files/vae/wan_2.1_vae.safetensors' },
       { role: 't5xxl', repo: 'city96/umt5-xxl-encoder-gguf', file: 'umt5-xxl-encoder-Q3_K_M.gguf' },
-    ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '33', '--flow-shift', '3.0', '--offload-to-cpu'], width: 832, height: 480 } },
-  { id: 'wan2.2-5b-q3', kind: 'video', tier: 'medium', name: 'Wan 2.2 TI2V 5B (Q3)', license: 'Apache-2.0', size: 7.0, req: { ram: 16, vram: 8 },
-    description: 'Text or image to video, better motion. Needs 8 GB VRAM.', files: [
+    ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '33', '--flow-shift', '3.0', '--offload-to-cpu', '--vae-tiling'], width: 832, height: 480, steps: 20 } },
+  { id: 'wan2.2-5b-q3', kind: 'video', tier: 'medium', name: 'Wan 2.2 TI2V 5B (Q3)', license: 'Apache-2.0', size: 7.0, req: { ram: 12, vram: 6 },
+    description: 'Text or image to video, better motion. Best with 6–8 GB VRAM.', files: [
       { role: 'diffusion', repo: 'QuantStack/Wan2.2-TI2V-5B-GGUF', file: 'Wan2.2-TI2V-5B-Q3_K_M.gguf' },
       { role: 'vae', repo: 'Comfy-Org/Wan_2.2_ComfyUI_Repackaged', file: 'split_files/vae/wan2.2_vae.safetensors' },
       { role: 't5xxl', repo: 'city96/umt5-xxl-encoder-gguf', file: 'umt5-xxl-encoder-Q3_K_M.gguf' },
-    ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '33', '--flow-shift', '3.0', '--offload-to-cpu'], width: 704, height: 480 } },
-  { id: 'wan2.2-5b-q4', kind: 'video', tier: 'heavy', name: 'Wan 2.2 TI2V 5B (Q4)', license: 'Apache-2.0', size: 8.5, req: { ram: 24, vram: 12 },
-    description: 'Best local video quality here. 12 GB VRAM recommended.', files: [
+    ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '33', '--flow-shift', '3.0', '--offload-to-cpu', '--vae-tiling'], width: 704, height: 480, steps: 20, image: true } },
+  { id: 'wan2.2-5b-q4', kind: 'video', tier: 'heavy', name: 'Wan 2.2 TI2V 5B (Q4)', license: 'Apache-2.0', size: 8.5, req: { ram: 16, vram: 8 },
+    description: 'Best local video quality here. 8 GB+ VRAM recommended.', files: [
       { role: 'diffusion', repo: 'QuantStack/Wan2.2-TI2V-5B-GGUF', file: 'Wan2.2-TI2V-5B-Q4_K_M.gguf' },
       { role: 'vae', repo: 'Comfy-Org/Wan_2.2_ComfyUI_Repackaged', file: 'split_files/vae/wan2.2_vae.safetensors' },
       { role: 't5xxl', repo: 'city96/umt5-xxl-encoder-gguf', file: 'umt5-xxl-encoder-Q4_K_M.gguf' },
-    ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '49', '--flow-shift', '3.0', '--offload-to-cpu'], width: 1280, height: 704 } },
+    ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '49', '--flow-shift', '3.0', '--offload-to-cpu', '--vae-tiling'], width: 1280, height: 704, steps: 20, image: true } },
 ]
+// Models removed from the catalog because the engine rejects them; their files are cleaned up on start.
+const RETIRED = ['tiny-sd-turbo']
 const ENGINE_FOR = { text: 'llama', image: 'sd', video: 'sd', stt: 'whisper' }
 
 // ---------- state ----------
@@ -170,13 +190,17 @@ function customModels() {
     return JSON.parse(fs.readFileSync(path.join(root, 'custom-models.json'), 'utf8')).map((m) => ({
       kind: 'text', tier: 'custom', req: { ram: 0, vram: 0 }, license: '', size: (m.size || 0) / GB, ...m,
       files: m.files || [{ role: 'model', url: m.url, file: m.file }],
+      args: m.kind === 'image' ? { model: '-m', extra: ['--steps', '20', '--cfg-scale', '7'], width: 512, height: 512 } : undefined,
     }))
   } catch {
     return []
   }
 }
 function allModels() {
-  return [...CATALOG, ...customModels()]
+  const r = loadResolved()
+  // Files found by pattern on first download are remembered in resolved.json.
+  const withResolved = CATALOG.map((m) => (r[m.id] ? { ...m, files: m.files.map((f, i) => (f.file ? f : { ...f, file: r[m.id][i] })) } : m))
+  return [...withResolved, ...customModels()]
 }
 function localName(f) {
   return path.basename(f.file || f.url || '')
@@ -188,10 +212,12 @@ function isInstalled(m) {
 function fitFor(m) {
   if (!hw) return { level: 'ok', reason: '' }
   const need = m.req || { ram: 0, vram: 0 }
-  const effRam = hw.ram + (hw.platform === 'darwin' ? 0 : 0)
+  // Windows reports slightly less than the installed memory (12 GB shows as 11.7 GB), so allow a small margin.
+  const effRam = hw.ram + 0.6
+  const effVram = (hw.vram || 0) + 0.3
   if (hw.diskFree && m.size && hw.diskFree < m.size + 1) return { level: 'no', reason: 'Needs {need} GB free disk — you have {have} GB.', vars: { need: m.size.toFixed(1), have: hw.diskFree } }
   if (need.ram && effRam < need.ram) return { level: 'no', reason: 'Needs {need} GB RAM — this PC has {have} GB.', vars: { need: need.ram, have: hw.ram } }
-  if (need.vram && hw.vram < need.vram) {
+  if (need.vram && effVram < need.vram) {
     if (m.kind === 'video' || (m.kind === 'image' && m.tier === 'heavy'))
       return { level: 'slow', reason: 'Best with {need} GB VRAM (you have {have}). It will run on CPU — very slowly.', vars: { need: need.vram, have: hw.vram || 0 } }
     return { level: 'slow', reason: 'Best with {need} GB VRAM (you have {have}). Works on CPU, slower.', vars: { need: need.vram, have: hw.vram || 0 } }
@@ -228,11 +254,16 @@ function status() {
   })
   const recommended = {}
   for (const kind of ['text', 'image', 'video', 'stt']) {
-    const ok = models.filter((m) => m.kind === kind && m.fit.level === 'ok' && m.engineSupported)
-    recommended[kind] = ok.length ? ok[ok.length - 1].id : null
+    const pool = models.filter((m) => m.kind === kind && m.tier !== 'custom' && m.engineSupported)
+    const ok = pool.filter((m) => m.fit.level === 'ok')
+    const slow = pool.filter((m) => m.fit.level === 'slow' && m.tier !== 'heavy')
+    // Video on a PC without a usable GPU takes too long to recommend.
+    recommended[kind] = ok.length ? ok[ok.length - 1].id : slow.length && kind !== 'video' ? slow[0].id : null
   }
   return {
     hardware: hw,
+    paths: root ? { root, models: path.join(root, 'models'), engines: path.join(root, 'engine') } : null,
+    queue: queue.map((q) => q.id),
     engines,
     engineInstalled: engines.llama.installed,
     engineTag: ENGINES.llama.tag,
@@ -340,7 +371,7 @@ async function installEngine(key = 'llama') {
 }
 
 async function installModel(id) {
-  const m = allModels().find((x) => x.id === id)
+  const m = CATALOG.find((x) => x.id === id) || allModels().find((x) => x.id === id)
   if (!m) throw new Error('Unknown model')
   await installEngine(ENGINE_FOR[m.kind] || 'llama')
   const total = Math.round((m.size || 0) * GB)
@@ -360,34 +391,137 @@ async function installModel(id) {
   return status()
 }
 
+let resolvedCache = null
 function saveResolved(m) {
-  const map = loadResolved()
+  const map = { ...loadResolved() }
   map[m.id] = m.files.map((f) => f.file)
+  resolvedCache = map
   fs.writeFileSync(path.join(root, 'resolved.json'), JSON.stringify(map, null, 2))
 }
 function loadResolved() {
+  if (resolvedCache) return resolvedCache
   try {
-    return JSON.parse(fs.readFileSync(path.join(root, 'resolved.json'), 'utf8'))
+    resolvedCache = JSON.parse(fs.readFileSync(path.join(root, 'resolved.json'), 'utf8'))
   } catch {
-    return {}
+    resolvedCache = {}
+  }
+  return resolvedCache
+}
+
+function readCustom() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(root, 'custom-models.json'), 'utf8'))
+  } catch {
+    return []
   }
 }
 
-async function addCustomModel(url, name) {
-  const clean = url.trim()
-  if (!/\.gguf(\?|$)/i.test(clean)) throw new Error('Paste a direct link to a .gguf file (Hugging Face "resolve" link).')
-  const file = decodeURIComponent(clean.split('?')[0].split('/').pop())
-  const id = 'custom-' + file.toLowerCase().replace(/[^a-z0-9.]+/g, '-').replace(/\.gguf$/, '')
-  let list = []
-  try {
-    list = JSON.parse(fs.readFileSync(path.join(root, 'custom-models.json'), 'utf8'))
-  } catch {
-    /* none */
-  }
-  list = list.filter((m) => m.id !== id)
-  list.push({ id, name: name || file.replace(/\.gguf$/i, ''), description: clean, url: clean, file })
+// Adds a model from a direct link or from a Hugging Face repo + file, then downloads it.
+// kind: 'text' (.gguf for llama.cpp) or 'image' (single-file SD 1.x/2.x/XL checkpoint for sd.cpp).
+async function addCustomModel(input, name) {
+  const o = typeof input === 'string' ? { url: input, name } : input
+  const kind = o.kind === 'image' ? 'image' : 'text'
+  let url = (o.url || '').trim()
+  if (!url && o.repo && o.file) url = `${HF}/${o.repo}/resolve/main/${o.file.split('/').map(encodeURIComponent).join('/')}`
+  const okExt = kind === 'text' ? /\.gguf(\?|$)/i : /\.(gguf|safetensors)(\?|$)/i
+  if (!okExt.test(url)) throw new Error(kind === 'text' ? 'Pick a .gguf file (a Hugging Face "resolve" link or a file from search).' : 'Pick a .safetensors or .gguf checkpoint.')
+  const file = decodeURIComponent(url.split('?')[0].split('/').pop())
+  const id = 'custom-' + file.toLowerCase().replace(/[^a-z0-9.]+/g, '-').replace(/\.(gguf|safetensors)$/, '')
+  const list = readCustom().filter((m) => m.id !== id)
+  list.push({ id, kind, name: o.name || file.replace(/\.(gguf|safetensors)$/i, ''), description: o.repo ? `Hugging Face · ${o.repo}` : url, url, file, size: o.size || 0, repo: o.repo })
   fs.writeFileSync(path.join(root, 'custom-models.json'), JSON.stringify(list, null, 2))
+  emit()
   return installModel(id)
+}
+
+// ---------- Hugging Face search ----------
+async function hfSearch(query, kind = 'text') {
+  const params = new URLSearchParams({ search: query || '', sort: 'downloads', direction: '-1', limit: '24', full: 'false' })
+  if (kind === 'text') params.set('filter', 'gguf')
+  else params.set('pipeline_tag', 'text-to-image')
+  const res = await fetch(`${HF}/api/models?${params}`, { headers: { 'user-agent': 'Orbi' } })
+  if (!res.ok) throw new Error(`Hugging Face search failed (${res.status}).`)
+  const list = await res.json()
+  return list.map((m) => ({ repo: m.id || m.modelId, downloads: m.downloads || 0, likes: m.likes || 0, updated: m.lastModified || '' }))
+}
+
+async function hfFiles(repo, kind = 'text') {
+  const res = await fetch(`${HF}/api/models/${repo}/tree/main?recursive=true`, { headers: { 'user-agent': 'Orbi' } })
+  if (!res.ok) throw new Error(`Could not list ${repo} (${res.status}). It may be gated — accept its license on huggingface.co first.`)
+  const items = await res.json()
+  const re = kind === 'text' ? /\.gguf$/i : /^[^/]+\.(safetensors|gguf)$/i
+  const fitsRam = (bytes) => !hw || bytes / GB + 1.5 <= hw.ram + 0.6
+  return items
+    .filter((f) => f.type === 'file' && re.test(f.path) && !/mmproj|-of-0000[2-9]/i.test(f.path))
+    .map((f) => {
+      const size = f.lfs?.size || f.size || 0
+      return { file: f.path, size, fits: fitsRam(size), quant: (f.path.match(/(IQ\d_[A-Z]+|Q\d_K(_[SML])?|Q\d_\d|Q\d|BF16|F16|F32)/i) || [''])[0].toUpperCase() }
+    })
+    .sort((x, y) => x.size - y.size)
+}
+
+// ---------- download queue (used by the setup wizard) ----------
+const queue = []
+let queueRunning = false
+function enqueue(ids) {
+  for (const id of ids) if (!queue.some((q) => q.id === id) && !jobs.has(id)) queue.push({ id })
+  emit()
+  if (!queueRunning) runQueue()
+  return status()
+}
+async function runQueue() {
+  queueRunning = true
+  while (queue.length) {
+    const { id } = queue[0]
+    try {
+      const m = allModels().find((x) => x.id === id)
+      if (m && !isInstalled(m)) await installModel(id)
+    } catch (e) {
+      send('local:error', { id, message: String(e.message || e) })
+    }
+    queue.shift()
+    emit()
+  }
+  queueRunning = false
+}
+function clearQueue() {
+  queue.length = 0
+  emit()
+}
+
+function removeAll() {
+  stop()
+  cancelMedia()
+  for (const j of jobs.values()) j.controller.abort()
+  queue.length = 0
+  for (const sub of ['models', 'engine', 'custom-models.json', 'resolved.json']) fs.rmSync(path.join(root, sub), { recursive: true, force: true })
+  resolvedCache = null
+  emit()
+  return status()
+}
+
+function retireOld() {
+  const resolved = loadResolved()
+  let changed = false
+  for (const id of RETIRED) {
+    for (const f of resolved[id] || []) fs.rmSync(path.join(root, 'models', path.basename(f)), { force: true })
+    if (resolved[id]) {
+      delete resolved[id]
+      changed = true
+    }
+  }
+  if (changed) {
+    resolvedCache = resolved
+    fs.writeFileSync(path.join(root, 'resolved.json'), JSON.stringify(resolved, null, 2))
+  }
+}
+
+function activeWork() {
+  const list = []
+  for (const [id, j] of jobs) list.push({ kind: 'download', label: j.label || id })
+  if (activeRuns.size) list.push({ kind: 'generation', label: 'Image or video generation' })
+  if (server) list.push({ kind: 'model', label: `Local model ${server.modelId}` })
+  return list
 }
 
 function cancel(id) {
@@ -399,15 +533,12 @@ function removeModel(id) {
   if (!m) return status()
   if (server?.modelId === id) stop()
   const shared = new Set(allModels().filter((x) => x.id !== id && isInstalled(x)).flatMap((x) => x.files.map(localName)))
-  for (const f of m.files) if (f.file && !shared.has(localName(f))) fs.rmSync(path.join(modelsDir(), localName(f)), { force: true })
-  if (id.startsWith('custom-')) {
-    try {
-      const list = JSON.parse(fs.readFileSync(path.join(root, 'custom-models.json'), 'utf8')).filter((x) => x.id !== id)
-      fs.writeFileSync(path.join(root, 'custom-models.json'), JSON.stringify(list, null, 2))
-    } catch {
-      /* none */
-    }
-  }
+  const resolved = loadResolved()[id] || []
+  m.files.forEach((f, i) => {
+    const name = path.basename(resolved[i] || f.file || f.url || '')
+    if (name && !shared.has(name)) fs.rmSync(path.join(modelsDir(), name), { force: true })
+  })
+  if (id.startsWith('custom-')) fs.writeFileSync(path.join(root, 'custom-models.json'), JSON.stringify(readCustom().filter((x) => x.id !== id), null, 2))
   emit()
   return status()
 }
@@ -423,6 +554,7 @@ function freePort() {
     s.on('error', reject)
   })
 }
+const CTX = 8192
 function threads() {
   return Math.max(2, Math.min(8, os.cpus().length - 1))
 }
@@ -439,8 +571,8 @@ async function ensureRunning(modelId) {
     if (!m || !isInstalled(m)) throw new Error('This local model is not downloaded yet.')
     const file = path.join(modelsDir(), localName(m.files[0]))
     const port = await freePort()
-    const args = ['-m', file, '--host', '127.0.0.1', '--port', String(port), '--alias', modelId, '-c', '4096', '-t', String(threads()), '--jinja']
-    if (hw?.gpuAccel) args.push('-ngl', '99')
+    // llama.cpp fits GPU layers to the free VRAM by itself (--fit is on by default), so -ngl is left to it.
+    const args = ['-m', file, '--host', '127.0.0.1', '--port', String(port), '--alias', modelId, '-c', String(CTX), '-t', String(threads()), '--jinja']
     const proc = spawn(bin, args, { cwd: path.dirname(bin), windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] })
     let log = ''
     proc.stderr.on('data', (d) => (log = (log + d).slice(-4000)))
@@ -525,7 +657,7 @@ async function generateMedia({ modelId, prompt, negative, width, height, steps, 
   args.push('-p', prompt)
   if (negative) args.push('-n', negative)
   const extra = [...a.extra]
-  if (steps) {
+  if (steps && !a.fixedSteps) {
     const i = extra.indexOf('--steps')
     if (i >= 0) extra[i + 1] = String(steps)
     else extra.push('--steps', String(steps))
@@ -537,7 +669,7 @@ async function generateMedia({ modelId, prompt, negative, width, height, steps, 
   args.push(...extra)
   args.push('-W', String(width || a.width), '-H', String(height || a.height), '-t', String(threads()))
   if (seed !== undefined && seed !== null && seed !== '') args.push('--seed', String(seed))
-  if (initImage) args.push('-i', initImage, '--strength', String(strength ?? 0.75))
+  if (initImage && (m.kind === 'image' || a.image)) args.push('-i', initImage, ...(m.kind === 'image' ? ['--strength', String(strength ?? 0.75)] : []))
   if (mask) args.push('--mask', mask)
   const out = path.join(os.tmpdir(), `orbi-${Date.now()}.${m.kind === 'video' ? 'webm' : 'png'}`)
   args.push('-o', out)
@@ -548,7 +680,9 @@ async function generateMedia({ modelId, prompt, negative, width, height, steps, 
     await runProcess(bin, args, (line) => {
       const p = line.match(/\|\s*(\d+)\/(\d+)\s*-/) || line.match(/(\d+)\/(\d+)/)
       if (p) onProgress?.({ step: Number(p[1]), total: Number(p[2]), line })
-    }, controller.signal)
+    }, controller.signal).catch((e) => {
+      throw new Error(friendly(String(e.message || e), m))
+    })
   } finally {
     activeRuns.delete(runId)
   }
@@ -556,6 +690,17 @@ async function generateMedia({ modelId, prompt, negative, width, height, steps, 
   const buffer = fs.readFileSync(out)
   fs.rmSync(out, { force: true })
   return { buffer, mime: m.kind === 'video' ? 'video/webm' : 'image/png', model: m.name }
+}
+
+// Turns engine logs into something a person can act on; the raw line stays at the end for support.
+function friendly(raw, m) {
+  const tail = raw.replace(/\s+/g, ' ').slice(0, 220)
+  if (/metadata validation|unknown model|get sd version|failed to load|invalid magic|unsupported/i.test(raw))
+    return `${m.name}: the image engine could not read this model file. Delete it in Settings → Local models and download it again, or pick another model. (${tail})`
+  if (/out of memory|ErrorOutOfDeviceMemory|alloc|cudaMalloc|vk::|bad_alloc/i.test(raw))
+    return `${m.name} ran out of memory. Try a smaller size (e.g. 512×512), fewer frames, or a lighter model. (${tail})`
+  if (/killed|SIGTERM|abort/i.test(raw)) return 'Stopped.'
+  return `${m.name} failed: ${tail}`
 }
 
 function cancelMedia() {
@@ -587,6 +732,11 @@ async function init(dir, sender, app) {
   electronApp = app
   fs.mkdirSync(root, { recursive: true })
   hw = await hardware.detect(app, dir).catch(() => null)
+  try {
+    retireOld()
+  } catch {
+    /* ignore */
+  }
   emit()
 }
 
@@ -598,5 +748,5 @@ async function refreshHardware() {
 
 module.exports = {
   init, status, installEngine, installModel, addCustomModel, removeModel, cancel, ensureRunning, stop, installedModels,
-  generateMedia, cancelMedia, transcribe, refreshHardware, CATALOG,
+  generateMedia, cancelMedia, transcribe, refreshHardware, hfSearch, hfFiles, enqueue, clearQueue, removeAll, activeWork, CTX, CATALOG,
 }

@@ -138,7 +138,19 @@ export type LocalStatus = {
   models: LocalModel[]
   recommended: Partial<Record<ModelKind, string | null>>
   engineDownloading: { received: number; total: number } | null
+  paths: { root: string; models: string; engines: string } | null
+  queue: string[]
 }
+export type HfRepo = { repo: string; downloads: number; likes: number; updated: string }
+export type HfFile = { file: string; size: number; fits: boolean; quant: string }
+export type UpdateInfo = {
+  status: 'idle' | 'checking' | 'current' | 'available' | 'available-manual' | 'downloading' | 'ready' | 'installing' | 'error'
+  current: string
+  latest: null | { version: string; name: string; notes: string; publishedAt: string; url: string; asset: null | { name: string; size: number; url: string } }
+  progress: null | { received: number; total: number }
+  error: string | null
+}
+export type ActiveWork = { kind: string; label: string }
 export type Board = { id: string; name: string; created_at: number }
 export type WebResult = { title: string; url: string; snippet: string; content?: string }
 export type LibrarySkill = { id: string; profession: string; name: string; description: string; instructions: string; installed: boolean }
@@ -289,7 +301,22 @@ export const api = {
 
   localStatus: (): Promise<LocalStatus> => bridge.invoke('local:status'),
   installLocalModel: (id: string): Promise<LocalStatus> => bridge.invoke('local:installModel', id),
-  addCustomLocal: (url: string, name?: string): Promise<LocalStatus> => bridge.invoke('local:addCustom', url, name),
+  addCustomLocal: (input: string | { repo?: string; file?: string; url?: string; size?: number; kind?: 'text' | 'image'; name?: string }, name?: string): Promise<LocalStatus> =>
+    bridge.invoke('local:addCustom', input, name),
+  hfSearch: (q: string, kind: 'text' | 'image'): Promise<HfRepo[]> => bridge.invoke('local:hfSearch', q, kind),
+  hfFiles: (repo: string, kind: 'text' | 'image'): Promise<HfFile[]> => bridge.invoke('local:hfFiles', repo, kind),
+  enqueueLocal: (ids: string[]): Promise<LocalStatus> => bridge.invoke('local:enqueue', ids),
+  clearLocalQueue: (): Promise<LocalStatus> => bridge.invoke('local:clearQueue'),
+  removeAllLocal: (): Promise<LocalStatus> => bridge.invoke('local:removeAll'),
+  openModelsFolder: () => bridge.invoke('local:openFolder'),
+  complete: (p: { providerId: string; model: string; system?: string; prompt: string }): Promise<string> => bridge.invoke('ai:complete', p),
+  speech: (p: { text: string; voice?: string }): Promise<MediaItem> => bridge.invoke('ai:speech', p),
+  updateState: (): Promise<UpdateInfo> => bridge.invoke('update:state'),
+  checkUpdate: (): Promise<UpdateInfo> => bridge.invoke('update:check'),
+  downloadUpdate: (): Promise<UpdateInfo> => bridge.invoke('update:download'),
+  cancelUpdate: () => bridge.invoke('update:cancel'),
+  activeWork: (): Promise<ActiveWork[]> => bridge.invoke('update:activeWork'),
+  installUpdate: (): Promise<boolean> => bridge.invoke('update:install'),
   removeLocal: (id: string): Promise<LocalStatus> => bridge.invoke('local:remove', id),
   cancelLocal: (id: string) => bridge.invoke('local:cancel', id),
   stopLocal: () => bridge.invoke('local:stop'),

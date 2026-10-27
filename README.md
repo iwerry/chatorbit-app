@@ -4,12 +4,35 @@ AI chat and creative studio by **OrbiX**: one app for chats, projects, agents, s
 
 React 19 · Vite · Tailwind 4 · TypeScript, packaged with Electron. Local data lives in SQLite (sql.js/WASM).
 
-> Status: **0.1.27-1**, a desktop preview for Windows. Linux and macOS builds come from the same code.
+> Status: **0.1.27-2**, a desktop preview for Windows. Linux and macOS builds come from the same code.
 > Versions follow `0.1.DD-N`: DD is the day of the month, N is the build of that day.
 >
 > Developed by **Daniel Rodrigues**.
 
-## What's in 0.1.27-1
+## What's in 0.1.27-2
+
+- **Setup assistant on first launch**: name, language and theme first. Then Orbi reads the hardware and pre-selects the strongest local models that run well on this PC for chat, images, video and voice. Downloads are queued and keep running in the background. You can reopen it from Help → Setup Assistant or Settings → Local models.
+- **Stronger catalog, matched to each machine**:
+  - Text: Gemma 3 (1B/4B/12B), Llama 3.2 1B, Qwen3 4B Instruct and Qwen3 8B.
+  - Images: SDXS 512 (instant, CPU), Z-Image Turbo and FLUX.2 klein 4B (both run on 4 GB GPUs), and FLUX.1 schnell.
+  - Video: Wan 2.1 1.3B, now usable on 4 GB GPUs; Wan 2.2 5B for 6 GB+.
+  - The compatibility check now allows for Windows reporting 12 GB as 11.7 GB.
+- **Search Hugging Face** from the model hub: any GGUF chat model, or single-file SD 1.5/SDXL checkpoints. Each file is marked if it is too big for this PC, but you can still install it.
+- **Models folder tools**: Open models folder and Delete all models.
+- **Workflows that run** (ComfyUI-style):
+  - Typed, colour-coded ports. Drag a wire from an output to an input.
+  - Nodes: Prompt, Text AI, Generate image (local or cloud, with optional start image), Generate video (optional first frame), Load image, Voiceover, Save to board and Note.
+  - Run one node or the whole graph. Results are cached, and live wires and progress show on the nodes.
+  - Four templates.
+- **Updates from GitHub**: Orbi checks the latest release and offers it. You choose when to download. Before installing, it lists what will be paused, then installs silently and reopens on its own. No machine restart is needed.
+- **Theme is remembered**: the last choice (Light, Dark or Terminal) is applied from the first frame.
+- **Fixes**:
+  - Local chat no longer overflows the context window when web search is on (8k context, trimmed history).
+  - llama.cpp now fits GPU layers on its own.
+  - The broken Tiny SD Turbo model was replaced.
+  - Image-engine errors are now readable.
+
+## What was in 0.1.27-1
 
 - **Hardware detection**: RAM, CPU, GPU, VRAM and free disk (NVIDIA via `nvidia-smi`, Windows registry for AMD/Intel, sysfs on Linux, unified memory on Apple Silicon).
 - **Model hub** (Settings → Local models), with Light / Medium / Heavy tiers for text, image, video and voice input:
@@ -76,6 +99,22 @@ pnpm vite build && pnpm electron .
 #   macOS/Linux: ORBI_DEV_URL=http://localhost:5173 pnpm electron .
 ```
 
+## Where local models live
+
+- **Windows**: `%APPDATA%\Orbi\local-ai\`. Models are in `models\` and engines in `engine\`. Your chats and media are in `%APPDATA%\Orbi\`.
+- **Linux**: `~/.config/Orbi/local-ai/`.
+- **macOS**: `~/Library/Application Support/Orbi/local-ai/`.
+
+Settings → Local models has **Open models folder** and **Delete all models**.
+
+## Releasing an update
+
+1. Bump `version` in `package.json` (`0.1.DD-N`).
+2. Run `pnpm dist:win`.
+3. Publish a GitHub Release tagged `v<version>` with `release/Orbi-Setup-<version>.exe` attached.
+
+Installed apps find the release automatically.
+
 ## Build installers
 
 - **Windows, on Linux (no Wine needed):** `pnpm dist:win` produces `release/Orbi-Setup-<version>.exe`. This needs the Windows terminal module in `build/pty/win32-x64`: run `npm pack @lydell/node-pty-win32-x64@1.2.0-beta.18` and extract its `package/` folder there.
@@ -92,6 +131,7 @@ electron/
   providers.cjs   OpenRouter, OpenAI, Anthropic, Gemini, DeepSeek, Mistral, Ollama, LM Studio, custom, Orbi Local; tool-calling loop
   mcp.cjs         MCP hub: built-in tools, stdio/HTTP servers, catalog, plugins
   terminal.cjs    native shell sessions (node-pty)
+  updater.cjs     update check, download and silent install from GitHub Releases
   local-ai.cjs    model hub: llama.cpp, stable-diffusion.cpp and whisper.cpp engines + catalog, downloads, generation
   hardware.cjs    RAM/CPU/GPU/VRAM/disk detection
   websearch.cjs   keyless web search (DuckDuckGo, Wikipedia fallback) and page reading
@@ -103,7 +143,9 @@ src/
   components/WorkspacePanel   chats, projects, memory, bookmarks, media library
   components/panels/          Agent Builder, Skills, MCP & Plugins
   components/CreativeStudio   Launchpad, Canvas (inpainting), Workflows, Gallery, Boards, Layers
-  components/Creative         node canvas (Workflows tab)
+  components/NodeFlow         node workflows (typed ports, execution)
+  components/SetupWizard      first-run setup and model recommendations
+  components/UpdateCenter     update card, notes and install confirmation
   components/Explore          profession library
   components/ModelHub         hardware card + Light/Medium/Heavy models
   components/SettingsModal    general/language, providers, local models, voice, about

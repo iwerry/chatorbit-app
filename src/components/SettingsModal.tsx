@@ -3,6 +3,7 @@ import { Boxes, Check, ExternalLink, FolderOpen, Globe, Info, KeyRound, Loader2,
 import { api, type AppInfo, type LocalStatus, type ProviderInfo, type VoiceMode } from '../lib/api'
 import { LANGUAGES, t, type Lang } from '../lib/i18n'
 import { OrbiMark } from './Logo'
+import { UpdateSection } from './UpdateCenter'
 import { ModelHub } from './ModelHub'
 
 const KEY_URLS: Record<string, string> = {
@@ -210,6 +211,7 @@ export function SettingsModal({
   onLocalChanged,
   lang,
   setLang,
+  onOpenSetup,
 }: {
   onClose: () => void
   onChanged: () => void
@@ -221,6 +223,7 @@ export function SettingsModal({
   onLocalChanged: () => void
   lang: Lang
   setLang: (l: Lang) => void
+  onOpenSetup?: () => void
 }) {
   const [tab, setTab] = useState<SettingsTab>(initialTab === 'profile' ? 'general' : initialTab)
   const [providers, setProviders] = useState<ProviderInfo[]>([])
@@ -319,6 +322,7 @@ export function SettingsModal({
               <h3>{t('Local models')}</h3>
               <p className="orbi-muted">{t('Free models that run on this computer. Orbi checks your hardware and recommends what fits — you can still install anything.')}</p>
               <ModelHub
+                onOpenSetup={onOpenSetup}
                 status={localStatus}
                 onChanged={() => {
                   onLocalChanged()
@@ -357,6 +361,7 @@ export function SettingsModal({
                 <span>{t('License')}</span>
                 <strong>Apache-2.0</strong>
               </div>
+              <UpdateSection />
               <div className="mt-4 flex gap-2">
                 <button className="orbi-btn" onClick={() => api.revealData()}>
                   <FolderOpen size={14} /> {t('Open data folder')}

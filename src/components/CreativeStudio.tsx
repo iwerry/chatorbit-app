@@ -31,7 +31,7 @@ import { api, on, type Board, type LocalStatus, type MediaItem, type ModelInfo }
 import { fmtBytes, t } from '../lib/i18n'
 import { ThemeSwitcher, type ThemeMode } from './ThemeSwitcher'
 
-const CreativeWorkspace = lazy(() => import('./Creative').then((m) => ({ default: m.CreativeWorkspace })))
+const NodeFlow = lazy(() => import('./NodeFlow').then((m) => ({ default: m.NodeFlow })))
 
 type Tab = 'launchpad' | 'canvas' | 'workflows' | 'gallery'
 type Option = { key: string; label: string; group: string; kind: 'image' | 'video'; local: boolean; providerId?: string; modelId: string }
@@ -691,7 +691,7 @@ export function CreativeStudio({
 
       {tab === 'workflows' && (
         <Suspense fallback={<div className="hub-skeleton" />}>
-          <CreativeWorkspace themeMode={themeMode} setThemeMode={setThemeMode} onBack={onBack} models={models} onOpenSettings={onOpenModels} onMediaCreated={onMediaCreated} embedded />
+          <NodeFlow models={models} localStatus={localStatus} onOpenModels={onOpenModels} onMediaCreated={onMediaCreated} />
         </Suspense>
       )}
 

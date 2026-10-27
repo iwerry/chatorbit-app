@@ -5,3 +5,4 @@ release-linux/
 build/pty/
 *.log
 .DS_Store
+electron/build-info.json

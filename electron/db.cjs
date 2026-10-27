@@ -120,4 +120,6 @@ function flush() {
   fs.renameSync(tmp, dbFile)
 }
 
-module.exports = { open, all, get, run, uid, flush }
+module.exports = { open, all, get, run, uid, flush, get ready() {
+  return !!db
+} }
