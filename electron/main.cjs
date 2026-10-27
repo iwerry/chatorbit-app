@@ -6,6 +6,8 @@ const { pathToFileURL } = require('node:url')
 const db = require('./db.cjs')
 const ai = require('./providers.cjs')
 const terminal = require('./terminal.cjs')
+const websearch = require('./websearch.cjs')
+const library = require('./library.cjs')
 const mcp = require('./mcp.cjs')
 const localAI = require('./local-ai.cjs')
 
@@ -66,13 +68,15 @@ function providerConfig(id) {
 function mediaRow(r) {
   return { ...r, url: pathToFileURL(path.join(mediaDir(), r.file)).href }
 }
-function saveMedia({ buffer, mime, kind, name, prompt, model, source }) {
+function saveMedia({ buffer, mime, kind, name, prompt, model, source, board, params }) {
   const id = db.uid()
   const ext = (mime.split('/')[1] || 'png').replace('jpeg', 'jpg').split('+')[0]
   const file = `${id}.${ext}`
   fs.writeFileSync(path.join(mediaDir(), file), buffer)
   const row = { id, kind, name: name || `${kind}-${id}.${ext}`, file, prompt: prompt || '', model: model || '', source: source || '', created_at: Date.now() }
-  db.run('INSERT INTO media (id, kind, name, file, prompt, model, source, created_at) VALUES (?,?,?,?,?,?,?,?)', [row.id, row.kind, row.name, row.file, row.prompt, row.model, row.source, row.created_at])
+  row.board = board || ''
+  row.params = params ? JSON.stringify(params) : ''
+  db.run('INSERT INTO media (id, kind, name, file, prompt, model, source, created_at, board, params) VALUES (?,?,?,?,?,?,?,?,?,?)', [row.id, row.kind, row.name, row.file, row.prompt, row.model, row.source, row.created_at, row.board, row.params])
   return mediaRow(row)
 }
 
@@ -83,6 +87,7 @@ const api = {
     platform: process.platform,
     userName: getSetting('userName') || os.userInfo().username || 'there',
     dataDir: app.getPath('userData'),
+    author: 'Daniel Rodrigues',
   }),
   'settings:get': (key, fallback) => getSetting(key, fallback),
   'settings:set': (key, value) => setSetting(key, value),
@@ -100,7 +105,7 @@ const api = {
     return true
   },
   'providers:test': async (id) => {
-    if (id === 'orbi') return { ok: true, count: localAI.installedModels().length }
+    if (id === 'orbi') return { ok: true, count: localAI.installedModels('text').length }
     const models = await ai.listModels(id, providerConfig(id))
     return { ok: true, count: models.length }
   },
@@ -112,7 +117,7 @@ const api = {
         const c = providerConfig(p.id)
         if (!c.enabled) return
         try {
-          const models = p.id === 'orbi' ? localAI.installedModels() : await ai.listModels(p.id, c)
+          const models = p.id === 'orbi' ? localAI.installedModels('text') : await ai.listModels(p.id, c)
           for (const m of models) out.push({ ...m, provider: p.id, providerName: p.name, mode: p.mode, key: `${p.id}::${m.id}` })
         } catch (e) {
           errors.push({ provider: p.name, message: String(e.message || e) })
@@ -266,8 +271,131 @@ const api = {
   'image:generate': async (payload) => {
     const { buffer, mime } = await ai.generateImage(payload, providerConfig(payload.providerId))
     const short = payload.prompt.slice(0, 40).replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'image'
-    return saveMedia({ buffer, mime, kind: 'image', name: `${short}.${mime.includes('jpeg') ? 'jpg' : 'png'}`, prompt: payload.prompt, model: payload.model, source: payload.source || 'creative' })
+    return saveMedia({ buffer, mime, kind: 'image', name: `${short}.${mime.includes('jpeg') ? 'jpg' : 'png'}`, prompt: payload.prompt, model: payload.model, source: payload.source || 'creative', board: payload.board, params: { width: payload.width, height: payload.height } })
   },
+  // Local image / video generation with stable-diffusion.cpp
+  'local:generate': async (payload) => {
+    const sender = currentSender
+    const tmp = []
+    const writeTemp = (dataUrl, name) => {
+      const [, , data] = dataUrl.match(/^data:([^;]+);base64,(.*)$/) || []
+      if (!data) return null
+      const f = path.join(os.tmpdir(), `orbi-${Date.now()}-${name}.png`)
+      fs.writeFileSync(f, Buffer.from(data, 'base64'))
+      tmp.push(f)
+      return f
+    }
+    try {
+      const { buffer, mime, model } = await localAI.generateMedia(
+        { ...payload, initImage: payload.initImage && writeTemp(payload.initImage, 'init'), mask: payload.mask && writeTemp(payload.mask, 'mask') },
+        (p) => !sender.isDestroyed() && sender.send('local:progress', p),
+      )
+      const kind = mime.startsWith('video') ? 'video' : 'image'
+      const short = payload.prompt.slice(0, 40).replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || kind
+      return saveMedia({ buffer, mime, kind, name: `${short}.${kind === 'video' ? 'webm' : 'png'}`, prompt: payload.prompt, model, source: 'creative', board: payload.board, params: { width: payload.width, height: payload.height, steps: payload.steps, seed: payload.seed } })
+    } finally {
+      for (const f of tmp) fs.rmSync(f, { force: true })
+    }
+  },
+  'local:cancelGenerate': () => localAI.cancelMedia(),
+  'media:dataUrl': (id) => {
+    const r = db.get('SELECT * FROM media WHERE id = ?', [id])
+    if (!r) return null
+    const buf = fs.readFileSync(path.join(mediaDir(), r.file))
+    const ext = path.extname(r.file).slice(1).toLowerCase()
+    const mime = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', webm: 'video/webm', mp4: 'video/mp4' }[ext] || 'application/octet-stream'
+    return `data:${mime};base64,${buf.toString('base64')}`
+  },
+  'media:saveCanvas': (dataUrl, meta = {}) => {
+    const [, mime, data] = dataUrl.match(/^data:([^;]+);base64,(.*)$/) || []
+    if (!data) return null
+    return saveMedia({ buffer: Buffer.from(data, 'base64'), mime, kind: 'image', name: meta.name || 'canvas.png', source: 'canvas', board: meta.board, prompt: meta.prompt || '' })
+  },
+  'media:setBoard': (id, board) => db.run('UPDATE media SET board = ? WHERE id = ?', [board || '', id]),
+  'boards:list': () => db.all('SELECT * FROM boards ORDER BY created_at ASC'),
+  'boards:create': (name) => {
+    const row = { id: db.uid(), name, created_at: Date.now() }
+    db.run('INSERT INTO boards (id, name, created_at) VALUES (?,?,?)', [row.id, row.name, row.created_at])
+    return row
+  },
+  'boards:rename': (id, name) => db.run('UPDATE boards SET name = ? WHERE id = ?', [name, id]),
+  'boards:delete': (id) => {
+    db.run("UPDATE media SET board = '' WHERE board = ?", [id])
+    db.run('DELETE FROM boards WHERE id = ?', [id])
+  },
+
+  // ---------- web search ----------
+  'web:search': async (q, opts = {}) => {
+    const r = await websearch.search(q, { lang: getSetting('language', 'en'), read: opts.read ?? 3 })
+    return { ...r, context: websearch.toContext(r) }
+  },
+
+  // ---------- voice ----------
+  'voice:transcribe': async ({ wav, mode, language }) => {
+    const buf = Buffer.from(wav, 'base64')
+    if (mode?.type === 'local') {
+      const f = path.join(os.tmpdir(), `orbi-voice-${Date.now()}.wav`)
+      fs.writeFileSync(f, buf)
+      try {
+        return await localAI.transcribe({ wavPath: f, modelId: mode.modelId, language: language || 'auto' })
+      } finally {
+        fs.rmSync(f, { force: true })
+      }
+    }
+    const providerId = mode?.provider || 'openai'
+    const cfg = providerConfig(providerId)
+    if (!cfg.apiKey) throw new Error(`Add your ${providerId === 'groq' ? 'Groq' : 'OpenAI'} API key in Settings → AI providers.`)
+    const p = ai.PROVIDERS.find((x) => x.id === providerId)
+    const form = new FormData()
+    form.append('file', new Blob([buf], { type: 'audio/wav' }), 'speech.wav')
+    form.append('model', providerId === 'groq' ? 'whisper-large-v3-turbo' : 'whisper-1')
+    if (language && language !== 'auto') form.append('language', language)
+    const res = await fetch(`${(cfg.baseUrl || p.baseUrl).replace(/\/+$/, '')}/audio/transcriptions`, { method: 'POST', headers: { Authorization: `Bearer ${cfg.apiKey}` }, body: form })
+    if (!res.ok) throw new Error(`Transcription failed: ${res.status} ${(await res.text()).slice(0, 200)}`)
+    return String((await res.json()).text || '').trim()
+  },
+
+  // ---------- profession library ----------
+  'library:get': () => {
+    const installedSkills = new Set(db.all('SELECT library_id, name FROM skills').flatMap((r) => [r.library_id, r.name]).filter(Boolean))
+    const installedAgents = new Set(db.all('SELECT handle FROM agents').map((r) => r.handle))
+    return {
+      professions: library.PROFESSIONS,
+      skills: library.SKILLS.map((k) => ({ ...k, installed: installedSkills.has(k.id) || installedSkills.has(k.name) })),
+      agents: library.AGENTS.map((a) => ({ ...a, installed: installedAgents.has(a.handle) })),
+      kits: library.KITS.map((k) => ({ ...k, installed: k.skills.every((s) => installedSkills.has(s)) && k.agents.every((a) => installedAgents.has(library.AGENTS.find((x) => x.id === a)?.handle)) })),
+    }
+  },
+  'library:installSkill': (id) => installLibrarySkill(id),
+  'library:installAgent': (id) => installLibraryAgent(id),
+  'library:installKit': async (id) => {
+    const kit = library.KITS.find((k) => k.id === id)
+    if (!kit) return false
+    kit.skills.forEach(installLibrarySkill)
+    kit.agents.forEach(installLibraryAgent)
+    for (const sid of kit.servers) {
+      const srv = mcp.servers().find((x) => x.id === sid)
+      if (srv && !srv.enabled) await mcp.saveServer({ ...srv, enabled: true })
+      const cat = !srv && mcp.CATALOG.find((x) => x.id === sid)
+      if (cat && !Object.values(cat.env || {}).some((v) => String(v).includes('<'))) await mcp.saveServer({ ...cat, enabled: true })
+    }
+    broadcast('data:changed', 'all')
+    return true
+  },
+
+  // ---------- InvokeAI (optional external engine) ----------
+  'invoke:detect': async () => {
+    for (const port of [9090]) {
+      try {
+        const r = await fetch(`http://127.0.0.1:${port}/api/v1/app/version`, { signal: AbortSignal.timeout(1500) })
+        if (r.ok) return { url: `http://127.0.0.1:${port}`, version: (await r.json()).version }
+      } catch {
+        /* not running */
+      }
+    }
+    return null
+  },
+
 
   // workflows (Creative)
   'workflows:get': (id) => {
@@ -315,15 +443,10 @@ const api = {
 
   // ---------- local AI ----------
   'local:status': () => localAI.status(),
-  'local:installEngine': () => localAI.installEngine(),
-  'local:installModel': async (id) => {
-    await localAI.installEngine()
-    return localAI.installModel(id)
-  },
-  'local:addCustom': async (url, name) => {
-    await localAI.installEngine()
-    return localAI.addCustomModel(url, name)
-  },
+  'local:installEngine': (key) => localAI.installEngine(key),
+  'local:installModel': (id) => localAI.installModel(id),
+  'local:addCustom': (url, name) => localAI.addCustomModel(url, name),
+  'local:refreshHardware': () => localAI.refreshHardware(),
   'local:remove': (id) => localAI.removeModel(id),
   'local:cancel': (id) => localAI.cancel(id),
   'local:stop': () => localAI.stop(),
@@ -389,6 +512,23 @@ for (const [channel, fn] of Object.entries(api)) {
     currentSender = e.sender
     return fn(...args)
   })
+}
+
+function installLibrarySkill(id) {
+  const k = library.SKILLS.find((x) => x.id === id)
+  if (!k) return false
+  if (db.get('SELECT id FROM skills WHERE library_id = ? OR name = ?', [k.id, k.name])) return true
+  db.run('INSERT INTO skills (id, name, description, instructions, enabled, created_at, library_id) VALUES (?,?,?,?,?,?,?)', [db.uid(), k.name, k.description, k.instructions, 0, Date.now(), k.id])
+  return true
+}
+function installLibraryAgent(id) {
+  const a = library.AGENTS.find((x) => x.id === id)
+  if (!a) return false
+  if (db.get('SELECT id FROM agents WHERE handle = ?', [a.handle])) return true
+  const aid = db.uid()
+  db.run('INSERT INTO agents (id, handle, instructions, created_at) VALUES (?,?,?,?)', [aid, a.handle, a.instructions, Date.now()])
+  db.run('UPDATE agents SET name = ?, description = ?, category = ?, starters = ? WHERE id = ?', [a.name, a.description, a.category, JSON.stringify(a.starters || []), aid])
+  return true
 }
 
 async function configFor(providerId, model) {
@@ -465,12 +605,20 @@ function createWindow() {
 app.setAppUserModelId('com.orbix.orbi')
 app.whenReady().then(async () => {
   await db.open(app.getPath('userData'))
+  // First run: pre-install the lightweight (prompt-only) starters — two skills and one agent per profession.
+  if (!getSetting('librarySeeded')) {
+    for (const p of library.PROFESSIONS) {
+      library.SKILLS.filter((k) => k.profession === p.id).slice(0, 2).forEach((k) => installLibrarySkill(k.id))
+      library.AGENTS.filter((a) => a.profession === p.id).slice(0, 1).forEach((a) => installLibraryAgent(a.id))
+    }
+    setSetting('librarySeeded', true)
+  }
   nativeTheme.themeSource = 'dark'
   // The app draws its own menu bar. macOS keeps a minimal native menu so ⌘C/⌘V work.
   if (process.platform === 'darwin') {
     Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]))
   } else Menu.setApplicationMenu(null)
-  localAI.init(path.join(app.getPath('userData'), 'local-ai'), broadcast)
+  await localAI.init(path.join(app.getPath('userData'), 'local-ai'), broadcast, app)
   await mcp.init({ getSetting, setSetting, db, approve, onChange: (what) => broadcast('data:changed', what) })
   createWindow()
   // Screenshot hook used for automated checks.

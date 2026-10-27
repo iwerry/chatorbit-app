@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { t } from '../../lib/i18n'
 import { ChevronDown, FolderOpen, Globe, Loader2, Plus, Puzzle, RefreshCw, Server, Terminal, Trash2, Wrench } from 'lucide-react'
 import { api, type CatalogEntry, type McpServer, type Plugin } from '../../lib/api'
 
@@ -34,7 +35,7 @@ export function McpPanel({ servers, setServers, plugins, setPlugins, onRefresh }
 
   return (
     <div className="panel-scroll mcp-panel">
-      <p className="px-1 text-xs leading-relaxed text-[#859089]">Give Orbi abilities with MCP servers and plugins. Everything that needs no setup is already connected.</p>
+      <p className="px-1 text-xs leading-relaxed text-[#859089]">{t('Give Orbi abilities with MCP servers and plugins. Everything that needs no setup is already connected.')}</p>
 
       <button
         className="module-item module-item-rich mt-3"
@@ -45,7 +46,7 @@ export function McpPanel({ servers, setServers, plugins, setPlugins, onRefresh }
       >
         <Wrench size={15} />
         <div className="min-w-0 flex-1 text-left">
-          <strong>Use tools in chat</strong>
+          <strong>{t('Use tools in chat')}</strong>
           <small>
             {toolsOn ? `On · ${connectedTools} tools available` : 'Off'} — models that support tools can call them.
           </small>
@@ -58,15 +59,15 @@ export function McpPanel({ servers, setServers, plugins, setPlugins, onRefresh }
       <div className="module-item module-item-rich">
         <FolderOpen size={15} />
         <div className="min-w-0 flex-1 text-left">
-          <strong>Workspace folder</strong>
+          <strong>{t('Workspace folder')}</strong>
           <small title={workspace}>{workspace}</small>
         </div>
         <button className="mcp-mini" onClick={async () => setWorkspace(await api.chooseWorkspace())}>
-          Change
+          {t('Change')}
         </button>
       </div>
 
-      <p className="eyebrow mt-5 px-1 text-[#7e8a84]">Plugins</p>
+      <p className="eyebrow mt-5 px-1 text-[#7e8a84]">{t('Plugins')}</p>
       <div className="mt-2 space-y-1.5">
         {plugins.map((p) => (
           <div className="mcp-card" key={p.id}>
@@ -90,8 +91,8 @@ export function McpPanel({ servers, setServers, plugins, setPlugins, onRefresh }
       </div>
 
       <div className="mt-5 flex items-center justify-between px-1">
-        <p className="eyebrow text-[#7e8a84]">MCP servers</p>
-        <button className="panel-add" aria-label="Add MCP server" onClick={() => setAdding({ type: 'http', name: '', url: '', command: '', headers: '' })}>
+        <p className="eyebrow text-[#7e8a84]">{t('MCP servers')}</p>
+        <button className="panel-add" aria-label={t('Add MCP server')} onClick={() => setAdding({ type: 'http', name: '', url: '', command: '', headers: '' })}>
           <Plus size={13} />
         </button>
       </div>
@@ -105,11 +106,11 @@ export function McpPanel({ servers, setServers, plugins, setPlugins, onRefresh }
               </button>
             ))}
           </div>
-          <input placeholder="Name" value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })} />
+          <input placeholder={t('Name')} value={adding.name} onChange={(e) => setAdding({ ...adding, name: e.target.value })} />
           {adding.type === 'http' ? (
             <>
               <input placeholder="https://example.com/mcp" value={adding.url} onChange={(e) => setAdding({ ...adding, url: e.target.value })} />
-              <input placeholder="Authorization header (optional)" value={adding.headers} onChange={(e) => setAdding({ ...adding, headers: e.target.value })} />
+              <input placeholder={t('Authorization header (optional)')} value={adding.headers} onChange={(e) => setAdding({ ...adding, headers: e.target.value })} />
             </>
           ) : (
             <input placeholder="npx -y @scope/server --flag" value={adding.command} onChange={(e) => setAdding({ ...adding, command: e.target.value })} />
@@ -129,10 +130,10 @@ export function McpPanel({ servers, setServers, plugins, setPlugins, onRefresh }
                 await run(id, () => api.saveMcp(server))
               }}
             >
-              Connect
+              {t('Connect')}
             </button>
             <button className="orbi-btn" onClick={() => setAdding(null)}>
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
         </div>
@@ -191,7 +192,7 @@ export function McpPanel({ servers, setServers, plugins, setPlugins, onRefresh }
         ))}
       </div>
 
-      <p className="eyebrow mt-5 px-1 text-[#7e8a84]">Catalog</p>
+      <p className="eyebrow mt-5 px-1 text-[#7e8a84]">{t('Catalog')}</p>
       <div className="mt-2 space-y-1.5 pb-6">
         {catalog
           .filter((c) => !installed.has(c.id))

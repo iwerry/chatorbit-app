@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { t } from '../../lib/i18n'
 import { ChevronDown, Maximize2, MessageSquarePlus, Plus, Settings2, Trash2, Wrench, X } from 'lucide-react'
 import { api, parseJSON, type Agent, type McpServer, type ModelInfo, type Skill } from '../../lib/api'
 
@@ -102,7 +103,7 @@ export function AgentsPanel({
     <div className="panel-scroll agent-builder">
       <label className="ab-select">
         <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
-          <option value="new">Create New Agent</option>
+          <option value="new">{t('Create New Agent')}</option>
           {agents.map((a) => (
             <option key={a.id} value={a.id}>
               {a.handle}
@@ -113,12 +114,12 @@ export function AgentsPanel({
       </label>
 
       <div className="ab-identity">
-        <button className="ab-avatar" style={{ background: draft.color }} onClick={() => setAdvanced(true)} title="Agent color">
+        <button className="ab-avatar" style={{ background: draft.color }} onClick={() => setAdvanced(true)} title={t('Agent color')}>
           {draft.name ? draft.name[0].toUpperCase() : <Plus size={18} />}
         </button>
         <div className="ab-identity-fields">
-          <input className="ab-input" placeholder="Agent name" value={draft.name} onChange={(e) => set('name', e.target.value)} />
-          <input className="ab-input" placeholder="What this agent does" value={draft.description} onChange={(e) => set('description', e.target.value)} />
+          <input className="ab-input" placeholder={t('Agent name')} value={draft.name} onChange={(e) => set('name', e.target.value)} />
+          <input className="ab-input" placeholder={t('What this agent does')} value={draft.description} onChange={(e) => set('description', e.target.value)} />
         </div>
       </div>
 
@@ -128,7 +129,7 @@ export function AgentsPanel({
             Model <i>*</i>
           </p>
           <select className="ab-input" value={draft.model} onChange={(e) => set('model', e.target.value)}>
-            <option value="">Current chat model</option>
+            <option value="">{t('Current chat model')}</option>
             {chatModels.map((m) => (
               <option key={m.key} value={m.key}>
                 {m.name} · {m.providerName}
@@ -149,22 +150,22 @@ export function AgentsPanel({
       </div>
 
       <div className="ab-label-row">
-        <p className="ab-label">Instructions</p>
-        <button onClick={() => setBigEditor(true)} title="Expand editor">
+        <p className="ab-label">{t('Instructions')}</p>
+        <button onClick={() => setBigEditor(true)} title={t('Expand editor')}>
           <Maximize2 size={13} />
         </button>
       </div>
-      <textarea className="ab-input ab-textarea" rows={5} placeholder="The system instructions that the agent uses" value={draft.instructions} onChange={(e) => set('instructions', e.target.value)} />
+      <textarea className="ab-input ab-textarea" rows={5} placeholder={t('The system instructions that the agent uses')} value={draft.instructions} onChange={(e) => set('instructions', e.target.value)} />
 
       <div className="ab-label-row">
-        <p className="ab-label">Tools</p>
+        <p className="ab-label">{t('Tools')}</p>
         <button onClick={() => setToolPicker((v) => !v)}>
           <Plus size={13} /> Add
         </button>
       </div>
       {toolPicker && (
         <div className="ab-picker">
-          {servers.length === 0 && <p className="ab-hint">Connect MCP servers in MCP & Plugins first.</p>}
+          {servers.length === 0 && <p className="ab-hint">{t('Connect MCP servers in MCP & Plugins first.')}</p>}
           {servers.map((s) => (
             <label key={s.id} className="ab-check">
               <input type="checkbox" checked={draft.tools.includes(s.id)} onChange={() => set('tools', draft.tools.includes(s.id) ? draft.tools.filter((x) => x !== s.id) : [...draft.tools, s.id])} />
@@ -180,11 +181,11 @@ export function AgentsPanel({
       )}
       {draft.tools.length ? (
         <div className="ab-chips">
-          {draft.tools.map((t) => (
-            <span key={t} className="ab-chip">
+          {draft.tools.map((tool) => (
+            <span key={tool} className="ab-chip">
               <Wrench size={11} />
-              {servers.find((s) => s.id === t)?.name ?? t}
-              <button onClick={() => set('tools', draft.tools.filter((x) => x !== t))} aria-label="Remove tool">
+              {servers.find((s) => s.id === tool)?.name ?? tool}
+              <button onClick={() => set('tools', draft.tools.filter((x) => x !== tool))} aria-label={t('Remove tool')}>
                 <X size={10} />
               </button>
             </span>
@@ -193,13 +194,13 @@ export function AgentsPanel({
       ) : (
         <button className="ab-empty" onClick={() => setToolPicker(true)}>
           <Plus size={14} />
-          <strong>No tools yet</strong>
-          <span>Add a tool to give your agent extra abilities.</span>
+          <strong>{t('No tools yet')}</strong>
+          <span>{t('Add a tool to give your agent extra abilities.')}</span>
         </button>
       )}
 
       <div className="ab-label-row">
-        <p className="ab-label">Skills</p>
+        <p className="ab-label">{t('Skills')}</p>
         <div className="ab-segment">
           {(['off', 'all', 'selected'] as const).map((m) => (
             <button key={m} className={draft.skills_mode === m ? 'active' : ''} onClick={() => set('skills_mode', m)}>
@@ -223,38 +224,38 @@ export function AgentsPanel({
       )}
 
       <div className="ab-label-row">
-        <p className="ab-label">File context</p>
+        <p className="ab-label">{t('File context')}</p>
       </div>
       <p className="ab-hint">{draft.id ? 'Attach files in a chat with this agent — they are added as context.' : 'Agent must be created before uploading files for File Context.'}</p>
 
-      <p className="ab-label mt-4">Conversation starters</p>
+      <p className="ab-label mt-4">{t('Conversation starters')}</p>
       {draft.starters.map((st, i) => (
         <div className="ab-starter" key={i}>
           <input
             className="ab-input"
-            placeholder="Enter a conversation starter"
+            placeholder={t('Enter a conversation starter')}
             value={st}
             onChange={(e) => set('starters', draft.starters.map((x, j) => (j === i ? e.target.value : x)))}
           />
           {i === draft.starters.length - 1 ? (
-            <button onClick={() => set('starters', [...draft.starters, ''])} aria-label="Add starter">
+            <button onClick={() => set('starters', [...draft.starters, ''])} aria-label={t('Add starter')}>
               <Plus size={14} />
             </button>
           ) : (
-            <button onClick={() => set('starters', draft.starters.filter((_, j) => j !== i))} aria-label="Remove starter">
+            <button onClick={() => set('starters', draft.starters.filter((_, j) => j !== i))} aria-label={t('Remove starter')}>
               <X size={13} />
             </button>
           )}
         </div>
       ))}
 
-      <p className="ab-label mt-4">Support contact</p>
-      <input className="ab-input" placeholder="Support contact name" value={draft.support_name} onChange={(e) => set('support_name', e.target.value)} />
+      <p className="ab-label mt-4">{t('Support contact')}</p>
+      <input className="ab-input" placeholder={t('Support contact name')} value={draft.support_name} onChange={(e) => set('support_name', e.target.value)} />
       <input className="ab-input mt-2" placeholder="support@example.com" value={draft.support_email} onChange={(e) => set('support_email', e.target.value)} />
 
       {advanced && (
         <div className="ab-advanced">
-          <p className="ab-label">Color</p>
+          <p className="ab-label">{t('Color')}</p>
           <div className="flex gap-2">
             {COLORS.map((c) => (
               <button key={c} className={`ab-color ${draft.color === c ? 'active' : ''}`} style={{ background: c }} onClick={() => set('color', c)} aria-label={c} />
@@ -295,11 +296,11 @@ export function AgentsPanel({
           <div className="ab-big-editor">
             <div className="flex items-center justify-between">
               <h3>Instructions · {draft.name || 'New agent'}</h3>
-              <button className="orbi-modal-close static" onClick={() => setBigEditor(false)} aria-label="Close">
+              <button className="orbi-modal-close static" onClick={() => setBigEditor(false)} aria-label={t('Close')}>
                 <X size={16} />
               </button>
             </div>
-            <textarea autoFocus value={draft.instructions} onChange={(e) => set('instructions', e.target.value)} placeholder="The system instructions that the agent uses" />
+            <textarea autoFocus value={draft.instructions} onChange={(e) => set('instructions', e.target.value)} placeholder={t('The system instructions that the agent uses')} />
           </div>
         </div>
       )}

@@ -18,13 +18,16 @@ InstallDirRegKey HKCU "Software\${COMPANY}\${APP_NAME}" "InstallDir"
 RequestExecutionLevel user
 BrandingText "${COMPANY} · ${APP_NAME} ${VERSION}"
 
-VIProductVersion "${VERSION}.0"
+!ifndef NUMVER
+  !define NUMVER "0.1.0.0"
+!endif
+VIProductVersion "${NUMVER}"
 VIAddVersionKey "ProductName" "${APP_NAME}"
 VIAddVersionKey "CompanyName" "${COMPANY}"
 VIAddVersionKey "FileDescription" "${APP_NAME} Setup"
-VIAddVersionKey "FileVersion" "${VERSION}"
+VIAddVersionKey "FileVersion" "${NUMVER}"
 VIAddVersionKey "ProductVersion" "${VERSION}"
-VIAddVersionKey "LegalCopyright" "© 2026 ${COMPANY}"
+VIAddVersionKey "LegalCopyright" "© 2026 Daniel Rodrigues · ${COMPANY}"
 
 !include "MUI2.nsh"
 !define MUI_ICON "icon.ico"

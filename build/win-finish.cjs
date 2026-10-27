@@ -18,20 +18,22 @@ const lang = groups.length ? groups[0].lang : 1033
 ResEdit.Resource.IconGroupEntry.replaceIconsForResource(res.entries, groupId, lang, iconFile.icons.map((i) => i.data))
 
 const [vi] = ResEdit.Resource.VersionInfo.fromEntries(res.entries)
-const v = pkg.version.split('.').map(Number)
+// 0.1.27-1 → 0.1.27.1 (Windows version resources are four numbers)
+const v = pkg.version.split(/[.-]/).map(Number).concat([0, 0, 0, 0]).slice(0, 4)
+const numeric = v.join('.')
 const info = vi ?? ResEdit.Resource.VersionInfo.createEmpty()
-info.setFileVersion(v[0], v[1], v[2], 0, 1033)
-info.setProductVersion(v[0], v[1], v[2], 0, 1033)
+info.setFileVersion(v[0], v[1], v[2], v[3], 1033)
+info.setProductVersion(v[0], v[1], v[2], v[3], 1033)
 info.setStringValues(
   { lang: 1033, codepage: 1200 },
   {
     ProductName: 'Orbi',
     FileDescription: 'Orbi',
     CompanyName: 'OrbiX',
-    LegalCopyright: '© 2026 OrbiX',
+    LegalCopyright: '© 2026 Daniel Rodrigues · OrbiX',
     OriginalFilename: 'Orbi.exe',
     InternalName: 'Orbi',
-    FileVersion: pkg.version,
+    FileVersion: numeric,
     ProductVersion: pkg.version,
   },
 )
@@ -48,7 +50,7 @@ const nsisDir = fs
   .find((d) => fs.existsSync(path.join(d, 'linux', 'makensis')))
 if (!nsisDir) throw new Error('NSIS not found — run electron-builder once to download it')
 
-execFileSync(path.join(nsisDir, 'linux', 'makensis'), ['-V2', `-DVERSION=${pkg.version}`, path.join(__dirname, 'installer.nsi')], {
+execFileSync(path.join(nsisDir, 'linux', 'makensis'), ['-V2', `-DVERSION=${pkg.version}`, `-DNUMVER=${numeric}`, path.join(__dirname, 'installer.nsi')], {
   stdio: 'inherit',
   env: { ...process.env, NSISDIR: nsisDir },
 })

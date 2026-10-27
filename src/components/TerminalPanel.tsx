@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { t } from '../lib/i18n'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
@@ -192,7 +193,7 @@ export const TerminalPanel = forwardRef<TerminalHandle, { height: number; setHei
         <div className="term-resize" onPointerDown={startResize} />
         <header className="term-header">
           <div className="term-tabs-left">
-            <span className="term-title">Terminal</span>
+            <span className="term-title">{t('Terminal')}</span>
             {sessions.map((s, i) => (
               <button key={s.id} className={`term-tab ${s.id === active ? 'active' : ''} ${s.exited ? 'exited' : ''}`} onClick={() => setActive(s.id)}>
                 <span className="term-dot" />
@@ -215,16 +216,16 @@ export const TerminalPanel = forwardRef<TerminalHandle, { height: number; setHei
             <span className="term-shell">
               {shellName} <ChevronDown size={12} />
             </span>
-            <button onClick={newTerminal} title="New terminal (Ctrl+Shift+`)">
+            <button onClick={newTerminal} title={t('New terminal (Ctrl+Shift+`)')}>
               <Plus size={15} />
             </button>
-            <button onClick={() => active && kill(active)} title="Kill terminal">
+            <button onClick={() => active && kill(active)} title={t('Kill terminal')}>
               <Trash2 size={14} />
             </button>
             <button onClick={() => setMaximized(!maximized)} title={maximized ? 'Restore panel' : 'Maximize panel'}>
               {maximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             </button>
-            <button onClick={onClose} title="Hide panel (Ctrl+`)">
+            <button onClick={onClose} title={t('Hide panel (Ctrl+`)')}>
               <X size={15} />
             </button>
           </div>

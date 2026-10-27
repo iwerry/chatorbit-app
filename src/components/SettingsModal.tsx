@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Check, Cpu, Download, ExternalLink, FolderOpen, KeyRound, Link2, Loader2, Plug, Server, Square, Trash2, UserRound, X } from 'lucide-react'
-import { api, type AppInfo, type LocalStatus, type ProviderInfo } from '../lib/api'
+import { Boxes, Check, ExternalLink, FolderOpen, Globe, Info, KeyRound, Loader2, Mic, Plug, Server, SlidersHorizontal, UserRound, X } from 'lucide-react'
+import { api, type AppInfo, type LocalStatus, type ProviderInfo, type VoiceMode } from '../lib/api'
+import { LANGUAGES, t, type Lang } from '../lib/i18n'
+import { OrbiMark } from './Logo'
+import { ModelHub } from './ModelHub'
 
 const KEY_URLS: Record<string, string> = {
   openrouter: 'https://openrouter.ai/keys',
@@ -8,23 +11,22 @@ const KEY_URLS: Record<string, string> = {
   anthropic: 'https://console.anthropic.com/settings/keys',
   gemini: 'https://aistudio.google.com/apikey',
   deepseek: 'https://platform.deepseek.com/api_keys',
+  groq: 'https://console.groq.com/keys',
   mistral: 'https://console.mistral.ai/api-keys',
   ollama: 'https://ollama.com/download',
   lmstudio: 'https://lmstudio.ai',
 }
 
+export type SettingsTab = 'general' | 'providers' | 'models' | 'voice' | 'about' | 'profile'
+
 type TestState = { status: 'idle' | 'testing' | 'ok' | 'error'; message?: string }
+const cleanErr = (e: unknown) => String((e as Error)?.message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
 function ProviderCard({ provider, onChanged }: { provider: ProviderInfo; onChanged: () => void }) {
   const [key, setKey] = useState('')
   const [baseUrl, setBaseUrl] = useState(provider.customBaseUrl)
   const [test, setTest] = useState<TestState>({ status: 'idle' })
   const showBaseUrl = provider.mode === 'Local'
-
-  const save = async (patch: Parameters<typeof api.saveProvider>[1]) => {
-    await api.saveProvider(provider.id, patch)
-    onChanged()
-  }
 
   const runTest = async () => {
     setTest({ status: 'testing' })
@@ -34,10 +36,10 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderInfo; onChang
       const r = await api.testProvider(provider.id)
       await api.saveProvider(provider.id, { enabled: true })
       setKey('')
-      setTest({ status: 'ok', message: `Connected · ${r.count} models` })
+      setTest({ status: 'ok', message: t('Connected · {n} models', { n: r.count }) })
       onChanged()
     } catch (e) {
-      setTest({ status: 'error', message: String((e as Error).message).replace(/^Error invoking remote method '[^']+': (Error: )?/, '') })
+      setTest({ status: 'error', message: cleanErr(e) })
     }
   }
 
@@ -48,31 +50,27 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderInfo; onChang
         <div className="min-w-0 flex-1">
           <p className="provider-name">
             {provider.name}
-            <span className={`provider-badge ${provider.mode === 'Local' ? 'provider-badge-local' : ''}`}>{provider.mode}</span>
+            <span className={`provider-badge ${provider.mode === 'Local' ? 'provider-badge-local' : ''}`}>{provider.mode === 'Local' ? t('Local') : 'API'}</span>
           </p>
-          <p className="provider-hint">{provider.hint}</p>
+          <p className="provider-hint">{t(provider.hint)}</p>
         </div>
         <button
           className={`orbi-switch ${provider.enabled ? 'orbi-switch-on' : ''}`}
-          onClick={() => save({ enabled: !provider.enabled })}
-          aria-label={provider.enabled ? 'Disable provider' : 'Enable provider'}
+          onClick={async () => {
+            await api.saveProvider(provider.id, { enabled: !provider.enabled })
+            onChanged()
+          }}
+          aria-label={provider.enabled ? t('Disable provider') : t('Enable provider')}
           aria-pressed={provider.enabled}
         >
           <span />
         </button>
       </div>
-
       <div className="provider-fields">
         {provider.needsKey && (
           <label className="orbi-field">
             <KeyRound size={14} />
-            <input
-              type="password"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              placeholder={provider.hasKey ? 'API key saved — paste to replace' : 'Paste your API key'}
-              spellCheck={false}
-            />
+            <input type="password" value={key} onChange={(e) => setKey(e.target.value)} placeholder={provider.hasKey ? t('API key saved — paste to replace') : t('Paste your API key')} spellCheck={false} />
           </label>
         )}
         {showBaseUrl && (
@@ -84,131 +82,119 @@ function ProviderCard({ provider, onChanged }: { provider: ProviderInfo; onChang
         <div className="provider-actions">
           <button className="orbi-btn orbi-btn-primary" onClick={runTest} disabled={test.status === 'testing' || (provider.needsKey && !key && !provider.hasKey)}>
             {test.status === 'testing' ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-            {provider.needsKey ? 'Save & connect' : 'Connect'}
+            {provider.needsKey ? t('Save & connect') : t('Connect')}
           </button>
           {KEY_URLS[provider.id] && (
             <button className="orbi-btn" onClick={() => api.openExternal(KEY_URLS[provider.id])}>
               <ExternalLink size={13} />
-              {provider.needsKey ? 'Get a key' : 'Download'}
+              {provider.needsKey ? t('Get a key') : t('Download')}
             </button>
           )}
-          {test.status !== 'idle' && test.status !== 'testing' && (
-            <span className={`provider-status ${test.status === 'error' ? 'provider-status-error' : ''}`}>{test.message}</span>
-          )}
+          {test.status !== 'idle' && test.status !== 'testing' && <span className={`provider-status ${test.status === 'error' ? 'provider-status-error' : ''}`}>{test.message}</span>}
         </div>
       </div>
     </div>
   )
 }
 
-function mb(n: number) {
-  return n ? `${Math.round(n / 1_000_000)} MB` : ''
-}
-
-export function LocalAICard({ status, onChanged }: { status: LocalStatus | null; onChanged: () => void }) {
+export function VoiceSettings({ status, onLocalChanged, onPicked }: { status: LocalStatus | null; onLocalChanged: () => void; onPicked?: (m: VoiceMode) => void }) {
+  const [mode, setMode] = useState<VoiceMode | null>(null)
+  const [providers, setProviders] = useState<ProviderInfo[]>([])
+  const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [custom, setCustom] = useState('')
-  const [showCustom, setShowCustom] = useState(false)
-  if (!status) return null
-  const install = async (fn: () => Promise<unknown>) => {
-    setError(null)
-    try {
-      await fn()
-      onChanged()
-    } catch (e) {
-      setError(String((e as Error).message).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))
-    }
+  useEffect(() => {
+    api.getSetting<VoiceMode | null>('voiceMode', null).then(setMode)
+    api.providers().then(setProviders)
+  }, [])
+  const pick = (m: VoiceMode) => {
+    setMode(m)
+    api.setSetting('voiceMode', m)
+    onPicked?.(m)
   }
-  const engine = status.engineDownloading
+  const stt = status?.models.filter((m) => m.kind === 'stt') ?? []
+  const localSupported = !!status?.engines.whisper.supported
+  const rec = status?.recommended.stt
+  const keyed = (id: string) => providers.find((p) => p.id === id)?.hasKey
   return (
-    <div className="provider-card provider-card-on local-card">
-      <div className="provider-card-head">
-        <div className="provider-icon">
-          <Cpu size={16} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="provider-name">
-            Orbi Local <span className="provider-badge provider-badge-local">Free · Offline</span>
-          </p>
-          <p className="provider-hint">
-            Tiny open models that run on this PC with llama.cpp. Nothing is bundled — download only what you want.
-            {status.running && ` Running: ${status.running.modelId}.`}
-          </p>
-        </div>
-        {status.running && (
-          <button className="orbi-btn" onClick={() => api.stopLocal().then(onChanged)} title="Stop local engine">
-            <Square size={12} /> Stop
-          </button>
-        )}
-      </div>
-      {engine && (
-        <div className="local-progress">
-          <span>Downloading engine (llama.cpp {status.engineTag})…</span>
-          <div className="local-bar">
-            <i style={{ width: `${engine.total ? (engine.received / engine.total) * 100 : 5}%` }} />
+    <div className="voice-setup">
+      <div className="voice-option">
+        <div className="voice-option-head">
+          <Mic size={16} />
+          <div>
+            <strong>{t('On this computer')}</strong>
+            <small>{localSupported ? t('Private and free. Downloads a Whisper model once.') : t('Local voice is available on Windows for now.')}</small>
           </div>
         </div>
-      )}
-      <div className="local-models">
-        {status.models.map((m) => (
-          <div className={`local-model ${m.installed ? 'installed' : ''}`} key={m.id}>
-            <div className="min-w-0 flex-1">
-              <p>
-                <strong>{m.name}</strong>
-                {m.badge && <span className="provider-badge">{m.badge}</span>}
-              </p>
-              <small>
-                {[mb(m.size), m.ram, m.license].filter(Boolean).join(' · ')}
-                {m.description && !m.description.startsWith('http') ? ` — ${m.description}` : ''}
-              </small>
-              {m.downloading && (
-                <div className="local-bar mt-2">
-                  <i style={{ width: `${m.downloading.total ? (m.downloading.received / m.downloading.total) * 100 : 3}%` }} />
+        {localSupported &&
+          stt.map((m) => {
+            const active = mode?.type === 'local' && mode.modelId === m.id
+            const pct = m.downloading?.total ? Math.round((m.downloading.received / m.downloading.total) * 100) : 0
+            return (
+              <div key={m.id} className={`voice-model ${active ? 'active' : ''} fit-${m.fit.level}`}>
+                <div className="min-w-0 flex-1">
+                  <strong>{m.name}</strong> {m.id === rec && <span className="hub-badge hub-badge-rec">{t('Recommended')}</span>}
+                  <small className="num">
+                    {Math.round(m.size / 1e6)} MB · {t(m.fit.reason, m.fit.vars)}
+                  </small>
+                  {m.downloading && (
+                    <div className="local-bar mt-1">
+                      <i style={{ width: `${Math.max(3, pct)}%` }} />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            {m.installed ? (
-              <div className="flex items-center gap-1.5">
-                <span className="provider-status">
-                  <Check size={12} className="inline" /> Ready
-                </span>
-                <button className="orbi-btn" title="Delete model" onClick={() => install(() => api.removeLocal(m.id))}>
-                  <Trash2 size={13} />
-                </button>
+                {m.installed ? (
+                  <button className={`orbi-btn ${active ? 'orbi-btn-primary' : ''}`} onClick={() => pick({ type: 'local', modelId: m.id })}>
+                    {active ? <Check size={13} /> : null} {active ? t('In use') : t('Use')}
+                  </button>
+                ) : (
+                  <button
+                    className={`orbi-btn ${m.id === rec ? 'orbi-btn-primary' : ''}`}
+                    disabled={!!busy || !!m.downloading}
+                    onClick={async () => {
+                      setBusy(m.id)
+                      setError(null)
+                      try {
+                        await api.installLocalModel(m.id)
+                        onLocalChanged()
+                        pick({ type: 'local', modelId: m.id })
+                      } catch (e) {
+                        setError(cleanErr(e))
+                      } finally {
+                        setBusy(null)
+                      }
+                    }}
+                  >
+                    {busy === m.id || m.downloading ? <Loader2 size={13} className="animate-spin" /> : null} {m.downloading ? `${pct}%` : t('Download & use')}
+                  </button>
+                )}
               </div>
-            ) : m.downloading ? (
-              <button className="orbi-btn" onClick={() => api.cancelLocal(m.id)}>
-                {Math.round((m.downloading.received / (m.downloading.total || 1)) * 100)}% · Cancel
-              </button>
-            ) : (
-              <button className="orbi-btn orbi-btn-primary" onClick={() => install(() => api.installLocalModel(m.id))}>
-                <Download size={13} /> Download
-              </button>
-            )}
-          </div>
-        ))}
+            )
+          })}
       </div>
-      {showCustom ? (
-        <div className="provider-fields mt-2" style={{ paddingLeft: 0 }}>
-          <label className="orbi-field">
-            <Link2 size={14} />
-            <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="https://huggingface.co/…/resolve/main/model.gguf" spellCheck={false} />
-          </label>
-          <div className="provider-actions">
-            <button className="orbi-btn orbi-btn-primary" disabled={!custom.trim()} onClick={() => install(() => api.addCustomLocal(custom.trim()))}>
-              <Download size={13} /> Download GGUF
-            </button>
-            <button className="orbi-btn" onClick={() => setShowCustom(false)}>
-              Cancel
-            </button>
+      <div className="voice-option">
+        <div className="voice-option-head">
+          <Globe size={16} />
+          <div>
+            <strong>{t('Through an API')}</strong>
+            <small>{t('Best accuracy, nothing to download. Uses your provider key.')}</small>
           </div>
         </div>
-      ) : (
-        <button className="local-custom-link" onClick={() => setShowCustom(true)}>
-          + Add any GGUF from Hugging Face
-        </button>
-      )}
-      {error && <p className="provider-status provider-status-error mt-2">{error}</p>}
+        {(['openai', 'groq'] as const).map((id) => {
+          const active = mode?.type === 'api' && mode.provider === id
+          return (
+            <div key={id} className={`voice-model ${active ? 'active' : ''}`}>
+              <div className="min-w-0 flex-1">
+                <strong>{id === 'openai' ? 'OpenAI Whisper' : 'Groq Whisper Large v3 Turbo'}</strong>
+                <small>{keyed(id) ? t('Key connected') : t('Needs a {p} key in AI providers', { p: id === 'openai' ? 'OpenAI' : 'Groq' })}</small>
+              </div>
+              <button className={`orbi-btn ${active ? 'orbi-btn-primary' : ''}`} disabled={!keyed(id)} onClick={() => pick({ type: 'api', provider: id })}>
+                {active ? t('In use') : t('Use')}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+      {error && <p className="provider-status provider-status-error">{error}</p>}
     </div>
   )
 }
@@ -216,23 +202,27 @@ export function LocalAICard({ status, onChanged }: { status: LocalStatus | null;
 export function SettingsModal({
   onClose,
   onChanged,
-  initialTab = 'providers',
+  initialTab = 'general',
   userName,
   setUserName,
   info,
   localStatus,
   onLocalChanged,
+  lang,
+  setLang,
 }: {
   onClose: () => void
   onChanged: () => void
-  initialTab?: 'providers' | 'profile' | 'about'
+  initialTab?: SettingsTab
   userName: string
   setUserName: (n: string) => void
   info: AppInfo | null
   localStatus: LocalStatus | null
   onLocalChanged: () => void
+  lang: Lang
+  setLang: (l: Lang) => void
 }) {
-  const [tab, setTab] = useState(initialTab)
+  const [tab, setTab] = useState<SettingsTab>(initialTab === 'profile' ? 'general' : initialTab)
   const [providers, setProviders] = useState<ProviderInfo[]>([])
   const [name, setName] = useState(userName)
 
@@ -244,56 +234,46 @@ export function SettingsModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  const nav: { id: SettingsTab; label: string; icon: typeof Plug }[] = [
+    { id: 'general', label: 'General', icon: SlidersHorizontal },
+    { id: 'providers', label: 'AI providers', icon: Plug },
+    { id: 'models', label: 'Local models', icon: Boxes },
+    { id: 'voice', label: 'Voice', icon: Mic },
+    { id: 'about', label: 'About', icon: Info },
+  ]
+
   return (
     <div className="orbi-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="orbi-modal" role="dialog" aria-label="Settings">
+      <div className="orbi-modal" role="dialog" aria-label={t('Settings')}>
         <aside className="orbi-modal-nav">
-          <p className="orbi-modal-title">Settings</p>
-          <button className={tab === 'providers' ? 'active' : ''} onClick={() => setTab('providers')}>
-            <Plug size={15} /> AI providers
-          </button>
-          <button className={tab === 'profile' ? 'active' : ''} onClick={() => setTab('profile')}>
-            <UserRound size={15} /> Profile
-          </button>
-          <button className={tab === 'about' ? 'active' : ''} onClick={() => setTab('about')}>
-            <FolderOpen size={15} /> Data & about
-          </button>
+          <p className="orbi-modal-title">{t('Settings')}</p>
+          {nav.map((n) => {
+            const Icon = n.icon
+            return (
+              <button key={n.id} className={tab === n.id ? 'active' : ''} onClick={() => setTab(n.id)}>
+                <Icon size={15} /> {t(n.label)}
+              </button>
+            )
+          })}
         </aside>
         <section className="orbi-modal-body">
-          <button className="orbi-modal-close" onClick={onClose} aria-label="Close settings">
+          <button className="orbi-modal-close" onClick={onClose} aria-label={t('Close settings')}>
             <X size={17} />
           </button>
-          {tab === 'providers' && (
+
+          {tab === 'general' && (
             <>
-              <h3>AI providers</h3>
-              <p className="orbi-muted">
-                Connect at least one provider to start chatting. Keys are encrypted with your system's secure storage and never leave this computer except to call that provider.
-              </p>
-              <div className="provider-list">
-                <LocalAICard
-                  status={localStatus}
-                  onChanged={() => {
-                    onLocalChanged()
-                    onChanged()
-                  }}
-                />
-                {providers.filter((p) => p.id !== 'orbi').map((p) => (
-                  <ProviderCard
-                    key={p.id}
-                    provider={p}
-                    onChanged={() => {
-                      load()
-                      onChanged()
-                    }}
-                  />
+              <h3>{t('General')}</h3>
+              <label className="orbi-label">{t('Language')}</label>
+              <div className="lang-grid">
+                {LANGUAGES.map((l) => (
+                  <button key={l.id} className={`lang-option ${lang === l.id ? 'active' : ''}`} onClick={() => setLang(l.id)}>
+                    {lang === l.id && <Check size={13} />}
+                    {l.name}
+                  </button>
                 ))}
               </div>
-            </>
-          )}
-          {tab === 'profile' && (
-            <>
-              <h3>Profile</h3>
-              <label className="orbi-label">Your name</label>
+              <label className="orbi-label">{t('Your name')}</label>
               <div className="flex gap-2">
                 <label className="orbi-field flex-1">
                   <UserRound size={14} />
@@ -306,30 +286,86 @@ export function SettingsModal({
                     api.setSetting('userName', name.trim() || userName)
                   }}
                 >
-                  Save
+                  {t('Save')}
                 </button>
               </div>
-              <p className="orbi-muted mt-3">Used in greetings. Plans, billing and cloud sync arrive with the OrbiX account.</p>
+              <p className="orbi-muted mt-3">{t('Used in greetings. Plans, billing and cloud sync arrive with the OrbiX account.')}</p>
             </>
           )}
-          {tab === 'about' && (
+
+          {tab === 'providers' && (
             <>
-              <h3>Data & about</h3>
-              <p className="orbi-muted">
-                Chats, projects, memories and generated media are stored locally in a SQLite database and a media folder.
+              <h3>{t('AI providers')}</h3>
+              <p className="orbi-muted">{t("Connect at least one provider to start chatting. Keys are encrypted with your system's secure storage and never leave this computer except to call that provider.")}</p>
+              <div className="provider-list">
+                {providers
+                  .filter((p) => p.id !== 'orbi')
+                  .map((p) => (
+                    <ProviderCard
+                      key={p.id}
+                      provider={p}
+                      onChanged={() => {
+                        load()
+                        onChanged()
+                      }}
+                    />
+                  ))}
+              </div>
+            </>
+          )}
+
+          {tab === 'models' && (
+            <>
+              <h3>{t('Local models')}</h3>
+              <p className="orbi-muted">{t('Free models that run on this computer. Orbi checks your hardware and recommends what fits — you can still install anything.')}</p>
+              <ModelHub
+                status={localStatus}
+                onChanged={() => {
+                  onLocalChanged()
+                  onChanged()
+                }}
+              />
+            </>
+          )}
+
+          {tab === 'voice' && (
+            <>
+              <h3>{t('Voice')}</h3>
+              <p className="orbi-muted">{t('Choose how the microphone button turns speech into text.')}</p>
+              <VoiceSettings status={localStatus} onLocalChanged={onLocalChanged} />
+            </>
+          )}
+
+          {tab === 'about' && (
+            <div className="about-page">
+              <div className="about-mark">
+                <OrbiMark width={30} height={30} />
+              </div>
+              <h3>{t('Orbi')}</h3>
+              <p className="about-version num">
+                {t('Version')} {info?.version}
               </p>
+              <p className="about-credit">
+                {t('Developed by')} <strong>{info?.author ?? 'Daniel Rodrigues'}</strong>
+              </p>
+              <p className="orbi-muted">{t('Chats, projects, memories and generated media are stored locally in a SQLite database and a media folder.')}</p>
               <div className="about-grid">
-                <span>Version</span>
-                <strong>{info?.version}</strong>
-                <span>Data folder</span>
+                <span>{t('Data folder')}</span>
                 <strong className="truncate" title={info?.dataDir}>
                   {info?.dataDir}
                 </strong>
+                <span>{t('License')}</span>
+                <strong>Apache-2.0</strong>
               </div>
-              <button className="orbi-btn mt-4" onClick={() => api.revealData()}>
-                <FolderOpen size={14} /> Open data folder
-              </button>
-            </>
+              <div className="mt-4 flex gap-2">
+                <button className="orbi-btn" onClick={() => api.revealData()}>
+                  <FolderOpen size={14} /> {t('Open data folder')}
+                </button>
+                <button className="orbi-btn" onClick={() => api.openExternal('https://github.com/iwerry/chatorbit-app')}>
+                  <ExternalLink size={13} /> GitHub
+                </button>
+              </div>
+            </div>
           )}
         </section>
       </div>

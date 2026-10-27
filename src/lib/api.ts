@@ -75,7 +75,7 @@ export type Agent = {
 
 export type Skill = { id: string; name: string; description: string; instructions: string; enabled: number; created_at: number }
 
-export type ToolEvent = { id: string; name: string; status: 'running' | 'done' | 'error'; args?: unknown; result?: string }
+export type ToolEvent = { id: string; name: string; status: 'running' | 'done' | 'error'; args?: unknown; result?: string; sources?: WebResult[] }
 
 export type McpServer = {
   id: string
@@ -96,25 +96,56 @@ export type McpServer = {
 export type CatalogEntry = Omit<McpServer, 'status' | 'error' | 'tools' | 'enabled'>
 export type Plugin = { id: string; name: string; description: string; servers: string[]; skills: string[]; enabled: boolean }
 
+export type ModelKind = 'text' | 'image' | 'video' | 'stt'
+export type Tier = 'light' | 'medium' | 'heavy' | 'custom'
+export type Fit = { level: 'ok' | 'slow' | 'no'; reason: string; vars?: Record<string, string | number> }
 export type LocalModel = {
   id: string
+  kind: ModelKind
+  tier: Tier
   name: string
   badge: string
   size: number
   ram: string
+  req: { ram: number; vram: number }
   license: string
   description: string
+  fit: Fit
   installed: boolean
-  downloading: { received: number; total: number } | null
+  engineSupported: boolean
+  downloading: { received: number; total: number; label?: string } | null
 }
+export type Hardware = {
+  platform: string
+  arch: string
+  os: string
+  cpu: string
+  cores: number
+  ram: number
+  gpus: { name: string; vendor: string; vram: number }[]
+  vram: number
+  gpuAccel: boolean
+  diskFree: number
+}
+export type EngineState = { name: string; tag: string; supported: boolean; installed: boolean; downloading: { received: number; total: number } | null }
 export type LocalStatus = {
+  hardware: Hardware | null
+  engines: Record<'llama' | 'sd' | 'whisper', EngineState>
   engineInstalled: boolean
   engineTag: string
   running: { modelId: string; port: number } | null
   starting: boolean
   models: LocalModel[]
+  recommended: Partial<Record<ModelKind, string | null>>
   engineDownloading: { received: number; total: number } | null
 }
+export type Board = { id: string; name: string; created_at: number }
+export type WebResult = { title: string; url: string; snippet: string; content?: string }
+export type LibrarySkill = { id: string; profession: string; name: string; description: string; instructions: string; installed: boolean }
+export type LibraryAgent = { id: string; profession: string; handle: string; name: string; description: string; instructions: string; starters: string[]; category: string; installed: boolean }
+export type LibraryKit = { id: string; profession: string; name: string; description: string; servers: string[]; skills: string[]; agents: string[]; installed: boolean }
+export type Library = { professions: { id: string; name: string; icon: string; description: string }[]; skills: LibrarySkill[]; agents: LibraryAgent[]; kits: LibraryKit[] }
+export type VoiceMode = { type: 'local'; modelId: string } | { type: 'api'; provider: 'openai' | 'groq' }
 
 export function parseJSON<T>(v: unknown, fallback: T): T {
   if (Array.isArray(v)) return v as T
@@ -136,9 +167,11 @@ export type MediaItem = {
   source: string
   created_at: number
   url: string
+  board?: string
+  params?: string
 }
 
-export type AppInfo = { version: string; platform: string; userName: string; dataDir: string }
+export type AppInfo = { version: string; platform: string; userName: string; dataDir: string; author?: string }
 
 type Bridge = {
   invoke: (channel: string, ...args: unknown[]) => Promise<any>
@@ -260,6 +293,37 @@ export const api = {
   removeLocal: (id: string): Promise<LocalStatus> => bridge.invoke('local:remove', id),
   cancelLocal: (id: string) => bridge.invoke('local:cancel', id),
   stopLocal: () => bridge.invoke('local:stop'),
+  installEngine: (key: 'llama' | 'sd' | 'whisper'): Promise<LocalStatus> => bridge.invoke('local:installEngine', key),
+  refreshHardware: (): Promise<LocalStatus> => bridge.invoke('local:refreshHardware'),
+  generateLocal: (p: {
+    modelId: string
+    prompt: string
+    negative?: string
+    width?: number
+    height?: number
+    steps?: number
+    seed?: number | ''
+    initImage?: string
+    mask?: string
+    strength?: number
+    frames?: number
+    board?: string
+  }): Promise<MediaItem> => bridge.invoke('local:generate', p),
+  cancelLocalGenerate: () => bridge.invoke('local:cancelGenerate'),
+  mediaDataUrl: (id: string): Promise<string | null> => bridge.invoke('media:dataUrl', id),
+  saveCanvas: (dataUrl: string, meta: { name?: string; board?: string; prompt?: string }): Promise<MediaItem | null> => bridge.invoke('media:saveCanvas', dataUrl, meta),
+  setMediaBoard: (id: string, board: string) => bridge.invoke('media:setBoard', id, board),
+  boards: (): Promise<Board[]> => bridge.invoke('boards:list'),
+  createBoard: (name: string): Promise<Board> => bridge.invoke('boards:create', name),
+  renameBoard: (id: string, name: string) => bridge.invoke('boards:rename', id, name),
+  deleteBoard: (id: string) => bridge.invoke('boards:delete', id),
+  webSearch: (q: string, opts?: { read?: number }): Promise<{ query: string; engine: string; results: WebResult[]; context: string }> => bridge.invoke('web:search', q, opts),
+  transcribe: (p: { wav: string; mode: VoiceMode; language?: string }): Promise<string> => bridge.invoke('voice:transcribe', p),
+  library: (): Promise<Library> => bridge.invoke('library:get'),
+  installLibrarySkill: (id: string) => bridge.invoke('library:installSkill', id),
+  installLibraryAgent: (id: string) => bridge.invoke('library:installAgent', id),
+  installKit: (id: string) => bridge.invoke('library:installKit', id),
+  detectInvoke: (): Promise<{ url: string; version: string } | null> => bridge.invoke('invoke:detect'),
 
   termInfo: (): Promise<{ shell: string; platform: string; available: boolean; error: string | null }> => bridge.invoke('term:info'),
   termCreate: (o: { id: string; cols: number; rows: number; cwd?: string }): Promise<{ pid: number; shell: string; cwd: string }> => bridge.invoke('term:create', o),
@@ -290,7 +354,8 @@ export const api = {
   revealMedia: (id: string) => bridge.invoke('media:reveal', id),
   saveMediaAs: (id: string) => bridge.invoke('media:saveAs', id),
   importMedia: (file: { name: string; dataUrl: string }): Promise<MediaItem | null> => bridge.invoke('media:import', file),
-  generateImage: (p: { providerId: string; model: string; prompt: string; size?: string; source?: string }): Promise<MediaItem> => bridge.invoke('image:generate', p),
+  generateImage: (p: { providerId: string; model: string; prompt: string; size?: string; source?: string; board?: string; width?: number; height?: number }): Promise<MediaItem> =>
+    bridge.invoke('image:generate', p),
 
   getWorkflow: (id: string) => bridge.invoke('workflows:get', id),
   saveWorkflow: (id: string, name: string, data: unknown) => bridge.invoke('workflows:save', id, name, data),

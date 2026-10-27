@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS media (
 );
 CREATE TABLE IF NOT EXISTS agents (id TEXT PRIMARY KEY, handle TEXT NOT NULL, instructions TEXT NOT NULL, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS workflows (id TEXT PRIMARY KEY, name TEXT NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS boards (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS skills (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, instructions TEXT NOT NULL,
   enabled INTEGER DEFAULT 0, created_at INTEGER NOT NULL
@@ -39,6 +40,8 @@ const MIGRATIONS = {
     skills_mode: "TEXT DEFAULT 'off'", skills: "TEXT DEFAULT '[]'", starters: "TEXT DEFAULT '[]'", support_name: 'TEXT', support_email: 'TEXT', color: 'TEXT',
   },
   messages: { tools: "TEXT DEFAULT '[]'" },
+  media: { board: "TEXT DEFAULT ''", params: "TEXT DEFAULT ''" },
+  skills: { library_id: 'TEXT' },
 }
 
 const DEFAULT_SKILLS = [

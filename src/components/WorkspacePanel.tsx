@@ -7,6 +7,7 @@ import {
   CalendarClock,
   ChevronDown,
   ChevronLeft,
+  Compass,
   ExternalLink,
   FolderKanban,
   FolderOpen,
@@ -26,15 +27,17 @@ import {
   X,
 } from 'lucide-react'
 import { api, type Agent, type Conversation, type McpServer, type MediaItem, type Memory, type Message, type ModelInfo, type Plugin, type Project, type Skill } from '../lib/api'
+import { t } from '../lib/i18n'
 import { AgentsPanel } from './panels/AgentsPanel'
 import { SkillsPanel } from './panels/SkillsPanel'
 import { McpPanel } from './panels/McpPanel'
 
-export type NavKey = 'chats' | 'creative' | 'agents' | 'skills' | 'mcp' | 'scheduled' | 'memory' | 'bookmarks' | 'media'
+export type NavKey = 'chats' | 'creative' | 'explore' | 'agents' | 'skills' | 'mcp' | 'scheduled' | 'memory' | 'bookmarks' | 'media'
 
 export const navItems = [
   { id: 'chats' as const, label: 'Chats', icon: MessageSquareText },
   { id: 'creative' as const, label: 'Creative', icon: WandSparkles },
+  { id: 'explore' as const, label: 'Explore', icon: Compass },
   { id: 'agents' as const, label: 'Agent Builder', icon: Bot },
   { id: 'skills' as const, label: 'Skills', icon: Blocks },
   { id: 'mcp' as const, label: 'MCP & Plugins', icon: Plug },
@@ -94,15 +97,15 @@ export function WorkspacePanel(props: Props) {
       <div className="panel-heading">
         <div className="flex min-w-0 items-center gap-2.5">
           <Icon size={18} />
-          <span className="truncate font-display text-sm font-semibold">{current.label}</span>
+          <span className="truncate font-display text-sm font-semibold">{t(current.label)}</span>
         </div>
         <div className="flex items-center gap-1">
           {current.id === 'skills' && (
-            <button className="panel-collapse" onClick={() => setCreatingSkill(true)} aria-label="New skill" title="New skill">
+            <button className="panel-collapse" onClick={() => setCreatingSkill(true)} aria-label={t('New skill')} title={t('New skill')}>
               <Plus size={17} />
             </button>
           )}
-          <button className="panel-collapse" onClick={props.onCollapse} aria-label="Collapse panel">
+          <button className="panel-collapse" onClick={props.onCollapse} aria-label={t('Collapse panel')}>
             <ChevronLeft size={17} />
           </button>
         </div>
@@ -117,7 +120,7 @@ export function WorkspacePanel(props: Props) {
       {current.id === 'memory' && <MemoryPanel memories={props.memories} enabled={props.memoryEnabled} setEnabled={props.setMemoryEnabled} onRefresh={props.onRefresh} />}
       {current.id === 'bookmarks' && <BookmarksPanel bookmarks={props.bookmarks} onOpen={props.onOpenConversation} onRefresh={props.onRefresh} />}
       {current.id === 'media' && <MediaPanel media={props.media} onRefresh={props.onRefresh} onOpenCreative={props.onOpenCreative} />}
-      <button className="panel-resize-handle panel-resize-handle-left" onPointerDown={props.onResize} aria-label="Resize navigation panel" />
+      <button className="panel-resize-handle panel-resize-handle-left" onPointerDown={props.onResize} aria-label={t('Resize navigation panel')} />
     </aside>
   )
 }
@@ -187,7 +190,7 @@ function ChatsLibrary(p: Props) {
           {c.pinned ? <PinOff size={13} /> : <Pin size={13} />}
         </button>
         <button
-          title="Rename"
+          title={t('Rename')}
           onClick={() => {
             setRenaming(c.id)
             setRenameValue(c.title)
@@ -196,7 +199,7 @@ function ChatsLibrary(p: Props) {
           <Pencil size={13} />
         </button>
         <button
-          title="Delete"
+          title={t('Delete')}
           onClick={async () => {
             if (!confirm(`Delete "${c.title}"?`)) return
             await api.deleteConversation(c.id)
@@ -214,12 +217,12 @@ function ChatsLibrary(p: Props) {
     <div className="panel-scroll chat-library">
       <label className="sidebar-search library-global-search">
         <Search size={15} />
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search chats" />
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('Search chats')} />
       </label>
 
       <section className="library-section">
         <button className="library-section-heading" onClick={() => setProjectsOpen((v) => !v)} aria-expanded={projectsOpen}>
-          <span>Projects</span>
+          <span>{t('Projects')}</span>
           <ChevronDown size={13} className={`section-chevron ${projectsOpen ? 'section-chevron-open' : ''}`} />
           <FolderKanban size={15} className="ml-auto" />
         </button>
@@ -233,7 +236,7 @@ function ChatsLibrary(p: Props) {
                 </button>
                 <span className="conversation-tools">
                   <button
-                    title="Delete project"
+                    title={t('Delete project')}
                     onClick={async () => {
                       if (!confirm(`Delete project "${proj.name}"? Its chats are kept.`)) return
                       await api.deleteProject(proj.id)
@@ -250,7 +253,7 @@ function ChatsLibrary(p: Props) {
               <input
                 className="conversation-rename mt-1"
                 autoFocus
-                placeholder="Project name"
+                placeholder={t('Project name')}
                 value={newProject}
                 onChange={(e) => setNewProject(e.target.value)}
                 onBlur={() => setNewProject(null)}
@@ -267,7 +270,7 @@ function ChatsLibrary(p: Props) {
             ) : (
               <button className="library-primary-action" onClick={() => setNewProject('')}>
                 <FolderPlus size={15} />
-                <span>New project</span>
+                <span>{t('New project')}</span>
               </button>
             )}
           </>
@@ -276,11 +279,11 @@ function ChatsLibrary(p: Props) {
 
       <section className="library-section pinned-library-section">
         <button className="library-section-heading" onClick={() => setPinnedOpen((v) => !v)} aria-expanded={pinnedOpen}>
-          <span>Pinned</span>
+          <span>{t('Pinned')}</span>
           <ChevronDown size={13} className={`section-chevron ${pinnedOpen ? 'section-chevron-open' : ''}`} />
           <Pin size={15} className="ml-auto" />
         </button>
-        {pinnedOpen && (pinned.length ? <div className="mt-1.5 space-y-1">{pinned.map(row)}</div> : <p className="library-empty-row">No pinned chats</p>)}
+        {pinnedOpen && (pinned.length ? <div className="mt-1.5 space-y-1">{pinned.map(row)}</div> : <p className="library-empty-row">{t('No pinned chats')}</p>)}
       </section>
 
       <section className="library-section chats-library-section">
@@ -290,7 +293,7 @@ function ChatsLibrary(p: Props) {
             <ChevronDown size={13} className={`section-chevron ${chatsOpen ? 'section-chevron-open' : ''}`} />
           </button>
           {p.activeProjectId && (
-            <button className="library-filter" aria-label="Show all chats" title="Show all chats" onClick={() => p.setActiveProjectId(null)}>
+            <button className="library-filter" aria-label={t('Show all chats')} title={t('Show all chats')} onClick={() => p.setActiveProjectId(null)}>
               <X size={15} />
             </button>
           )}
@@ -300,7 +303,7 @@ function ChatsLibrary(p: Props) {
             <div className="library-chat-actions">
               <button className="library-new-chat" onClick={p.onNewChat}>
                 <Plus size={15} />
-                <span>New chat</span>
+                <span>{t('New chat')}</span>
               </button>
             </div>
             {groups.length > 0 ? (
@@ -316,7 +319,7 @@ function ChatsLibrary(p: Props) {
               <div className="empty-conversations">
                 <MessageSquareText size={19} />
                 <p>{search ? 'No matches' : 'No chats yet'}</p>
-                <span>Your conversations will be organized here automatically.</span>
+                <span>{t('Your conversations will be organized here automatically.')}</span>
               </div>
             )}
           </>
@@ -333,11 +336,11 @@ function PanelIntro({ children }: { children: React.ReactNode }) {
 function ScheduledPanel() {
   return (
     <div className="panel-scroll pt-4">
-      <PanelIntro>Automate recurring tasks and conversations — weekly summaries, trend radars, reports.</PanelIntro>
+      <PanelIntro>{t('Automate recurring tasks and conversations — weekly summaries, trend radars, reports.')}</PanelIntro>
       <div className="empty-conversations mt-8">
         <CalendarClock size={19} />
-        <p>Coming in the next build</p>
-        <span>Scheduled chats will run in the OrbiX cloud so they work even with this PC turned off.</span>
+        <p>{t('Coming in the next build')}</p>
+        <span>{t('Scheduled chats will run in the OrbiX cloud so they work even with this PC turned off.')}</span>
       </div>
     </div>
   )
@@ -347,11 +350,11 @@ function MemoryPanel({ memories, enabled, setEnabled, onRefresh }: { memories: M
   const [draft, setDraft] = useState('')
   return (
     <div className="panel-scroll pt-4">
-      <PanelIntro>Facts Orbi remembers about you and your work. They are added to every conversation when memory is on.</PanelIntro>
+      <PanelIntro>{t('Facts Orbi remembers about you and your work. They are added to every conversation when memory is on.')}</PanelIntro>
       <button className="module-item module-item-rich mt-4" onClick={() => setEnabled(!enabled)}>
         <Brain size={15} />
         <div className="min-w-0 flex-1 text-left">
-          <strong>Use memory in chats</strong>
+          <strong>{t('Use memory in chats')}</strong>
           <small>{enabled ? 'On' : 'Off'}</small>
         </div>
         <span className={`orbi-switch orbi-switch-sm ${enabled ? 'orbi-switch-on' : ''}`}>
@@ -373,7 +376,7 @@ function MemoryPanel({ memories, enabled, setEnabled, onRefresh }: { memories: M
         </button>
       </div>
       <div className="mt-2 space-y-1">
-        {memories.length === 0 && <p className="library-empty-row">No memories yet</p>}
+        {memories.length === 0 && <p className="library-empty-row">{t('No memories yet')}</p>}
         {memories.map((m, i) => (
           <div className="module-item module-item-rich" key={m.id}>
             <span className={`module-dot module-dot-${(i % 3) + 1}`} />
@@ -382,7 +385,7 @@ function MemoryPanel({ memories, enabled, setEnabled, onRefresh }: { memories: M
             </div>
             <span className="conversation-tools">
               <button
-                title="Forget"
+                title={t('Forget')}
                 onClick={async () => {
                   await api.deleteMemory(m.id)
                   onRefresh()
@@ -401,9 +404,9 @@ function MemoryPanel({ memories, enabled, setEnabled, onRefresh }: { memories: M
 function BookmarksPanel({ bookmarks, onOpen, onRefresh }: { bookmarks: Message[]; onOpen: (id: string) => void; onRefresh: () => void }) {
   return (
     <div className="panel-scroll pt-4">
-      <PanelIntro>Answers you saved with the bookmark button. Click one to jump back to its conversation.</PanelIntro>
+      <PanelIntro>{t('Answers you saved with the bookmark button. Click one to jump back to its conversation.')}</PanelIntro>
       <div className="mt-4 space-y-1">
-        {bookmarks.length === 0 && <p className="library-empty-row">No bookmarks yet</p>}
+        {bookmarks.length === 0 && <p className="library-empty-row">{t('No bookmarks yet')}</p>}
         {bookmarks.map((b, i) => (
           <div className="module-item module-item-rich" key={b.id}>
             <span className={`module-dot module-dot-${(i % 3) + 1}`} />
@@ -413,7 +416,7 @@ function BookmarksPanel({ bookmarks, onOpen, onRefresh }: { bookmarks: Message[]
             </button>
             <span className="conversation-tools">
               <button
-                title="Remove bookmark"
+                title={t('Remove bookmark')}
                 onClick={async () => {
                   await api.bookmark(b.id, false)
                   onRefresh()
@@ -435,7 +438,7 @@ function MediaPanel({ media, onRefresh, onOpenCreative }: { media: MediaItem[]; 
   const shown = media.filter((m) => filter === 'all' || m.kind === filter || (filter === 'file' && (m.kind === 'audio' || m.kind === 'file')))
   return (
     <div className="panel-scroll pt-4">
-      <PanelIntro>Every asset created or imported across your conversations and Creative workflows.</PanelIntro>
+      <PanelIntro>{t('Every asset created or imported across your conversations and Creative workflows.')}</PanelIntro>
       <div className="media-actions">
         <button className="orbi-btn" onClick={() => input.current?.click()}>
           <Upload size={13} /> Import
@@ -472,8 +475,8 @@ function MediaPanel({ media, onRefresh, onOpenCreative }: { media: MediaItem[]; 
       {shown.length === 0 ? (
         <div className="empty-conversations mt-6">
           <ImageIcon size={19} />
-          <p>Nothing here yet</p>
-          <span>Generate an image in Creative or import files to start your library.</span>
+          <p>{t('Nothing here yet')}</p>
+          <span>{t('Generate an image in Creative or import files to start your library.')}</span>
         </div>
       ) : (
         <div className="media-grid">
@@ -487,14 +490,14 @@ function MediaPanel({ media, onRefresh, onOpenCreative }: { media: MediaItem[]; 
                 <div className="media-file">{m.name.split('.').pop()?.toUpperCase()}</div>
               )}
               <div className="media-tile-tools">
-                <button title="Open" onClick={() => api.openMedia(m.id)}>
+                <button title={t('Open')} onClick={() => api.openMedia(m.id)}>
                   <ExternalLink size={12} />
                 </button>
-                <button title="Show in folder" onClick={() => api.revealMedia(m.id)}>
+                <button title={t('Show in folder')} onClick={() => api.revealMedia(m.id)}>
                   <FolderOpen size={12} />
                 </button>
                 <button
-                  title="Delete"
+                  title={t('Delete')}
                   onClick={async () => {
                     if (!confirm('Delete this file from the library?')) return
                     await api.deleteMedia(m.id)

@@ -10,7 +10,6 @@ import {
   Image as ImageIcon,
   Loader2,
   type LucideIcon,
-  Moon,
   MousePointer2,
   Play,
   Plus,
@@ -18,9 +17,7 @@ import {
   Scissors,
   Search,
   Settings,
-  SquareTerminal,
   StickyNote,
-  Sun,
   Trash2,
   Undo2,
   Video,
@@ -31,8 +28,10 @@ import {
   ZoomOut,
 } from 'lucide-react'
 import { api, type MediaItem, type ModelInfo } from '../lib/api'
+import { t } from '../lib/i18n'
 
-export type ThemeMode = 'light' | 'dark' | 'terminal'
+import { ThemeSwitcher, type ThemeMode } from './ThemeSwitcher'
+export { ThemeSwitcher, type ThemeMode }
 
 type Kind = 'prompt' | 'image' | 'video' | 'audio' | 'text' | 'output' | 'designer' | 'three-d'
 
@@ -89,9 +88,10 @@ type Props = {
   models: ModelInfo[]
   onOpenSettings: () => void
   onMediaCreated: (m: MediaItem) => void
+  embedded?: boolean
 }
 
-export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onOpenSettings, onMediaCreated }: Props) {
+export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onOpenSettings, onMediaCreated, embedded }: Props) {
   const [nodes, setNodes] = useState<CNode[]>(initialNodes)
   const [edges, setEdges] = useState<Edge[]>(initialEdges)
   const [loaded, setLoaded] = useState(false)
@@ -333,29 +333,31 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
   })
 
   return (
-    <main className="creative-workspace">
-      <header className="creative-topbar">
+    <main className={`creative-workspace ${embedded ? 'creative-embedded' : ''}`}>
+      <header className={`creative-topbar ${embedded ? 'creative-topbar-embedded' : ''}`}>
         <div className="flex min-w-0 items-center gap-3">
-          <button className="creative-topbar-button" onClick={onBack} aria-label="Back to chats">
-            <ChevronLeft size={17} />
-          </button>
+          {!embedded && (
+            <button className="creative-topbar-button" onClick={onBack} aria-label={t('Back to chats')}>
+              <ChevronLeft size={17} />
+            </button>
+          )}
           <div className="creative-project-mark" />
           <div className="min-w-0">
-            <p className="truncate text-xs font-semibold">Creative production</p>
-            <span>Untitled workflow</span>
+            <p className="truncate text-xs font-semibold">{t('Workflow')}</p>
+            <span>{t('Untitled workflow')}</span>
           </div>
         </div>
         <div className="creative-topbar-actions">
-          <span className="creative-saved-state">{saved}</span>
+          <span className="creative-saved-state">{t(saved)}</span>
           <button className="creative-share-button" onClick={onOpenSettings}>
             <Settings size={15} />
-            <span>Providers</span>
+            <span>{t('Models')}</span>
           </button>
           <button className="creative-run-button" onClick={runWorkflow}>
             <Play size={14} fill="currentColor" />
-            <span>Run workflow</span>
+            <span>{t('Run workflow')}</span>
           </button>
-          <ThemeSwitcher themeMode={themeMode} setThemeMode={setThemeMode} />
+          {!embedded && <ThemeSwitcher themeMode={themeMode} setThemeMode={setThemeMode} />}
         </div>
       </header>
 
@@ -364,16 +366,16 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
           <aside className="creative-library">
             <div className="creative-library-heading">
               <div>
-                <p>Node library</p>
-                <span>Build your production workflow</span>
+                <p>{t('Node library')}</p>
+                <span>{t('Build your production workflow')}</span>
               </div>
-              <button onClick={() => setLibraryOpen(false)} aria-label="Close node library">
+              <button onClick={() => setLibraryOpen(false)} aria-label={t('Close node library')}>
                 <X size={15} />
               </button>
             </div>
             <label className="creative-library-search">
               <Search size={15} />
-              <input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder="Search nodes" />
+              <input value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} placeholder={t('Search nodes')} />
             </label>
             <div className="creative-library-tabs">
               {(['All', 'Video', 'Image', 'Audio'] as const).map((t) => (
@@ -383,7 +385,7 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
               ))}
             </div>
             <div className="creative-library-scroll">
-              <p className="creative-library-label">Media & creation</p>
+              <p className="creative-library-label">{t('Media & creation')}</p>
               <div className="creative-library-list">
                 {visibleCatalog.map((item) => {
                   const Icon = item.icon
@@ -401,7 +403,7 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
                   )
                 })}
               </div>
-              <p className="creative-library-label mt-6">Image models connected</p>
+              <p className="creative-library-label mt-6">{t('Image models connected')}</p>
               <div className="creative-provider-grid">
                 {imageModels.length ? (
                   [...new Set(imageModels.map((m) => m.providerName))].map((p) => <span key={p}>{p}</span>)
@@ -416,14 +418,14 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
         )}
 
         <div className={`creative-toolbar ${libraryOpen ? 'creative-toolbar-shifted' : ''}`}>
-          <button onClick={() => setLibraryOpen((v) => !v)} title="Node library">
+          <button onClick={() => setLibraryOpen((v) => !v)} title={t('Node library')}>
             <Plus size={18} />
           </button>
           <span />
-          <button className={tool === 'select' ? 'creative-tool-active' : ''} onClick={() => setTool('select')} title="Select & move">
+          <button className={tool === 'select' ? 'creative-tool-active' : ''} onClick={() => setTool('select')} title={t('Select & move')}>
             <MousePointer2 size={17} />
           </button>
-          <button className={tool === 'hand' ? 'creative-tool-active' : ''} onClick={() => setTool('hand')} title="Pan canvas">
+          <button className={tool === 'hand' ? 'creative-tool-active' : ''} onClick={() => setTool('hand')} title={t('Pan canvas')}>
             <Hand size={17} />
           </button>
           <div className="creative-tool-group">
@@ -438,7 +440,7 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
                     setTool('cut')
                     setFlyout(null)
                   }}
-                  title="Cut a connection (click a line)"
+                  title={t('Cut a connection (click a line)')}
                 >
                   <Scissors size={17} />
                 </button>
@@ -448,7 +450,7 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
                     setTool('connect')
                     setFlyout(null)
                   }}
-                  title="Connect: click a source node, then a target node"
+                  title={t('Connect: click a source node, then a target node')}
                 >
                   <Workflow size={17} />
                 </button>
@@ -463,16 +465,16 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
                 setNodes((cur) => [...cur, { id, kind: 'text', title: 'Note', subtitle: 'Text', x: 300 - pan.x, y: 420 - pan.y, text: '' }])
                 setSelected(id)
               }}
-              title="Add note"
+              title={t('Add note')}
             >
               <StickyNote size={17} />
             </button>
           </div>
           <span />
-          <button title="Undo (Ctrl+Z)" onClick={undo}>
+          <button title={t('Undo (Ctrl+Z)')} onClick={undo}>
             <Undo2 size={17} />
           </button>
-          <button title="Redo (Ctrl+Shift+Z)" onClick={redo}>
+          <button title={t('Redo (Ctrl+Shift+Z)')} onClick={redo}>
             <Redo2 size={17} />
           </button>
         </div>
@@ -537,11 +539,11 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
                 >
                   {isSel && (
                     <div className="creative-node-actionbar">
-                      <button title="Run node" onClick={() => runNode(node.id)}>
+                      <button title={t('Run node')} onClick={() => runNode(node.id)}>
                         <Play size={13} fill="currentColor" />
                       </button>
                       <button
-                        title="Connect from here"
+                        title={t('Connect from here')}
                         onClick={() => {
                           setTool('connect')
                           setConnectFrom(node.id)
@@ -549,10 +551,10 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
                       >
                         <Workflow size={13} />
                       </button>
-                      <button title="Duplicate (Ctrl+D)" onClick={() => duplicateNode(node.id)}>
+                      <button title={t('Duplicate (Ctrl+D)')} onClick={() => duplicateNode(node.id)}>
                         <Copy size={13} />
                       </button>
-                      <button title="Delete (Del)" onClick={() => removeNode(node.id)}>
+                      <button title={t('Delete (Del)')} onClick={() => removeNode(node.id)}>
                         <Trash2 size={13} />
                       </button>
                     </div>
@@ -602,12 +604,12 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
                       <>
                         <input
                           className="creative-node-input-text"
-                          placeholder="Extra prompt (optional)"
+                          placeholder={t('Extra prompt (optional)')}
                           value={node.text ?? ''}
                           onChange={(e) => update(node.id, { text: e.target.value })}
                         />
                         <select className="creative-node-select" value={node.model ?? imageModels[0]?.key ?? ''} onChange={(e) => update(node.id, { model: e.target.value })}>
-                          {imageModels.length === 0 && <option value="">No image model connected</option>}
+                          {imageModels.length === 0 && <option value="">{t('No image model connected')}</option>}
                           {imageModels.map((m) => (
                             <option key={m.key} value={m.key}>
                               {m.name} · {m.providerName}
@@ -638,7 +640,7 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
                       ) : (
                         <div className="creative-output-preview">
                           <Download size={21} />
-                          <span>Ready for final render</span>
+                          <span>{t('Ready for final render')}</span>
                         </div>
                       ))}
 
@@ -649,7 +651,7 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
                     <span>{nodeModel ? nodeModel.providerName : 'Auto'}</span>
                     <span>{node.kind === 'audio' ? '48 kHz' : node.kind === 'text' || node.kind === 'prompt' ? 'Script' : '1:1'}</span>
                     <span>{node.kind === 'video' ? '6 sec' : node.kind === 'output' ? '1080p' : '1×'}</span>
-                    <b role="button" title="Run node" onClick={() => runNode(node.id)}>
+                    <b role="button" title={t('Run node')} onClick={() => runNode(node.id)}>
                       <Play size={10} fill="currentColor" />
                     </b>
                   </div>
@@ -663,7 +665,7 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
         </div>
 
         {tool === 'connect' && <div className="creative-hint">{connectFrom ? 'Now click the target node · Esc to cancel' : 'Click the source node'}</div>}
-        {tool === 'cut' && <div className="creative-hint">Click a connection line to remove it</div>}
+        {tool === 'cut' && <div className="creative-hint">{t('Click a connection line to remove it')}</div>}
         {toast && <div className="creative-hint creative-toast">{toast}</div>}
 
         <div className="creative-canvas-footer">
@@ -671,32 +673,16 @@ export function CreativeWorkspace({ themeMode, setThemeMode, onBack, models, onO
             {nodes.length} nodes · {edges.length} connections
           </span>
           <div>
-            <button onClick={() => setZoom((z) => Math.max(40, z - 10))} aria-label="Zoom out">
+            <button onClick={() => setZoom((z) => Math.max(40, z - 10))} aria-label={t('Zoom out')}>
               <ZoomOut size={15} />
             </button>
             <span>{zoom}%</span>
-            <button onClick={() => setZoom((z) => Math.min(150, z + 10))} aria-label="Zoom in">
+            <button onClick={() => setZoom((z) => Math.min(150, z + 10))} aria-label={t('Zoom in')}>
               <ZoomIn size={15} />
             </button>
           </div>
         </div>
       </section>
     </main>
-  )
-}
-
-export function ThemeSwitcher({ themeMode, setThemeMode }: { themeMode: ThemeMode; setThemeMode: Dispatch<SetStateAction<ThemeMode>> }) {
-  return (
-    <div className="theme-switcher" aria-label="Interface theme">
-      <button className={themeMode === 'light' ? 'theme-option-active' : ''} onClick={() => setThemeMode('light')} aria-label="Light theme" aria-pressed={themeMode === 'light'} title="Light">
-        <Sun size={13} />
-      </button>
-      <button className={themeMode === 'dark' ? 'theme-option-active' : ''} onClick={() => setThemeMode('dark')} aria-label="Dark theme" aria-pressed={themeMode === 'dark'} title="Dark">
-        <Moon size={13} />
-      </button>
-      <button className={themeMode === 'terminal' ? 'theme-option-active' : ''} onClick={() => setThemeMode('terminal')} aria-label="Terminal theme" aria-pressed={themeMode === 'terminal'} title="Terminal">
-        <SquareTerminal size={14} />
-      </button>
-    </div>
   )
 }

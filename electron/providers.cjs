@@ -8,6 +8,7 @@ const PROVIDERS = [
   { id: 'anthropic', name: 'Anthropic', kind: 'anthropic', baseUrl: 'https://api.anthropic.com/v1', needsKey: true, mode: 'API', hint: 'Claude models.' },
   { id: 'gemini', name: 'Google Gemini', kind: 'openai', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', needsKey: true, mode: 'API', hint: 'Gemini models via Google AI Studio key.' },
   { id: 'deepseek', name: 'DeepSeek', kind: 'openai', baseUrl: 'https://api.deepseek.com/v1', needsKey: true, mode: 'API', hint: 'DeepSeek chat and reasoner.' },
+  { id: 'groq', name: 'Groq', kind: 'openai', baseUrl: 'https://api.groq.com/openai/v1', needsKey: true, mode: 'API', hint: 'Very fast open models, plus Whisper speech-to-text.' },
   { id: 'mistral', name: 'Mistral', kind: 'openai', baseUrl: 'https://api.mistral.ai/v1', needsKey: true, mode: 'API', hint: 'Mistral Large and friends.' },
   { id: 'ollama', name: 'Ollama', kind: 'openai', baseUrl: 'http://localhost:11434/v1', needsKey: false, mode: 'Local', hint: 'Local models running in Ollama on this PC.' },
   { id: 'lmstudio', name: 'LM Studio', kind: 'openai', baseUrl: 'http://localhost:1234/v1', needsKey: false, mode: 'Local', hint: 'Local models served by LM Studio.' },

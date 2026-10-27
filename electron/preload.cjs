@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld('orbi', {
   invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args),
   onChatDelta: listen('chat:delta'),
   on: (channel, cb) => {
-    const allowed = ['term:data', 'term:exit', 'local:status', 'tool:approve', 'data:changed', 'find:result']
+    const allowed = ['term:data', 'term:exit', 'local:status', 'local:progress', 'tool:approve', 'data:changed', 'find:result']
     if (!allowed.includes(channel)) throw new Error('channel not allowed: ' + channel)
     return listen(channel)(cb)
   },

@@ -1,9 +1,9 @@
 {
   "name": "orbi",
   "productName": "Orbi",
-  "version": "0.2.0",
+  "version": "0.1.27-1",
   "description": "Orbi \u2014 AI chat and creative studio",
-  "author": "OrbiX",
+  "author": "Daniel Rodrigues",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",

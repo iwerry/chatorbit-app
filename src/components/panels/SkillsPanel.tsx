@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { t } from '../../lib/i18n'
 import { ChevronDown, Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, type Skill } from '../../lib/api'
 
@@ -16,7 +17,7 @@ export function SkillsPanel({ skills, onRefresh, creating, setCreating }: { skil
 
   return (
     <div className="panel-scroll skills-panel">
-      <input className="ab-input" placeholder="Filter skills by name" value={filter} onChange={(e) => setFilter(e.target.value)} />
+      <input className="ab-input" placeholder={t('Filter skills by name')} value={filter} onChange={(e) => setFilter(e.target.value)} />
 
       {form && (
         <SkillForm
@@ -33,12 +34,12 @@ export function SkillsPanel({ skills, onRefresh, creating, setCreating }: { skil
 
       <button className="library-section-heading mt-3" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
         <ChevronDown size={13} className={`section-chevron ${open ? 'section-chevron-open' : ''}`} />
-        <span>My Skills</span>
+        <span>{t('My Skills')}</span>
         <span className="ml-auto text-[10px] opacity-60">{skills.filter((k) => k.enabled).length} on</span>
       </button>
       {open && (
         <div className="mt-1 space-y-1">
-          {shown.length === 0 && <p className="library-empty-row text-center">No skills yet</p>}
+          {shown.length === 0 && <p className="library-empty-row text-center">{t('No skills yet')}</p>}
           {shown.map((k, i) => (
             <div className="module-item module-item-rich" key={k.id}>
               <span className={`module-dot module-dot-${(i % 3) + 1}`} />
@@ -47,11 +48,11 @@ export function SkillsPanel({ skills, onRefresh, creating, setCreating }: { skil
                 <small>{k.description || k.instructions}</small>
               </button>
               <span className="conversation-tools">
-                <button title="Edit" onClick={() => setEditing(k)}>
+                <button title={t('Edit')} onClick={() => setEditing(k)}>
                   <Pencil size={13} />
                 </button>
                 <button
-                  title="Delete"
+                  title={t('Delete')}
                   onClick={async () => {
                     if (!confirm(`Delete skill "${k.name}"?`)) return
                     await api.deleteSkill(k.id)
@@ -71,7 +72,7 @@ export function SkillsPanel({ skills, onRefresh, creating, setCreating }: { skil
       {!form && (
         <button className="library-primary-action mt-3" onClick={() => setCreating(true)}>
           <Plus size={15} />
-          <span>New skill</span>
+          <span>{t('New skill')}</span>
         </button>
       )}
     </div>
@@ -82,15 +83,15 @@ function SkillForm({ initial, onSave, onCancel }: { initial: Partial<Skill>; onS
   const [k, setK] = useState(initial)
   return (
     <div className="panel-form skill-form">
-      <input placeholder="Skill name" value={k.name ?? ''} onChange={(e) => setK({ ...k, name: e.target.value })} autoFocus />
-      <input placeholder="Short description" value={k.description ?? ''} onChange={(e) => setK({ ...k, description: e.target.value })} />
-      <textarea rows={6} placeholder="Instructions: how should Orbi behave when this skill is on?" value={k.instructions ?? ''} onChange={(e) => setK({ ...k, instructions: e.target.value })} />
+      <input placeholder={t('Skill name')} value={k.name ?? ''} onChange={(e) => setK({ ...k, name: e.target.value })} autoFocus />
+      <input placeholder={t('Short description')} value={k.description ?? ''} onChange={(e) => setK({ ...k, description: e.target.value })} />
+      <textarea rows={6} placeholder={t('Instructions: how should Orbi behave when this skill is on?')} value={k.instructions ?? ''} onChange={(e) => setK({ ...k, instructions: e.target.value })} />
       <div className="flex gap-2">
         <button className="orbi-btn orbi-btn-primary" disabled={!k.name?.trim() || !k.instructions?.trim()} onClick={() => onSave(k)}>
           {k.id ? 'Save' : 'Create'}
         </button>
         <button className="orbi-btn" onClick={onCancel}>
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
     </div>

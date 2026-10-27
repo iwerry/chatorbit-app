@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronRight } from 'lucide-react'
 import { OrbiMark } from './Logo'
 import { platform } from '../lib/api'
+import { t } from '../lib/i18n'
 
 export type Command = {
   id: string
@@ -32,7 +33,7 @@ function MenuList({ items, commands, onDone, sub = false }: { items: MenuItem[];
           return (
             <div key={i} className="tb-item tb-has-sub" onMouseEnter={() => setOpenSub(it.label)} onMouseLeave={() => setOpenSub(null)}>
               <span className="tb-check" />
-              <span className="tb-label">{it.label}</span>
+              <span className="tb-label">{t(it.label)}</span>
               <ChevronRight size={13} />
               {openSub === it.label && <MenuList items={it.submenu} commands={commands} onDone={onDone} sub />}
             </div>
@@ -54,7 +55,7 @@ function MenuList({ items, commands, onDone, sub = false }: { items: MenuItem[];
             }}
           >
             <span className="tb-check">{c.checked && <Check size={12} />}</span>
-            <span className="tb-label">{c.label}</span>
+            <span className="tb-label">{t(c.label)}</span>
             <span className="tb-shortcut">{prettyShortcut(c.shortcut)}</span>
           </button>
         )
@@ -96,7 +97,7 @@ export function TitleBar({ menus, commands, title, onLogo }: { menus: MenuDef[];
               aria-haspopup="menu"
               aria-expanded={open === m.label}
             >
-              {m.label}
+              {t(m.label)}
             </button>
             {open === m.label && <MenuList items={m.items} commands={commands} onDone={() => setOpen(null)} />}
           </div>
@@ -128,8 +129,8 @@ export function CommandPalette({
   const items =
     mode === 'commands'
       ? commands
-          .filter((c) => c.enabled !== false && `${c.category ?? ''} ${c.label}`.toLowerCase().includes(term))
-          .map((c) => ({ key: c.id, label: c.category ? `${c.category}: ${c.label}` : c.label, hint: prettyShortcut(c.shortcut), run: c.run }))
+          .filter((c) => c.enabled !== false && `${c.category ?? ''} ${c.label}`.toLowerCase().includes(term) || `${t(c.category ?? '')} ${t(c.label)}`.toLowerCase().includes(term))
+          .map((c) => ({ key: c.id, label: c.category ? `${t(c.category)}: ${t(c.label)}` : t(c.label), hint: prettyShortcut(c.shortcut), run: c.run }))
       : conversations
           .filter((c) => c.title.toLowerCase().includes(term))
           .slice(0, 50)
@@ -143,7 +144,7 @@ export function CommandPalette({
         <input
           autoFocus
           value={q}
-          placeholder={mode === 'commands' ? 'Type a command' : 'Search chats by name (type > for commands)'}
+          placeholder={mode === 'commands' ? t('Type a command') : t('Search chats by name (type > for commands)')}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Escape') onClose()
@@ -190,7 +191,7 @@ export function FindBar({ onClose, find, stop, result }: { onClose: () => void; 
     <div className="find-bar">
       <input
         autoFocus
-        placeholder="Find in chat"
+        placeholder={t('Find in chat')}
         value={text}
         onChange={(e) => {
           setText(e.target.value)

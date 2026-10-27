@@ -10,7 +10,7 @@ const { SSEClientTransport } = require('@modelcontextprotocol/sdk/client/sse.js'
 
 // ---------- configuration ----------
 const DEFAULT_SERVERS = [
-  { id: 'orbi-core', name: 'Orbi Core', type: 'builtin', enabled: true, description: 'Current time, read web pages, save memories.' },
+  { id: 'orbi-core', name: 'Orbi Core', type: 'builtin', enabled: true, description: 'Web search, read web pages, current time, save memories.' },
   { id: 'orbi-files', name: 'Workspace Files', type: 'builtin', enabled: true, description: 'Read and write files in your Orbi workspace folder.' },
   { id: 'orbi-terminal', name: 'Terminal Commands', type: 'builtin', enabled: true, description: 'Run shell commands on this computer — always asks first.' },
   { id: 'deepwiki', name: 'DeepWiki', type: 'http', url: 'https://mcp.deepwiki.com/mcp', enabled: true, description: 'Ask questions about any public GitHub repository.' },
@@ -23,6 +23,8 @@ const CATALOG = [
   { id: 'sequential-thinking', name: 'Sequential Thinking', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-sequential-thinking'], description: 'Structured step-by-step problem solving. Needs Node.js.' },
   { id: 'playwright', name: 'Playwright Browser', type: 'stdio', command: 'npx', args: ['-y', '@playwright/mcp@latest'], description: 'Let the AI drive a real browser. Needs Node.js.' },
   { id: 'github', name: 'GitHub', type: 'http', url: 'https://api.githubcopilot.com/mcp/', headers: { Authorization: 'Bearer <your GitHub token>' }, description: 'Issues, PRs and repos. Needs a GitHub token.' },
+  { id: 'figma', name: 'Figma (Framelink)', type: 'stdio', command: 'npx', args: ['-y', 'figma-developer-mcp', '--stdio'], env: { FIGMA_API_KEY: '<your Figma token>' }, description: 'Read Figma files and frames for design-to-code. Needs Node.js and a Figma token.' },
+  { id: 'notion', name: 'Notion', type: 'stdio', command: 'npx', args: ['-y', '@notionhq/notion-mcp-server'], env: { NOTION_TOKEN: '<your Notion integration token>' }, description: 'Search and edit Notion pages. Needs Node.js and an integration token.' },
   { id: 'everything', name: 'MCP test server', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-everything'], description: 'Reference server for testing every MCP feature. Needs Node.js.' },
 ]
 
@@ -105,6 +107,15 @@ const BUILTIN = {
       description: 'Get the current date and time on this computer.',
       inputSchema: { type: 'object', properties: {} },
       run: async () => ({ iso: new Date().toISOString(), local: new Date().toString(), timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+    },
+    {
+      name: 'web_search',
+      description: 'Search the web (no key needed) and read the top pages. Use for current events, facts, prices, docs or anything after your training data.',
+      inputSchema: { type: 'object', properties: { query: { type: 'string' }, read_pages: { type: 'number', description: 'How many top pages to read (0-4, default 2)' } }, required: ['query'] },
+      run: async ({ query, read_pages = 2 }) => {
+        const r = await require('./websearch.cjs').search(query, { read: Math.max(0, Math.min(4, read_pages)), lang: ctx.getSetting('language', 'en') })
+        return { engine: r.engine, results: r.results.map((x) => ({ title: x.title, url: x.url, snippet: x.snippet, content: (x.content || '').slice(0, 2500) })) }
+      },
     },
     {
       name: 'web_fetch',

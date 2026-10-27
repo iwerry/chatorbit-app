@@ -9,6 +9,7 @@ import '@fontsource/manrope/700.css'
 import App from './App'
 import './figma.css'
 import './orbi.css'
+import './studio.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

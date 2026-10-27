@@ -1,4 +1,4 @@
-import { type CSSProperties, type FormEvent, type PointerEvent as ReactPointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, type FormEvent, type PointerEvent as ReactPointerEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowUp,
   Blocks,
@@ -6,6 +6,10 @@ import {
   BookmarkCheck,
   Bot,
   Download,
+  ExternalLink,
+  Globe,
+  Volume2,
+  VolumeX,
   ShieldCheck,
   Wrench,
   Check,
@@ -60,17 +64,35 @@ import {
   type Plugin,
   type LocalStatus,
   type ToolEvent,
+  type VoiceMode,
   on,
   parseJSON,
 } from './lib/api'
 import { Markdown } from './components/Markdown'
 import { OrbiMark, SpyHatIcon } from './components/Logo'
-import { SettingsModal } from './components/SettingsModal'
+import type { SettingsTab } from './components/SettingsModal'
+import { t, t as tr, setLang as applyLang, fmtDate, fmtTime, type Lang } from './lib/i18n'
 import { navItems, WorkspacePanel, type NavKey } from './components/WorkspacePanel'
 import { CommandPalette, FindBar, TitleBar, type Command, type MenuDef } from './components/TitleBar'
-import { TerminalPanel, type TerminalHandle } from './components/TerminalPanel'
+import type { TerminalHandle } from './components/TerminalPanel'
+const TerminalPanel = lazy(() => import('./components/TerminalPanel').then((m) => ({ default: m.TerminalPanel })))
 import { RunCodeContext } from './components/Markdown'
-import { CreativeWorkspace, ThemeSwitcher, type ThemeMode } from './components/Creative'
+import { ThemeSwitcher, type ThemeMode } from './components/ThemeSwitcher'
+import { recordWav } from './lib/voice'
+
+const SettingsModal = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal })))
+const VoiceSettings = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.VoiceSettings })))
+const CreativeStudio = lazy(() => import('./components/CreativeStudio').then((m) => ({ default: m.CreativeStudio })))
+const Explore = lazy(() => import('./components/Explore').then((m) => ({ default: m.Explore })))
+
+type Suggest = { kind: 'skill' | 'command' | 'agent'; id: string; label: string; hint: string; insert: string }
+const SLASH_COMMANDS = [
+  { id: 'web', hint: 'Search the web before answering' },
+  { id: 'image', hint: 'Open the Creative studio with this prompt' },
+  { id: 'terminal', hint: 'Open the terminal' },
+  { id: 'clear', hint: 'Start a new chat' },
+]
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
 type ResponseType = 'Instant' | 'Thinking'
 type ReasoningEffort = 'Fast' | 'Medium' | 'High'
@@ -86,7 +108,14 @@ const starterPrompts = [
 ]
 
 function timeOf(ts: number) {
-  return new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' }).format(new Date(ts))
+  return fmtTime(ts)
+}
+function hostOf(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
 }
 function greeting() {
   const h = new Date().getHours()
@@ -115,7 +144,16 @@ export default function App() {
   const [panelOpen, setPanelOpen] = useState(false)
   const [activeNav, setActiveNav] = useState<NavKey>('chats')
   const [profileOpen, setProfileOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState<null | 'providers' | 'profile' | 'about'>(null)
+  const [settingsOpen, setSettingsOpen] = useState<null | SettingsTab>(null)
+  const [lang, setLangState] = useState<Lang>('en')
+  const [webOn, setWebOn] = useState(false)
+  const [voiceMode, setVoiceMode] = useState<VoiceMode | null>(null)
+  const [voicePicker, setVoicePicker] = useState(false)
+  const [recording, setRecording] = useState<null | { stop: () => Promise<string>; started: number }>(null)
+  const [transcribing, setTranscribing] = useState(false)
+  const [speaking, setSpeaking] = useState<string | null>(null)
+  const [suggestIdx, setSuggestIdx] = useState(0)
+  const [suggestClosed, setSuggestClosed] = useState(false)
   const [headerMenu, setHeaderMenu] = useState<HeaderMenu>(null)
   const [modelSearch, setModelSearch] = useState('')
 
@@ -138,6 +176,7 @@ export default function App() {
   const [approval, setApproval] = useState<null | { id: string; server: string; tool: string; message: string }>(null)
   const [alwaysAllow, setAlwaysAllow] = useState(false)
   const terminalRef = useRef<TerminalHandle>(null)
+  const activeOverride = useRef<string[]>([])
   const activeSkills = useMemo(() => skills.filter((k) => k.enabled).map((k) => k.name), [skills])
   const [activeAgents, setActiveAgents] = useState<string[]>([])
   const [responseType, setResponseType] = useState<ResponseType>('Instant')
@@ -221,6 +260,11 @@ export default function App() {
       setInfo(i)
       setUserName(i.userName)
       setThemeMode(await api.getSetting<ThemeMode>('theme', 'light'))
+      const l = await api.getSetting<Lang>('language', 'en')
+      applyLang(l)
+      setLangState(l)
+      setVoiceMode(await api.getSetting<VoiceMode | null>('voiceMode', null))
+      setWebOn(await api.getSetting('webSearch', false))
       setSelectedModel(await api.getSetting('selectedModel', ''))
       api.localStatus().then(setLocalStatus)
       api.getSetting('terminalOpen', false).then((v) => v && openTerminal())
@@ -266,6 +310,16 @@ export default function App() {
   useEffect(() => {
     api.setSetting('memoryEnabled', memoryEnabled)
   }, [memoryEnabled])
+  const changeLang = (l: Lang) => {
+    applyLang(l)
+    setLangState(l)
+    api.setSetting('language', l)
+  }
+  const toggleWeb = () =>
+    setWebOn((v) => {
+      api.setSetting('webSearch', !v)
+      return !v
+    })
 
   useEffect(() => {
     if (!notice) return
@@ -355,7 +409,7 @@ export default function App() {
     const parts = [
       `You are Orbi, a helpful AI assistant and creative partner made by OrbiX. Today is ${new Date().toLocaleDateString('en-US', { dateStyle: 'full' })}. The user's name is ${userName}. Answer in the user's language. Use Markdown when it helps.`,
     ]
-    const chosen = agents.filter((a) => activeAgents.includes(a.handle))
+    const chosen = agents.filter((a) => activeAgents.includes(a.handle) || activeOverride.current.includes(a.handle))
     const skillNames = new Set(activeSkills)
     for (const a of chosen) {
       if (a.skills_mode === 'all') skills.forEach((k) => skillNames.add(k.name))
@@ -369,7 +423,7 @@ export default function App() {
     return parts.join('\n\n')
   }
 
-  const activeAgentList = () => agents.filter((a) => activeAgents.includes(a.handle))
+  const activeAgentList = () => agents.filter((a) => activeAgents.includes(a.handle) || activeOverride.current.includes(a.handle))
   const agentToolServers = () => {
     const list = activeAgentList().flatMap((a) => parseJSON<string[]>(a.tools, []))
     return list.length ? [...new Set(list)] : null
@@ -386,7 +440,7 @@ export default function App() {
     return { role: m.role, content: m.content + texts.join(''), images: images.length ? images : undefined }
   }
 
-  const streamInto = async (target: ModelInfo, history: ChatMessage[], convId: string | null) => {
+  const streamInto = async (target: ModelInfo, history: ChatMessage[], convId: string | null, extra?: { context: string; tool: ToolEvent }) => {
     const reqId = uid()
     const msgId = uid()
     const placeholder: ChatMessage = {
@@ -400,15 +454,17 @@ export default function App() {
       created_at: Date.now(),
       streaming: true,
       temp: true,
+      tools: extra ? [extra.tool] : undefined,
     }
     streams.current.set(reqId, msgId)
+    if (extra) toolLogs.current.set(msgId, [extra.tool])
     buffers.current.set(msgId, '')
     setMessages((cur) => [...cur, placeholder])
     const finished = new Promise<{ ok: boolean; error?: string; aborted?: boolean }>((resolve) => finishers.current.set(reqId, resolve))
     const invoked = api.sendChat(reqId, {
       providerId: target.provider,
       model: target.id,
-      system: systemPrompt(target),
+      system: [systemPrompt(target), extra?.context].filter(Boolean).join('\n\n'),
       thinking: responseType === 'Thinking',
       effort: reasoningEffort,
       messages: history.filter((m) => !m.error).map(toPayloadMessage),
@@ -425,8 +481,8 @@ export default function App() {
     setMessages((cur) =>
       cur.map((m) => {
         if (m.id !== msgId) return m
-        if (!res.ok) return { ...m, streaming: false, error: true, content: res.error || 'Something went wrong.' }
-        return { ...m, streaming: false, content: m.content || (res.aborted ? '_Stopped._' : '') }
+        if (!res.ok) return { ...m, streaming: false, error: true, content: res.error || t('Something went wrong.') }
+        return { ...m, streaming: false, content: m.content || (res.aborted ? `_${t('Stopped.')}_` : '') }
       }),
     )
     if (res.ok && convId && finalText) {
@@ -436,12 +492,44 @@ export default function App() {
     return { reqId, ok: res.ok, text: finalText }
   }
 
-  const sendMessage = async (text: string, regenerate = false) => {
+  const sendMessage = async (raw: string, regenerate = false) => {
+    let text = raw
+    let forceWeb = false
+    const cmd = text.trim().match(/^\/([\w-]+)\s*([\s\S]*)$/)
+    if (cmd && !regenerate) {
+      const [, name, rest] = cmd
+      if (name === 'clear') return startNewChat()
+      if (name === 'terminal') {
+        setMessage('')
+        return openTerminal()
+      }
+      if (name === 'image') {
+        setMessage('')
+        if (rest.trim()) await api.setSetting('studioPrompt', rest.trim())
+        return toggleNavigation('creative')
+      }
+      if (name === 'web') {
+        forceWeb = true
+        text = rest
+      }
+      const sk = skills.find((k) => slug(k.name) === name.toLowerCase())
+      if (sk) {
+        if (!sk.enabled) await api.toggleSkill(sk.id, true).then(refreshLists)
+        text = rest
+        if (!rest.trim()) return setMessage('')
+      }
+    }
+    // @agent mentions activate agents for this chat
+    if (!regenerate) {
+      const found = agents.filter((a) => text.split(/\s+/).includes(a.handle)).map((a) => a.handle)
+      if (found.length) setActiveAgents((cur) => [...new Set([...cur, ...found])])
+      activeOverride.current = found
+    }
     const content = text.trim()
     if ((!content && !attachments.length) || isStreaming) return
     const currentModel = primaryModel()
     if (!currentModel) {
-      setNotice(models.length ? 'Pick a model first.' : 'Connect an AI provider to start chatting.')
+      setNotice(models.length ? t('Pick a model first.') : t('Connect an AI provider to start chatting.'))
       if (!models.length) setSettingsOpen('providers')
       return
     }
@@ -477,7 +565,8 @@ export default function App() {
     if (!temporaryChat) setContextOpen(true)
 
     const targets = [currentModel, ...additionalModels.map((k) => models.find((m) => m.key === k)).filter((m): m is ModelInfo => !!m && m.key !== currentModel.key)]
-    const results = await Promise.all(targets.map((t) => streamInto(t, history, convId)))
+    const extra = (webOn || forceWeb) && content ? await webContext(content) : undefined
+    const results = await Promise.all(targets.map((m) => streamInto(m, history, convId, extra)))
 
     if (isNew && convId && results[0]?.ok && currentModel.provider !== 'orbi') {
       const title = await api.titleFor({ providerId: currentModel.provider, model: currentModel.id, messages: [{ role: 'user', content: content.slice(0, 1500) }] })
@@ -488,6 +577,76 @@ export default function App() {
 
   const stop = () => {
     for (const reqId of streams.current.keys()) api.abortChat(reqId)
+  }
+
+  // Web search runs before the model, so it works with any model (even ones without tool calling).
+  const webContext = async (q: string): Promise<{ context: string; tool: ToolEvent } | undefined> => {
+    setNotice(t('Searching the web…'))
+    try {
+      const r = await api.webSearch(q.slice(0, 300), { read: 3 })
+      setNotice(null)
+      if (!r.results.length) {
+        setNotice(t('The web search found nothing — answering without it.'))
+        return undefined
+      }
+      return {
+        context: `Web results for the user's latest question. Use them, and cite sources inline as [n](url):\n${r.context}`,
+        tool: {
+          id: uid(),
+          name: 'orbi-core__web_search',
+          status: 'done',
+          args: { query: q },
+          result: `${r.results.length} results · ${r.engine}`,
+          sources: r.results.slice(0, 8).map(({ title, url, snippet }) => ({ title, url, snippet })),
+        },
+      }
+    } catch (e) {
+      setNotice(`${t('Web search failed')}: ${cleanError(e)}`)
+      return undefined
+    }
+  }
+
+  // ---------- voice ----------
+  const startVoice = async (mode = voiceMode) => {
+    if (recording) {
+      const rec = recording
+      setRecording(null)
+      setTranscribing(true)
+      try {
+        const wav = await rec.stop()
+        const text = await api.transcribe({ wav, mode: mode!, language: lang.slice(0, 2) })
+        if (text.trim()) setMessage((m) => (m ? m.replace(/\s*$/, ' ') : '') + text.trim())
+        textareaRef.current?.focus()
+      } catch (e) {
+        setNotice(cleanError(e))
+      } finally {
+        setTranscribing(false)
+      }
+      return
+    }
+    if (!mode) return setVoicePicker(true)
+    try {
+      const stopFn = await recordWav()
+      setRecording({ stop: stopFn, started: Date.now() })
+    } catch (e) {
+      setNotice(`${t('Microphone unavailable')}: ${cleanError(e)}`)
+    }
+  }
+  const speak = (m: ChatMessage) => {
+    const synth = window.speechSynthesis
+    if (!synth) return setNotice(t('This system has no voices for reading aloud.'))
+    if (speaking === m.id) {
+      synth.cancel()
+      setSpeaking(null)
+      return
+    }
+    synth.cancel()
+    const plain = m.content.replace(/```[\s\S]*?```/g, ' ').replace(/\]\([^)]*\)/g, ']').replace(/[#*_>`~[\]]/g, '')
+    const u = new SpeechSynthesisUtterance(plain.slice(0, 6000))
+    u.lang = lang === 'en' ? 'en-US' : lang
+    u.onend = u.onerror = () => setSpeaking(null)
+    setSpeaking(m.id)
+    synth.speak(u)
   }
 
   const regenerate = async () => {
@@ -535,8 +694,8 @@ export default function App() {
   }
 
   const toggleNavigation = (section: NavKey) => {
-    if (section === 'creative') {
-      setActiveNav('creative')
+    if (section === 'creative' || section === 'explore') {
+      setActiveNav(section)
       setPanelOpen(false)
       setContextOpen(false)
       return
@@ -578,7 +737,7 @@ export default function App() {
   }
 
   const goNav = (section: NavKey) => {
-    if (section === 'creative') return toggleNavigation('creative')
+    if (section === 'creative' || section === 'explore') return toggleNavigation(section)
     setActiveNav(section)
     setPanelOpen(true)
   }
@@ -606,9 +765,9 @@ export default function App() {
     { id: 'file.newProject', category: 'File', label: 'New Project…', run: () => goNav('chats') },
     { id: 'file.openFile', category: 'File', label: 'Open File…', shortcut: 'Ctrl+O', run: () => fileInput.current?.click() },
     { id: 'file.import', category: 'File', label: 'Import to Media Library…', run: () => goNav('media') },
-    { id: 'file.export', category: 'File', label: 'Export Chat as Markdown…', shortcut: 'Ctrl+S', enabled: !!conversationId, run: () => conversationId && api.exportConversation(conversationId).then((ok) => ok && setNotice('Chat exported.')) },
-    { id: 'file.settings', category: 'File', label: 'Settings', shortcut: 'Ctrl+,', run: () => setSettingsOpen('providers') },
-    { id: 'file.localAI', category: 'File', label: 'Local AI Models…', run: () => setSettingsOpen('providers') },
+    { id: 'file.export', category: 'File', label: 'Export Chat as Markdown…', shortcut: 'Ctrl+S', enabled: !!conversationId, run: () => conversationId && api.exportConversation(conversationId).then((ok) => ok && setNotice(t('Chat exported.'))) },
+    { id: 'file.settings', category: 'File', label: 'Settings', shortcut: 'Ctrl+,', run: () => setSettingsOpen('general') },
+    { id: 'file.localAI', category: 'File', label: 'Local AI Models…', run: () => setSettingsOpen('models') },
     { id: 'file.closeChat', category: 'File', label: 'Close Chat', shortcut: 'Ctrl+F4', run: () => startNewChat() },
     { id: 'file.closeWindow', category: 'File', label: 'Close Window', shortcut: 'Alt+F4', run: () => api.win.close() },
     { id: 'file.exit', category: 'File', label: 'Exit', run: () => api.win.quit() },
@@ -620,7 +779,7 @@ export default function App() {
     { id: 'edit.paste', category: 'Edit', label: 'Paste', shortcut: 'Ctrl+V', run: () => { textareaRef.current?.focus(); api.edit('paste') } },
     { id: 'edit.find', category: 'Edit', label: 'Find in Chat', shortcut: 'Ctrl+F', run: () => setFindOpen(true) },
     { id: 'edit.searchChats', category: 'Edit', label: 'Search Chats', shortcut: 'Ctrl+Shift+F', run: () => setPalette('chats') },
-    { id: 'edit.copyAnswer', category: 'Edit', label: 'Copy Last Answer', shortcut: 'Ctrl+Shift+C', enabled: !!lastAnswer(), run: () => { const a = lastAnswer(); if (a) { navigator.clipboard.writeText(a.content); setNotice('Last answer copied.') } } },
+    { id: 'edit.copyAnswer', category: 'Edit', label: 'Copy Last Answer', shortcut: 'Ctrl+Shift+C', enabled: !!lastAnswer(), run: () => { const a = lastAnswer(); if (a) { navigator.clipboard.writeText(a.content); setNotice(t('Last answer copied.')) } } },
     { id: 'edit.clearComposer', category: 'Edit', label: 'Clear Message Box', run: () => { setMessage(''); setAttachments([]) } },
     // Selection
     { id: 'sel.all', category: 'Selection', label: 'Select All', shortcut: 'Ctrl+A', run: () => api.edit('selectAll') },
@@ -631,7 +790,7 @@ export default function App() {
     { id: 'sel.clear', category: 'Selection', label: 'Clear Selection', run: () => window.getSelection()?.removeAllRanges() },
     // View
     { id: 'view.palette', category: 'View', label: 'Command Palette…', shortcut: 'Ctrl+Shift+P', run: () => setPalette('commands') },
-    { id: 'view.sidebar', category: 'View', label: 'Toggle Sidebar', shortcut: 'Ctrl+B', run: () => (activeNav === 'creative' ? goNav('chats') : setPanelOpen((v) => !v)) },
+    { id: 'view.sidebar', category: 'View', label: 'Toggle Sidebar', shortcut: 'Ctrl+B', run: () => (activeNav === 'creative' || activeNav === 'explore' ? goNav('chats') : setPanelOpen((v) => !v)) },
     { id: 'view.workspace', category: 'View', label: 'Toggle Workspace Panel', shortcut: 'Ctrl+Alt+B', run: () => setContextOpen((v) => !v) },
     { id: 'view.terminal', category: 'View', label: 'Terminal', shortcut: 'Ctrl+`', checked: termOpen, run: () => (termOpen ? setTermOpen(false) : openTerminal()) },
     { id: 'view.light', category: 'View', label: 'Light Theme', checked: themeMode === 'light', run: () => setThemeMode('light') },
@@ -642,7 +801,7 @@ export default function App() {
     { id: 'view.zoomReset', category: 'View', label: 'Reset Zoom', shortcut: 'Ctrl+0', run: () => api.win.zoom(0) },
     { id: 'view.fullscreen', category: 'View', label: 'Full Screen', shortcut: 'F11', run: () => api.win.fullscreen() },
     // Go
-    ...navItems.map((n, i) => ({ id: `go.${n.id}`, category: 'Go', label: n.label, shortcut: i < 9 ? `Alt+${i + 1}` : undefined, checked: activeNav === n.id && (n.id === 'creative' || panelOpen), run: () => goNav(n.id) })),
+    ...navItems.map((n, i) => ({ id: `go.${n.id}`, category: 'Go', label: n.label, shortcut: i < 9 ? `Alt+${i + 1}` : undefined, checked: activeNav === n.id && (n.id === 'creative' || n.id === 'explore' || panelOpen), run: () => goNav(n.id) })),
     { id: 'go.nextChat', category: 'Go', label: 'Next Chat', shortcut: 'Alt+Down', run: () => stepChat(1) },
     { id: 'go.prevChat', category: 'Go', label: 'Previous Chat', shortcut: 'Alt+Up', run: () => stepChat(-1) },
     { id: 'go.chat', category: 'Go', label: 'Go to Chat…', shortcut: 'Ctrl+P', run: () => setPalette('chats') },
@@ -651,8 +810,8 @@ export default function App() {
     { id: 'term.toggle', category: 'Terminal', label: 'Toggle Terminal', shortcut: 'Ctrl+`', run: () => (termOpen ? setTermOpen(false) : openTerminal()) },
     { id: 'term.clear', category: 'Terminal', label: 'Clear Terminal', enabled: termMounted, run: () => terminalRef.current?.clear() },
     { id: 'term.kill', category: 'Terminal', label: 'Kill Terminal', enabled: termMounted, run: () => terminalRef.current?.killActive() },
-    { id: 'term.runSelection', category: 'Terminal', label: 'Run Selected Text', run: () => { const t = selectionText(); if (t) runInTerminal(t); else setNotice('Select some text first.') } },
-    { id: 'term.runLastCode', category: 'Terminal', label: 'Run Last Code Block', run: () => { const a = lastAnswer(); const m = a?.content.match(/```(?:bash|sh|shell|zsh|powershell|ps1|pwsh|cmd|console)?\n([\s\S]*?)```(?![\s\S]*```)/); if (m) runInTerminal(m[1]); else setNotice('No shell code block in the last answer.') } },
+    { id: 'term.runSelection', category: 'Terminal', label: 'Run Selected Text', run: () => { const t = selectionText(); if (t) runInTerminal(t); else setNotice(tr('Select some text first.')) } },
+    { id: 'term.runLastCode', category: 'Terminal', label: 'Run Last Code Block', run: () => { const a = lastAnswer(); const m = a?.content.match(/```(?:bash|sh|shell|zsh|powershell|ps1|pwsh|cmd|console)?\n([\s\S]*?)```(?![\s\S]*```)/); if (m) runInTerminal(m[1]); else setNotice(t('No shell code block in the last answer.')) } },
     { id: 'term.workspace', category: 'Terminal', label: 'Open Workspace Folder in Terminal', run: async () => { const dir = await api.workspaceDir(); runInTerminal(`cd "${dir}"`) } },
     // Help
     { id: 'help.welcome', category: 'Help', label: 'Welcome', run: () => { setTemporaryChat(false); startNewChat(); setActiveNav('chats') } },
@@ -670,8 +829,8 @@ export default function App() {
     { label: 'File', items: ['file.newChat', 'file.newTemp', 'file.newWindow', 'file.newProject', '-', 'file.openFile', 'file.import', '-', 'file.export', '-', 'file.settings', 'file.localAI', '-', 'file.closeChat', 'file.closeWindow', '-', 'file.exit'] },
     { label: 'Edit', items: ['edit.undo', 'edit.redo', '-', 'edit.cut', 'edit.copy', 'edit.paste', '-', 'edit.find', 'edit.searchChats', '-', 'edit.copyAnswer', 'edit.clearComposer'] },
     { label: 'Selection', items: ['sel.all', 'sel.lastAnswer', '-', 'sel.copy', 'sel.quote', '-', 'sel.runTerminal', 'sel.clear'] },
-    { label: 'View', items: ['view.palette', '-', 'go.chats', 'go.creative', 'go.agents', 'go.skills', 'go.mcp', 'go.media', '-', 'view.sidebar', 'view.workspace', 'view.terminal', '-', { label: 'Appearance', submenu: ['view.light', 'view.dark', 'view.terminalTheme'] }, 'view.zoomIn', 'view.zoomOut', 'view.zoomReset', 'view.fullscreen'] },
-    { label: 'Go', items: ['go.chats', 'go.creative', 'go.agents', 'go.skills', 'go.mcp', 'go.scheduled', 'go.memory', 'go.bookmarks', 'go.media', '-', 'go.nextChat', 'go.prevChat', '-', 'go.chat'] },
+    { label: 'View', items: ['view.palette', '-', 'go.chats', 'go.creative', 'go.explore', 'go.agents', 'go.skills', 'go.mcp', 'go.media', '-', 'view.sidebar', 'view.workspace', 'view.terminal', '-', { label: 'Appearance', submenu: ['view.light', 'view.dark', 'view.terminalTheme'] }, 'view.zoomIn', 'view.zoomOut', 'view.zoomReset', 'view.fullscreen'] },
+    { label: 'Go', items: ['go.chats', 'go.creative', 'go.explore', 'go.agents', 'go.skills', 'go.mcp', 'go.scheduled', 'go.memory', 'go.bookmarks', 'go.media', '-', 'go.nextChat', 'go.prevChat', '-', 'go.chat'] },
     { label: 'Terminal', items: ['term.new', 'term.toggle', '-', 'term.runSelection', 'term.runLastCode', 'term.workspace', '-', 'term.clear', 'term.kill'] },
     { label: 'Help', items: ['help.welcome', 'help.commands', 'help.docs', '-', 'help.issue', '-', 'help.devtools', 'help.reload', 'help.data', '-', 'help.updates', 'help.about'] },
   ]
@@ -712,11 +871,11 @@ export default function App() {
 
   const installTinyModel = async () => {
     try {
-      setNotice('Downloading a tiny local AI (≈105 MB)…')
+      setNotice(t('Downloading a tiny local AI (≈105 MB)…'))
       await api.installLocalModel('smollm2-135m')
       await loadModels()
       setSelectedModel('orbi::smollm2-135m')
-      setNotice('Local AI ready — it runs on this PC, no key needed.')
+      setNotice(t('Local AI ready — it runs on this PC, no key needed.'))
     } catch (e) {
       setNotice(cleanError(e))
     }
@@ -738,6 +897,31 @@ export default function App() {
     return [...groups.entries()]
   }, [chatModels, modelSearch])
 
+  const suggestList: Suggest[] = useMemo(() => {
+    const m = message.match(/(?:^|\s)([/@])([\w.-]*)$/)
+    if (!m || suggestClosed) return []
+    const q = m[2].toLowerCase()
+    if (m[1] === '/') {
+      if (message.trimStart().indexOf('/') !== 0 || message.trim().includes(' ')) return []
+      return [
+        ...SLASH_COMMANDS.map((c) => ({ kind: 'command' as const, id: c.id, label: `/${c.id}`, hint: t(c.hint), insert: `/${c.id} ` })),
+        ...skills.map((k) => ({ kind: 'skill' as const, id: k.id, label: `/${slug(k.name)}`, hint: k.description || k.name, insert: `/${slug(k.name)} ` })),
+      ]
+        .filter((x) => x.label.slice(1).includes(q))
+        .slice(0, 8)
+    }
+    return agents
+      .filter((a) => `${a.handle} ${a.description}`.toLowerCase().includes(q))
+      .slice(0, 8)
+      .map((a) => ({ kind: 'agent' as const, id: a.id, label: a.handle, hint: a.description || a.instructions.slice(0, 80), insert: `${a.handle} ` }))
+  }, [message, skills, agents, suggestClosed])
+  const applySuggest = (x: Suggest) => {
+    setMessage((cur) => cur.replace(/(^|\s)[/@][\w.-]*$/, (_, pre) => `${pre}${x.insert}`))
+    if (x.kind === 'agent') setActiveAgents((cur) => (cur.includes(x.label) ? cur : [...cur, x.label]))
+    setSuggestIdx(0)
+    textareaRef.current?.focus()
+  }
+
   const lastAssistantIdx = messages.map((m) => m.role).lastIndexOf('assistant')
   const conversationSources = messages.flatMap((m) => parseAttachments(m.attachments))
 
@@ -746,7 +930,7 @@ export default function App() {
     <TitleBar
       menus={menus}
       commands={commands}
-      title={activeNav === 'creative' ? 'Orbi — Creative' : activeConversation ? `${activeConversation.title} — Orbi` : 'Orbi'}
+      title={activeNav === 'creative' ? `Orbi — ${t('Creative')}` : activeNav === 'explore' ? `Orbi — ${t('Explore')}` : activeConversation ? `${activeConversation.title} — Orbi` : 'Orbi'}
       onLogo={() => goNav('chats')}
     />
     <div className="app-frame">
@@ -756,7 +940,7 @@ export default function App() {
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault()
-        if (activeNav !== 'creative' && e.dataTransfer.files.length) addFiles(e.dataTransfer.files)
+        if (activeNav !== 'creative' && activeNav !== 'explore' && e.dataTransfer.files.length) addFiles(e.dataTransfer.files)
       }}
     >
       <nav className="tool-rail" aria-label="Main navigation">
@@ -766,15 +950,15 @@ export default function App() {
         <div className="rail-navigation">
           {navItems.map((item) => {
             const Icon = item.icon
-            const selected = activeNav === item.id && (item.id === 'creative' || panelOpen)
+            const selected = activeNav === item.id && (item.id === 'creative' || item.id === 'explore' || panelOpen)
             return (
               <button
                 key={item.id}
                 className={`rail-button ${selected ? 'rail-button-active' : ''}`}
                 onClick={() => toggleNavigation(item.id)}
-                aria-label={item.label}
+                aria-label={t(item.label)}
                 aria-pressed={selected}
-                title={item.label}
+                title={t(item.label)}
               >
                 <Icon size={18} strokeWidth={1.8} />
               </button>
@@ -796,7 +980,7 @@ export default function App() {
               <div className="avatar avatar-profile-menu">{initials(userName)}</div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-white">{userName}</p>
-                <p className="mt-0.5 text-[10px] text-[#919d95]">Local account · Orbi {info?.version}</p>
+                <p className="mt-0.5 text-[10px] text-[#919d95]">{t('Local account')} · Orbi {info?.version}</p>
               </div>
             </div>
             <div className="profile-menu-separator" />
@@ -809,7 +993,7 @@ export default function App() {
               }}
             >
               <Crown size={16} />
-              <span>Upgrade plan</span>
+              <span>{t('Upgrade plan')}</span>
             </button>
             <button
               className="profile-menu-item"
@@ -820,18 +1004,18 @@ export default function App() {
               }}
             >
               <UserRound size={16} />
-              <span>Profile</span>
+              <span>{t('Profile')}</span>
             </button>
             <button
               className="profile-menu-item"
               role="menuitem"
               onClick={() => {
                 setProfileOpen(false)
-                setSettingsOpen('providers')
+                setSettingsOpen('general')
               }}
             >
               <Settings size={16} />
-              <span>Settings</span>
+              <span>{t('Settings')}</span>
             </button>
             <div className="profile-menu-separator" />
             <button
@@ -843,17 +1027,17 @@ export default function App() {
               }}
             >
               <CircleHelp size={16} />
-              <span>Help & data</span>
+              <span>{t('Help & data')}</span>
             </button>
             <button className="profile-menu-item profile-menu-logout" role="menuitem" onClick={() => window.close()}>
               <LogOut size={16} />
-              <span>Quit Orbi</span>
+              <span>{t('Quit Orbi')}</span>
             </button>
           </div>
         </>
       )}
 
-      {panelOpen && activeNav !== 'creative' && (
+      {panelOpen && activeNav !== 'creative' && activeNav !== 'explore' && (
         <>
           <button className="panel-backdrop" onClick={() => setPanelOpen(false)} aria-label="Close navigation" />
           <WorkspacePanel
@@ -887,17 +1071,31 @@ export default function App() {
       )}
 
       {activeNav === 'creative' ? (
-        <CreativeWorkspace
-          themeMode={themeMode}
-          setThemeMode={setThemeMode}
-          onBack={() => {
-            setActiveNav('chats')
-            setPanelOpen(false)
-          }}
-          models={models}
-          onOpenSettings={() => setSettingsOpen('providers')}
-          onMediaCreated={(m) => setMedia((cur) => [m, ...cur])}
-        />
+        <Suspense fallback={<main className="view-loading" />}>
+          <CreativeStudio
+            themeMode={themeMode}
+            setThemeMode={setThemeMode}
+            onBack={() => {
+              setActiveNav('chats')
+              setPanelOpen(false)
+            }}
+            models={models}
+            localStatus={localStatus}
+            onOpenModels={() => setSettingsOpen('models')}
+            onMediaCreated={(m) => setMedia((cur) => [m, ...cur])}
+          />
+        </Suspense>
+      ) : activeNav === 'explore' ? (
+        <Suspense fallback={<main className="view-loading" />}>
+          <Explore
+            onBack={() => {
+              setActiveNav('chats')
+              setPanelOpen(false)
+            }}
+            onChanged={refreshLists}
+            onUseAgent={chatWithAgent}
+          />
+        </Suspense>
       ) : (
         <>
           <main className={`min-w-0 flex-1 transition-[margin] duration-200 ${showContext ? 'main-context-open' : ''} ${panelOpen ? 'main-panel-open' : 'main-panel-closed'}`}>
@@ -913,25 +1111,25 @@ export default function App() {
                     aria-expanded={headerMenu === 'models'}
                   >
                     {modelsLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                    <span className="config-label">{currentModel?.name ?? (models.length ? 'Choose model' : 'Connect a model')}</span>
+                    <span className="config-label">{currentModel?.name ?? (models.length ? t('Choose model') : t('Connect a model'))}</span>
                     <ChevronDown size={13} />
                   </button>
                   <button className={`config-trigger ${headerMenu === 'skills' ? 'config-trigger-active' : ''}`} onClick={() => toggleHeaderMenu('skills')} aria-expanded={headerMenu === 'skills'}>
                     <Blocks size={16} />
-                    <span className="config-label">Skills</span>
+                    <span className="config-label">{t('Skills')}</span>
                     {activeSkills.length > 0 && <span className="config-count">{activeSkills.length}</span>}
                   </button>
                   <button className={`config-trigger ${headerMenu === 'agents' ? 'config-trigger-active' : ''}`} onClick={() => toggleHeaderMenu('agents')} aria-expanded={headerMenu === 'agents'}>
                     <Bot size={16} />
-                    <span className="config-label">Agents</span>
+                    <span className="config-label">{t('Agents')}</span>
                     {activeAgents.length > 0 && <span className="config-count">{activeAgents.length}</span>}
                   </button>
                   <button
                     className={`config-trigger config-add-trigger ${headerMenu === 'add' ? 'config-trigger-active' : ''}`}
                     onClick={() => toggleHeaderMenu('add')}
-                    aria-label="Add another model"
+                    aria-label={t('Add another model')}
                     aria-expanded={headerMenu === 'add'}
-                    title="Compare models side by side"
+                    title={t('Compare models side by side')}
                   >
                     <Plus size={17} />
                     {additionalModels.length > 0 && <span className="config-count">{additionalModels.length}</span>}
@@ -945,15 +1143,15 @@ export default function App() {
                           <>
                             <div className="config-popover-heading">
                               <div>
-                                <p>LLM model</p>
-                                <span>Choose the AI for this conversation</span>
+                                <p>{t('LLM model')}</p>
+                                <span>{t('Choose the AI for this conversation')}</span>
                               </div>
                               <Cpu size={17} />
                             </div>
                             {chatModels.length > 0 && (
                               <label className="sidebar-search popover-search">
                                 <Search size={14} />
-                                <input autoFocus value={modelSearch} onChange={(e) => setModelSearch(e.target.value)} placeholder={`Search ${chatModels.length} models`} />
+                                <input autoFocus value={modelSearch} onChange={(e) => setModelSearch(e.target.value)} placeholder={t('Search {n} models', { n: chatModels.length })} />
                               </label>
                             )}
                             <div className="config-options popover-scroll">
@@ -981,7 +1179,7 @@ export default function App() {
                                   ))}
                                 </div>
                               ))}
-                              {!modelsLoading && chatModels.length === 0 && <p className="popover-empty">No models yet. Connect a provider — OpenRouter gives you hundreds of models with one key, or Ollama runs them locally for free.</p>}
+                              {!modelsLoading && chatModels.length === 0 && <p className="popover-empty">{t('No models yet. Connect a provider — OpenRouter gives you hundreds of models with one key — or download a local model.')}</p>}
                               {modelErrors.map((e) => (
                                 <p key={e.provider} className="popover-error">
                                   {e.provider}: {e.message.slice(0, 140)}
@@ -996,11 +1194,11 @@ export default function App() {
                                 }}
                               >
                                 <Plug size={15} />
-                                <span>Manage providers</span>
+                                <span>{t('Manage providers')}</span>
                               </button>
                               <button onClick={() => loadModels()}>
                                 <RotateCcw size={15} />
-                                <span>Refresh list</span>
+                                <span>{t('Refresh list')}</span>
                               </button>
                             </div>
                           </>
@@ -1010,8 +1208,8 @@ export default function App() {
                           <>
                             <div className="config-popover-heading">
                               <div>
-                                <p>Active Skills</p>
-                                <span>Select capabilities for this chat</span>
+                                <p>{t('Active Skills')}</p>
+                                <span>{t('Type / in the message box to use one')}</span>
                               </div>
                               <Blocks size={17} />
                             </div>
@@ -1033,8 +1231,8 @@ export default function App() {
                           <>
                             <div className="config-popover-heading">
                               <div>
-                                <p>Agents</p>
-                                <span>Activate one or multiple agents</span>
+                                <p>{t('Agents')}</p>
+                                <span>{t('Type @ in the message box to mention one')}</span>
                               </div>
                               <Bot size={17} />
                             </div>
@@ -1053,12 +1251,21 @@ export default function App() {
                               <button
                                 onClick={() => {
                                   setHeaderMenu(null)
+                                  toggleNavigation('explore')
+                                }}
+                              >
+                                <Sparkles size={15} />
+                                <span>{t('Explore library')}</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setHeaderMenu(null)
                                   setActiveNav('agents')
                                   setPanelOpen(true)
                                 }}
                               >
                                 <Bot size={15} />
-                                <span>Open Agent Builder</span>
+                                <span>{t('Open Agent Builder')}</span>
                               </button>
                             </div>
                           </>
@@ -1068,8 +1275,8 @@ export default function App() {
                           <>
                             <div className="config-popover-heading">
                               <div>
-                                <p>Add models</p>
-                                <span>Each answer comes from every selected model</span>
+                                <p>{t('Add models')}</p>
+                                <span>{t('Each answer comes from every selected model')}</span>
                               </div>
                               <Plus size={17} />
                             </div>
@@ -1081,21 +1288,21 @@ export default function App() {
                                 }}
                               >
                                 <Plug size={15} />
-                                <span>Connect API provider</span>
+                                <span>{t('Connect API provider')}</span>
                               </button>
                               <button
                                 onClick={() => {
                                   setHeaderMenu(null)
-                                  setSettingsOpen('providers')
+                                  setSettingsOpen('models')
                                 }}
                               >
                                 <Server size={15} />
-                                <span>Add local model</span>
+                                <span>{t('Add local model')}</span>
                               </button>
                             </div>
                             <label className="sidebar-search popover-search">
                               <Search size={14} />
-                              <input value={modelSearch} onChange={(e) => setModelSearch(e.target.value)} placeholder="Search models" />
+                              <input value={modelSearch} onChange={(e) => setModelSearch(e.target.value)} placeholder={t('Search models')} />
                             </label>
                             <div className="config-options config-options-compact popover-scroll">
                               {groupedModels
@@ -1126,21 +1333,21 @@ export default function App() {
                 {messages.length > 0 && !temporaryChat && !contextOpen && (
                   <button className="header-action hidden sm:flex" onClick={() => setContextOpen(true)}>
                     <PanelLeftClose size={16} />
-                    Workspace
+                    {t('Workspace')}
                   </button>
                 )}
                 {messages.length > 0 && (
                   <button className="header-action hidden sm:flex" onClick={startNewChat} title="New chat">
                     <Plus size={16} />
-                    New
+                    {t('New')}
                   </button>
                 )}
                 <ThemeSwitcher themeMode={themeMode} setThemeMode={setThemeMode} />
                 <button
                   className={`temporary-header ${temporaryChat ? 'temporary-header-active' : ''}`}
                   onClick={toggleTemporaryChat}
-                  aria-label="Toggle temporary chat"
-                  title="Temporary chat"
+                  aria-label={t('Toggle temporary chat')}
+                  title={t('Temporary chat')}
                 >
                   <SpyHatIcon className="h-[20px] w-[20px]" />
                 </button>
@@ -1155,8 +1362,8 @@ export default function App() {
                       <div className="temporary-title-icon">
                         <SpyHatIcon className="h-7 w-7" />
                       </div>
-                      <h2>Temporary chat</h2>
-                      <p>This conversation will not appear in your history and will be deleted automatically.</p>
+                      <h2>{t('Temporary chat')}</h2>
+                      <p>{t('This conversation will not appear in your history and will be deleted automatically.')}</p>
                     </div>
                   ) : (
                     <div className="standard-welcome">
@@ -1175,28 +1382,27 @@ export default function App() {
                       <div className="standard-title-icon">
                         <OrbiMark width={26} height={26} />
                       </div>
-                      <p className="welcome-kicker">{themeMode === 'terminal' ? 'ORBI // TERMINAL SESSION' : 'Video-first creative canvas'}</p>
-                      <h2>{themeMode === 'terminal' ? `System ready, ${userName}.` : `${greeting()}, ${userName}.`}</h2>
-                      <p>{themeMode === 'terminal' ? 'Initialize a multimodal workflow.' : 'Direct video, image, and story workflows from one prompt.'}</p>
+                      <h2>{themeMode === 'terminal' ? t('System ready, {name}.', { name: userName }) : `${t(greeting())}, ${userName}.`}</h2>
+                      <p>{themeMode === 'terminal' ? t('Initialize a multimodal workflow.') : t('Chat, search the web, and direct images and video — on your PC or in the cloud.')}</p>
                       <div className="hero-capabilities">
                         <span>
                           <Video size={12} />
-                          Video
+                          {t('Video')}
                         </span>
                         <span>
                           <ImageIcon size={12} />
-                          Image
+                          {t('Image')}
                         </span>
                         <span>
                           <FileText size={12} />
-                          Story
+                          {t('Story')}
                         </span>
                       </div>
                     </div>
                   )
                 ) : (
                   <div className="date-divider">
-                    <span>{activeConversation ? new Date(activeConversation.created_at).toLocaleDateString('en-US', { dateStyle: 'medium' }) : 'Today'}</span>
+                    <span>{activeConversation ? fmtDate(activeConversation.created_at) : t('Today')}</span>
                   </div>
                 )}
 
@@ -1227,13 +1433,33 @@ export default function App() {
                           )}
                           {item.reasoning && (
                             <details className="message-reasoning" open={item.streaming && !item.content}>
-                              <summary>Thinking</summary>
+                              <summary>{t('Thinking')}</summary>
                               <p>{item.reasoning}</p>
                             </details>
                           )}
                           {parseJSON<ToolEvent[]>(item.tools, []).length > 0 && (
                             <div className="tool-events">
                               {parseJSON<ToolEvent[]>(item.tools, []).map((t) => {
+                                if (t.sources?.length)
+                                  return (
+                                    <div key={t.id} className="web-sources">
+                                      <p className="web-sources-head">
+                                        <Globe size={12} /> {tr('Searched the web')} <small>· {t.result}</small>
+                                      </p>
+                                      <div className="web-sources-list">
+                                        {t.sources.map((src, i) => (
+                                          <button key={src.url} className="web-source" onClick={() => api.openExternal(src.url)} title={src.snippet}>
+                                            <span className="web-source-n num">{i + 1}</span>
+                                            <span className="min-w-0">
+                                              <strong>{src.title}</strong>
+                                              <small>{hostOf(src.url)}</small>
+                                            </span>
+                                            <ExternalLink size={11} />
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )
                                 const [srv, ...rest] = t.name.split('__')
                                 return (
                                   <details key={t.id} className={`tool-event tool-${t.status}`}>
@@ -1243,7 +1469,7 @@ export default function App() {
                                         {rest.join('__') || t.name}
                                         <small> · {servers.find((x) => x.id === srv)?.name ?? srv}</small>
                                       </span>
-                                      <em>{t.status === 'running' ? 'running' : t.status === 'error' ? 'failed' : 'done'}</em>
+                                      <em>{tr(t.status === 'running' ? 'running' : t.status === 'error' ? 'failed' : 'done')}</em>
                                     </summary>
                                     {t.args !== undefined && <pre>{JSON.stringify(t.args, null, 2)}</pre>}
                                     {t.result && <pre>{t.result}</pre>}
@@ -1259,7 +1485,7 @@ export default function App() {
                             </div>
                           )}
                           {item.streaming && !item.content && !item.reasoning && (
-                            <div className="typing-bubble" aria-label="Orbi is typing">
+                            <div className="typing-bubble" aria-label={t('Orbi is typing')}>
                               <span />
                               <span />
                               <span />
@@ -1271,12 +1497,15 @@ export default function App() {
                               {item.role === 'user' && <Check size={12} />}
                               {item.role === 'assistant' && !item.error && (
                                 <>
-                                  <button title="Copy" onClick={() => navigator.clipboard.writeText(item.content)}>
+                                  <button title={t('Copy')} onClick={() => navigator.clipboard.writeText(item.content)}>
                                     <Copy size={12} />
+                                  </button>
+                                  <button title={speaking === item.id ? t('Stop reading') : t('Read aloud')} onClick={() => speak(item)} className={speaking === item.id ? 'meta-active' : ''}>
+                                    {speaking === item.id ? <VolumeX size={12} /> : <Volume2 size={12} />}
                                   </button>
                                   {!item.temp && conversationId && (
                                     <button
-                                      title={item.bookmarked ? 'Remove bookmark' : 'Bookmark'}
+                                      title={item.bookmarked ? t('Remove bookmark') : t('Bookmark')}
                                       onClick={async () => {
                                         await api.bookmark(item.id, !item.bookmarked)
                                         setMessages((cur) => cur.map((m) => (m.id === item.id ? { ...m, bookmarked: m.bookmarked ? 0 : 1 } : m)))
@@ -1289,7 +1518,7 @@ export default function App() {
                                 </>
                               )}
                               {idx === lastAssistantIdx && !isStreaming && (
-                                <button title="Regenerate" onClick={regenerate}>
+                                <button title={t('Regenerate')} onClick={regenerate}>
                                   <RotateCcw size={12} />
                                 </button>
                               )}
@@ -1304,11 +1533,11 @@ export default function App() {
 
                 {!emptyLanding && !isStreaming && messages.length > 0 && (
                   <div className="mt-10">
-                    <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[#939c96]">Keep exploring</p>
+                    <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-[#939c96]">{t('Keep exploring')}</p>
                     <div className="flex flex-wrap justify-center gap-2">
                       {suggestions.map((s) => (
-                        <button key={s} className="suggestion-chip" onClick={() => sendMessage(s)}>
-                          {s}
+                        <button key={s} className="suggestion-chip" onClick={() => sendMessage(t(s))}>
+                          {t(s)}
                         </button>
                       ))}
                     </div>
@@ -1323,7 +1552,7 @@ export default function App() {
                   {activeAgents.map((h) => (
                     <span key={h} className="attachment-chip agent-chip">
                       <Bot size={12} /> {h}
-                      <button type="button" onClick={() => setActiveAgents((cur) => cur.filter((x) => x !== h))} aria-label={`Stop using ${h}`}>
+                      <button type="button" onClick={() => setActiveAgents((cur) => cur.filter((x) => x !== h))} aria-label={t('Stop using {h}', { h })}>
                         <X size={11} />
                       </button>
                     </span>
@@ -1344,11 +1573,36 @@ export default function App() {
                     ))}
                   </div>
                 )}
+                {suggestList.length > 0 && (
+                  <div className="composer-suggest" role="listbox" aria-label={t('Suggestions')}>
+                    {suggestList.map((x, i) => (
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={i === suggestIdx % suggestList.length}
+                        key={x.kind + x.id}
+                        className={i === suggestIdx % suggestList.length ? 'active' : ''}
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          applySuggest(x)
+                        }}
+                      >
+                        {x.kind === 'agent' ? <Bot size={13} /> : x.kind === 'skill' ? <Blocks size={13} /> : <Sparkles size={13} />}
+                        <strong>{x.label}</strong>
+                        <span>{x.hint}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <textarea
                   ref={textareaRef}
                   rows={1}
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) => {
+                    setMessage(e.target.value)
+                    setSuggestClosed(false)
+                    setSuggestIdx(0)
+                  }}
                   onPaste={(e) => {
                     const files = Array.from(e.clipboardData.files)
                     if (files.length) {
@@ -1357,18 +1611,47 @@ export default function App() {
                     }
                   }}
                   onKeyDown={(e) => {
+                    if (suggestList.length) {
+                      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                        e.preventDefault()
+                        setSuggestIdx((i) => (i + (e.key === 'ArrowDown' ? 1 : suggestList.length - 1)) % suggestList.length)
+                        return
+                      }
+                      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+                        e.preventDefault()
+                        applySuggest(suggestList[suggestIdx % suggestList.length])
+                        return
+                      }
+                      if (e.key === 'Escape') {
+                        e.preventDefault()
+                        setSuggestClosed(true)
+                        return
+                      }
+                    }
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault()
                       sendMessage(message)
                     }
                   }}
-                  placeholder={temporaryChat ? 'Type a temporary message...' : themeMode === 'terminal' ? '> Enter a prompt...' : 'Ask anything...'}
-                  aria-label="Message"
+                  placeholder={recording ? t('Listening… click the mic again to stop') : transcribing ? t('Transcribing…') : temporaryChat ? t('Type a temporary message...') : themeMode === 'terminal' ? '> ' + t('Enter a prompt...') : t('Ask anything — / for skills, @ for agents')}
+                  aria-label={t('Message')}
                 />
                 <div className="mt-2 flex items-center justify-between">
-                  <button type="button" className="composer-tool" aria-label="Attach file" title="Attach files or images" onClick={() => fileInput.current?.click()}>
-                    <Paperclip size={18} />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button type="button" className="composer-tool" aria-label={t('Attach file')} title={t('Attach files or images')} onClick={() => fileInput.current?.click()}>
+                      <Paperclip size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`composer-tool composer-web ${webOn ? 'composer-tool-on' : ''}`}
+                      aria-pressed={webOn}
+                      title={webOn ? t('Web search on — every message searches the web first') : t('Search the web (works with any model)')}
+                      onClick={toggleWeb}
+                    >
+                      <Globe size={17} />
+                      {webOn && <span>{t('Web')}</span>}
+                    </button>
+                  </div>
                   <input
                     ref={fileInput}
                     type="file"
@@ -1380,61 +1663,68 @@ export default function App() {
                     }}
                   />
                   <div className="composer-conversation-controls">
-                    <span className="hidden text-[10px] text-[#9aa19d] sm:block">{additionalModels.length ? `${additionalModels.length + 1} models` : 'Press Enter to send'}</span>
+                    <span className="hidden text-[10px] text-[#9aa19d] sm:block">{additionalModels.length ? t('{n} models', { n: additionalModels.length + 1 }) : t('Press Enter to send')}</span>
                     <div className="response-mode-control">
                       <button type="button" className={`response-mode-trigger ${responseMenuOpen ? 'response-mode-trigger-active' : ''}`} onClick={() => setResponseMenuOpen((v) => !v)} aria-expanded={responseMenuOpen}>
-                        <span>{responseMode}</span>
+                        <span>{responseType === 'Thinking' ? `${t('Thinking')} · ${t(reasoningEffort)}` : t('Instant')}</span>
                         <ChevronDown size={12} />
                       </button>
                       {responseMenuOpen && (
                         <>
-                          <button type="button" className="response-menu-backdrop" onClick={() => setResponseMenuOpen(false)} aria-label="Close response mode menu" />
+                          <button type="button" className="response-menu-backdrop" onClick={() => setResponseMenuOpen(false)} aria-label={t('Close')} />
                           <div className="response-mode-menu">
                             <div className="response-menu-heading">
                               <div>
-                                <strong>Response behavior</strong>
-                                <small>Configured for {currentModel?.name ?? 'your model'}</small>
+                                <strong>{t('Response behavior')}</strong>
+                                <small>{t('Configured for {model}', { model: currentModel?.name ?? t('your model') })}</small>
                               </div>
                               <CircleHelp size={14} />
                             </div>
-                            <p className="response-control-label">Mode</p>
+                            <p className="response-control-label">{t('Mode')}</p>
                             <div className="response-type-options">
                               {(['Instant', 'Thinking'] as ResponseType[]).map((mode) => (
                                 <button type="button" key={mode} className={`response-type-option ${responseType === mode ? 'response-type-option-active' : ''}`} onClick={() => setResponseType(mode)}>
-                                  {mode}
+                                  {t(mode)}
                                 </button>
                               ))}
                             </div>
                             {responseType === 'Thinking' && (
                               <div className="effort-control">
                                 <div className="effort-heading">
-                                  <span>Thinking effort</span>
-                                  <strong>{reasoningEffort}</strong>
+                                  <span>{t('Thinking effort')}</span>
+                                  <strong>{t(reasoningEffort)}</strong>
                                 </div>
                                 <div className="effort-scale">
                                   {(['Fast', 'Medium', 'High'] as ReasoningEffort[]).map((effort) => (
                                     <button type="button" key={effort} className={reasoningEffort === effort ? 'effort-option-active' : ''} onClick={() => setReasoningEffort(effort)}>
                                       <span />
-                                      {effort}
+                                      {t(effort)}
                                     </button>
                                   ))}
                                 </div>
                               </div>
                             )}
-                            <p className="response-model-note">Thinking uses extended reasoning on Claude and OpenRouter models that support it.</p>
+                            <p className="response-model-note">{t('Thinking uses extended reasoning on models that support it.')}</p>
                           </div>
                         </>
                       )}
                     </div>
-                    <button type="button" className="microphone-button" onClick={() => setNotice('Voice input arrives with local Whisper in the next build.')} aria-label="Start voice input">
-                      <Mic size={18} />
+                    <button
+                      type="button"
+                      className={`microphone-button ${recording ? 'microphone-recording' : ''}`}
+                      onClick={() => startVoice()}
+                      disabled={transcribing}
+                      aria-label={recording ? t('Stop recording') : t('Start voice input')}
+                      title={recording ? t('Stop recording') : voiceMode ? t('Voice input') : t('Set up voice input')}
+                    >
+                      {transcribing ? <Loader2 size={17} className="animate-spin" /> : recording ? <Square size={13} fill="currentColor" /> : <Mic size={18} />}
                     </button>
                     {isStreaming ? (
-                      <button className="send-button send-button-stop" type="button" onClick={stop} aria-label="Stop generating" title="Stop">
+                      <button className="send-button send-button-stop" type="button" onClick={stop} aria-label={t('Stop generating')} title={t('Stop')}>
                         <Square size={14} fill="currentColor" />
                       </button>
                     ) : (
-                      <button className="send-button" type="submit" disabled={!message.trim() && !attachments.length} aria-label="Send message">
+                      <button className="send-button" type="submit" disabled={!message.trim() && !attachments.length} aria-label={t('Send message')}>
                         <ArrowUp size={18} strokeWidth={2.4} />
                       </button>
                     )}
@@ -1453,17 +1743,25 @@ export default function App() {
                     <strong>
                       {(() => {
                         const d = localStatus?.engineDownloading ?? localStatus?.models.find((m) => m.id === 'smollm2-135m')?.downloading
-                        return d ? `Downloading local AI… ${d.total ? Math.round((d.received / d.total) * 100) : 0}%` : 'Try a free local AI (≈105 MB)'
+                        return d ? `${t('Downloading local AI…')} ${d.total ? Math.round((d.received / d.total) * 100) : 0}%` : t('Try a free local AI (≈105 MB)')
                       })()}
                     </strong>
-                    <small>SmolLM2 runs on this PC, offline, even with little memory. No key needed.</small>
+                    <small>{t('SmolLM2 runs on this PC, offline, even with little memory. No key needed.')}</small>
                   </span>
+                </button>
+                <button className="connect-banner" onClick={() => setSettingsOpen('models')}>
+                  <Cpu size={16} />
+                  <span>
+                    <strong>{t('Pick a model for this PC')}</strong>
+                    <small>{t('Light, medium and heavy models — Orbi checks what your hardware can run.')}</small>
+                  </span>
+                  <ChevronRight size={16} />
                 </button>
                 <button className="connect-banner" onClick={() => setSettingsOpen('providers')}>
                   <Plug size={16} />
                   <span>
-                    <strong>Connect your first AI provider</strong>
-                    <small>Paste an OpenRouter, OpenAI, Anthropic or Gemini key — or use Ollama locally for free.</small>
+                    <strong>{t('Connect your first AI provider')}</strong>
+                    <small>{t('Paste an OpenRouter, OpenAI, Anthropic, Gemini or Groq key — or use Ollama locally for free.')}</small>
                   </span>
                   <ChevronRight size={16} />
                 </button>
@@ -1474,7 +1772,7 @@ export default function App() {
                   {(() => {
                     const a = activeAgentList()
                     const st = a.length === 1 ? parseJSON<string[]>(a[0].starters, []).filter(Boolean) : []
-                    return st.length ? st : starterPrompts
+                    return st.length ? st : starterPrompts.map((x) => t(x))
                   })().map((s) => (
                     <button key={s} className="suggestion-chip" onClick={() => sendMessage(s)}>
                       {s}
@@ -1484,7 +1782,7 @@ export default function App() {
               )}
               {!emptyLanding && (
                 <p className="mt-2.5 text-center text-[10px] text-[#9ca39f]">
-                  {temporaryChat ? 'This conversation will not be saved to your history or memory.' : 'Orbi can make mistakes. Verify important information.'}
+                  {temporaryChat ? t('This conversation will not be saved to your history or memory.') : t('Orbi can make mistakes. Verify important information.')}
                 </p>
               )}
             </div>
@@ -1492,17 +1790,16 @@ export default function App() {
 
           {showContext && (
             <aside className="context-panel">
-              <button className="panel-resize-handle panel-resize-handle-right" onPointerDown={(e) => startPanelResize('right', e)} aria-label="Resize workspace panel" />
+              <button className="panel-resize-handle panel-resize-handle-right" onPointerDown={(e) => startPanelResize('right', e)} aria-label={t('Resize workspace panel')} />
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
-                  <p className="eyebrow text-[#8a948e]">Workspace</p>
-                  <h2 className="mt-1 truncate font-display text-lg font-semibold tracking-[-0.03em] text-[#1b241f]">{activeConversation?.title ?? 'New conversation'}</h2>
+                  <h2 className="truncate font-display text-lg font-semibold tracking-[-0.03em] text-[#1b241f]">{activeConversation?.title ?? t('New conversation')}</h2>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button className="icon-button context-collapse" onClick={() => setContextOpen(false)} aria-label="Collapse workspace">
+                  <button className="icon-button context-collapse" onClick={() => setContextOpen(false)} aria-label={t('Collapse workspace')}>
                     <ChevronRight size={17} />
                   </button>
-                  <button className="icon-button" aria-label="Settings" onClick={() => setSettingsOpen('providers')}>
+                  <button className="icon-button" aria-label={t('Settings')} onClick={() => setSettingsOpen('general')}>
                     <MoreHorizontal size={18} />
                   </button>
                 </div>
@@ -1511,17 +1808,17 @@ export default function App() {
               <div className="context-card mt-7">
                 <div className="flex items-center gap-2 text-xs font-semibold">
                   <Sparkles size={15} className="text-[#59734b]" />
-                  Active context
+                  {t('Active context')}
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-[#6f7973]">
-                  {[activeSkills.length && `${activeSkills.length} skill${activeSkills.length > 1 ? 's' : ''}`, activeAgents.length && activeAgents.join(', '), memoryEnabled && memories.length && `${memories.length} memories`]
+                  {[activeSkills.length && t('{n} skills', { n: activeSkills.length }), activeAgents.length && activeAgents.join(', '), webOn && t('web search'), memoryEnabled && memories.length && t('{n} memories', { n: memories.length })]
                     .filter(Boolean)
-                    .join(' · ') || 'No skills, agents or memories active.'}
+                    .join(' · ') || t('No skills, agents or memories active.')}
                 </p>
               </div>
 
               <div className="mt-8">
-                <p className="eyebrow text-[#8a948e]">Project</p>
+                <p className="eyebrow text-[#8a948e]">{t('Project')}</p>
                 <label className="context-select mt-3">
                   <FolderKanban size={15} />
                   <select
@@ -1532,7 +1829,7 @@ export default function App() {
                       refreshLists()
                     }}
                   >
-                    <option value="">No project</option>
+                    <option value="">{t('No project')}</option>
                     {projects.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
@@ -1544,19 +1841,19 @@ export default function App() {
 
               <div className="mt-8">
                 <div className="flex items-center justify-between">
-                  <p className="eyebrow text-[#8a948e]">Sources</p>
+                  <p className="eyebrow text-[#8a948e]">{t('Sources')}</p>
                   <button className="text-[11px] font-semibold text-[#537047]" onClick={() => fileInput.current?.click()}>
-                    Add
+                    {t('Add')}
                   </button>
                 </div>
                 <div className="mt-3 space-y-2">
-                  {conversationSources.length === 0 && <p className="text-[11px] text-[#8a938e]">Attach files or images to use them as context.</p>}
+                  {conversationSources.length === 0 && <p className="text-[11px] text-[#8a938e]">{t('Attach files or images to use them as context.')}</p>}
                   {conversationSources.map((s, i) => (
                     <div className="source-card" key={i}>
                       <div className={`source-icon ${s.dataUrl ? 'source-icon-blue' : ''}`}>{s.dataUrl ? <ImageIcon size={17} /> : <FileText size={17} />}</div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-semibold text-[#26322b]">{s.name}</p>
-                        <p className="mt-0.5 text-[10px] text-[#8a938e]">{s.text ? `${Math.round(s.text.length / 1000)}k characters` : s.mime}</p>
+                        <p className="mt-0.5 text-[10px] text-[#8a938e]">{s.text ? t('{n}k characters', { n: Math.round(s.text.length / 1000) }) : s.mime}</p>
                       </div>
                       <Check size={14} className="text-[#658256]" />
                     </div>
@@ -1565,19 +1862,19 @@ export default function App() {
               </div>
 
               <div className="mt-8 border-t border-[#e4e5df] pt-6">
-                <p className="eyebrow text-[#8a948e]">Details</p>
+                <p className="eyebrow text-[#8a948e]">{t('Details')}</p>
                 <div className="mt-4 space-y-4">
                   <div className="flex items-center gap-3">
                     <Clock3 size={15} className="text-[#8a948e]" />
                     <div>
-                      <p className="text-[10px] text-[#929a95]">Created on</p>
-                      <p className="mt-0.5 text-xs font-medium text-[#465149]">{new Date(activeConversation?.created_at ?? Date.now()).toLocaleDateString('en-US', { dateStyle: 'long' })}</p>
+                      <p className="text-[10px] text-[#929a95]">{t('Created on')}</p>
+                      <p className="mt-0.5 text-xs font-medium text-[#465149]">{fmtDate(activeConversation?.created_at ?? Date.now(), 'long')}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Bot size={15} className="text-[#8a948e]" />
                     <div className="min-w-0">
-                      <p className="text-[10px] text-[#929a95]">Model{additionalModels.length ? 's' : ''}</p>
+                      <p className="text-[10px] text-[#929a95]">{additionalModels.length ? t('Models') : t('Model')}</p>
                       <p className="mt-0.5 truncate text-xs font-medium text-[#465149]">
                         {[currentModel?.name, ...additionalModels.map((k) => models.find((m) => m.key === k)?.name)].filter(Boolean).join(', ') || '—'}
                       </p>
@@ -1586,7 +1883,7 @@ export default function App() {
                   <div className="flex items-center gap-3">
                     <MessageSquareText size={15} className="text-[#8a948e]" />
                     <div>
-                      <p className="text-[10px] text-[#929a95]">Messages</p>
+                      <p className="text-[10px] text-[#929a95]">{t('Messages')}</p>
                       <p className="mt-0.5 text-xs font-medium text-[#465149]">{messages.length}</p>
                     </div>
                   </div>
@@ -1598,20 +1895,54 @@ export default function App() {
       )}
 
       {settingsOpen && (
-        <SettingsModal
-          initialTab={settingsOpen}
-          onClose={() => setSettingsOpen(null)}
-          onChanged={loadModels}
-          userName={userName}
-          setUserName={setUserName}
-          info={info}
-          localStatus={localStatus}
-          onLocalChanged={() => api.localStatus().then(setLocalStatus)}
-        />
+        <Suspense fallback={null}>
+          <SettingsModal
+            key={lang}
+            initialTab={settingsOpen}
+            onClose={() => {
+              setSettingsOpen(null)
+              api.getSetting<VoiceMode | null>('voiceMode', null).then(setVoiceMode)
+            }}
+            onChanged={loadModels}
+            userName={userName}
+            setUserName={setUserName}
+            info={info}
+            localStatus={localStatus}
+            onLocalChanged={() => api.localStatus().then(setLocalStatus)}
+            lang={lang}
+            setLang={changeLang}
+          />
+        </Suspense>
+      )}
+      {voicePicker && (
+        <div className="orbi-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setVoicePicker(false)}>
+          <div className="voice-dialog" role="dialog" aria-label={t('Voice input')}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3>{t('Set up voice input')}</h3>
+                <p>{t('Choose how Orbi turns your voice into text. You can change this later in Settings → Voice.')}</p>
+              </div>
+              <button className="icon-button" onClick={() => setVoicePicker(false)} aria-label={t('Close')}>
+                <X size={16} />
+              </button>
+            </div>
+            <Suspense fallback={<div className="hub-skeleton" />}>
+              <VoiceSettings
+                status={localStatus}
+                onLocalChanged={() => api.localStatus().then(setLocalStatus)}
+                onPicked={(m) => {
+                  setVoiceMode(m)
+                  setVoicePicker(false)
+                  startVoice(m)
+                }}
+              />
+            </Suspense>
+          </div>
+        </div>
       )}
 
       {notice && <div className="orbi-toast">{notice}</div>}
-      {!isDesktop && <div className="orbi-preview-badge">Browser preview</div>}
+      {!isDesktop && <div className="orbi-preview-badge">{t('Browser preview')}</div>}
       {findOpen && (
         <FindBar
           onClose={() => {
@@ -1627,6 +1958,7 @@ export default function App() {
     </div>
     {termMounted && (
       <div className="term-dock" style={{ display: termOpen ? 'block' : 'none' }}>
+        <Suspense fallback={null}>
         <TerminalPanel
           ref={terminalRef}
           height={termMax ? Math.max(200, window.innerHeight - 140) : termHeight}
@@ -1635,6 +1967,7 @@ export default function App() {
           setMaximized={setTermMax}
           onClose={() => setTermOpen(false)}
         />
+        </Suspense>
       </div>
     )}
     {palette && (
@@ -1652,10 +1985,10 @@ export default function App() {
           <div className="approval-icon">
             <ShieldCheck size={20} />
           </div>
-          <h3>{approval.server} wants to act</h3>
+          <h3>{t('{server} wants to act', { server: approval.server })}</h3>
           <pre>{approval.message}</pre>
           <label className="approval-always">
-            <input type="checkbox" checked={alwaysAllow} onChange={(e) => setAlwaysAllow(e.target.checked)} /> Don't ask again (auto-approve tools)
+            <input type="checkbox" checked={alwaysAllow} onChange={(e) => setAlwaysAllow(e.target.checked)} /> {t("Don't ask again (auto-approve tools)")}
           </label>
           <div className="flex justify-end gap-2">
             <button
@@ -1665,7 +1998,7 @@ export default function App() {
                 setApproval(null)
               }}
             >
-              Deny
+              {t('Deny')}
             </button>
             <button
               className="orbi-btn orbi-btn-primary"
@@ -1676,7 +2009,7 @@ export default function App() {
                 setApproval(null)
               }}
             >
-              Allow
+              {t('Allow')}
             </button>
           </div>
         </div>

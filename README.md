@@ -4,9 +4,39 @@ AI chat and creative studio by **OrbiX**: one app for chats, projects, agents, s
 
 React 19 · Vite · Tailwind 4 · TypeScript, packaged with Electron. Local data lives in SQLite (sql.js/WASM).
 
-> Status: **0.2.0**, a desktop preview for Windows. Linux and macOS builds come from the same code.
+> Status: **0.1.27-1**, a desktop preview for Windows. Linux and macOS builds come from the same code.
+> Versions follow `0.1.DD-N`: DD is the day of the month, N is the build of that day.
+>
+> Developed by **Daniel Rodrigues**.
 
-## What's in 0.2.0
+## What's in 0.1.27-1
+
+- **Hardware detection**: RAM, CPU, GPU, VRAM and free disk (NVIDIA via `nvidia-smi`, Windows registry for AMD/Intel, sysfs on Linux, unified memory on Apple Silicon).
+- **Model hub** (Settings → Local models), with Light / Medium / Heavy tiers for text, image, video and voice input:
+  - Each model shows whether it fits this PC (runs well, slow, or won't fit, and why). Models that don't fit stay listed, with **Install anyway**.
+  - Engines are downloaded with the first model of each kind: llama.cpp b11800, stable-diffusion.cpp and whisper.cpp. GPU builds (Vulkan) are used when there is a GPU with 2 GB+ VRAM.
+  - Text: SmolLM2 135M/360M, Qwen2.5 0.5B/1.5B/7B, Llama 3.2 3B. Image: Tiny SD Turbo, Z-Image Turbo, FLUX.1 schnell. Video: Wan 2.1 1.3B, Wan 2.2 5B. Voice input: Whisper tiny/base/small/turbo.
+- **Creative studio**, organized like InvokeAI but with Orbi's own look:
+  - **Launchpad**: generate an image or video, edit an image, or build a workflow. Also shows engine status and detects a running InvokeAI.
+  - **Canvas**: prompt and negative prompt, model, aspect presets, width/height, seed, steps, frames and count. Inpainting uses a mask brush and image-to-image strength, with live progress and cancel.
+  - **Workflows**: the node canvas.
+  - **Gallery**, with **Boards** and **Layers**.
+  - Generation runs on local models (stable-diffusion.cpp) or cloud image models.
+- **Microphone**: on first use, you choose between a local Whisper model (picked for your PC) and an API (OpenAI or Groq). Answers have a **read aloud** button that uses the system voices.
+- **Web search for any model**: the globe button (or `/web`) searches DuckDuckGo with a Wikipedia fallback and reads the top pages. The results are given to the model, and the answer shows source cards. Tool-calling models also get a `web_search` tool.
+- **Explore**: a library of 80 skills, 80 agents and 8 toolkits. It covers Graphic Design, UX/Product, Developers, IT, Journalism, Audiovisual, Marketing and Education. On first run, two lightweight (prompt-only) skills and one agent per profession come pre-installed.
+- **Composer**: type `/` for skills and commands (`/web`, `/image`, `/terminal`, `/clear`), or `@` to mention agents.
+- **Languages**: English by default. Português (Brasil), Español and Français are in Settings → General.
+- **Design pass**:
+  - Calmer focus ring.
+  - Theme-aware selection, caret, scrollbars and focus outlines.
+  - Tabular numbers.
+  - 150–250 ms motion with `prefers-reduced-motion` support.
+  - A satellite dot on the active rail item.
+- **Lighter startup**: the studio, explore, settings and terminal load on demand (main bundle 842 KB → 503 KB).
+- **About**: signed "Developed by Daniel Rodrigues".
+
+### What 0.2.0 added (kept)
 
 - **Menu bar** next to the Orbi logo: File, Edit, Selection, View, Go, Terminal and Help, in VS Code style. Includes a command palette (`Ctrl+Shift+P`), find in chat (`Ctrl+F`), go to chat (`Ctrl+P`), multiple windows and keyboard shortcuts.
 - **Native terminal** in a bottom panel (`Ctrl+\``):
@@ -62,15 +92,22 @@ electron/
   providers.cjs   OpenRouter, OpenAI, Anthropic, Gemini, DeepSeek, Mistral, Ollama, LM Studio, custom, Orbi Local; tool-calling loop
   mcp.cjs         MCP hub: built-in tools, stdio/HTTP servers, catalog, plugins
   terminal.cjs    native shell sessions (node-pty)
-  local-ai.cjs    downloads llama.cpp + GGUF models on demand and runs llama-server
+  local-ai.cjs    model hub: llama.cpp, stable-diffusion.cpp and whisper.cpp engines + catalog, downloads, generation
+  hardware.cjs    RAM/CPU/GPU/VRAM/disk detection
+  websearch.cjs   keyless web search (DuckDuckGo, Wikipedia fallback) and page reading
+  library.cjs     profession library: skills, agents and toolkits
 src/
   App.tsx                     shell, chat, commands, menus, shortcuts
   components/TitleBar         menu bar, command palette, find bar
   components/TerminalPanel    xterm.js terminal with tabs
   components/WorkspacePanel   chats, projects, memory, bookmarks, media library
   components/panels/          Agent Builder, Skills, MCP & Plugins
-  components/Creative         node canvas
-  components/SettingsModal    providers, Orbi Local, profile
+  components/CreativeStudio   Launchpad, Canvas (inpainting), Workflows, Gallery, Boards, Layers
+  components/Creative         node canvas (Workflows tab)
+  components/Explore          profession library
+  components/ModelHub         hardware card + Light/Medium/Heavy models
+  components/SettingsModal    general/language, providers, local models, voice, about
+  lib/i18n.ts, i18n-dicts.ts  translations (en, pt-BR, es, fr)
   lib/api.ts                  typed bridge (the web version will implement it over HTTP)
 build/
   installer.nsi, win-finish.cjs   Windows installer without Wine
@@ -78,13 +115,9 @@ build/
 
 ## Roadmap
 
-### 0.3: next update
-- **Creative**:
-  - Video, audio and 3D nodes, both cloud (fal / Replicate / MuAPI) and local (stable-diffusion.cpp + Wan2.2 TI2V-5B).
-  - Local image models (Z-Image Turbo, FLUX.2-klein) installed from Orbi Local.
-  - Open-Generative-AI-style studios (Image, Video, Lip Sync, Cinema), ported into the Orbi layout.
-- **First-run wizard**: detect GPU, VRAM, RAM and disk, then suggest model packs.
-- **Voice**: whisper.cpp for the microphone button, Kokoro for read-aloud.
+### Next
+- **Creative**: canvas layers you can move and scale, regional prompts, upscaling, control images, and video/audio nodes in Workflows.
+- **Voice**: natural local read-aloud (Kokoro / OuteTTS), and local whisper on macOS and Linux.
 - **Scheduled chats**: run on the OrbiX cloud, so they work with the PC off.
 - **MCP**: OAuth for remote servers, per-server approval rules, MCP resources and prompts.
 - **Agents**: file context per agent (RAG), agent marketplace.
