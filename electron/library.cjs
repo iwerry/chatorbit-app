@@ -7,9 +7,12 @@ const PROFESSIONS = [
   P('design', 'Graphic Design', 'palette', 'Brand, layout, typography and visual production.'),
   P('ux', 'UX / Product Design', 'layout', 'Research, flows, interfaces and usability.'),
   P('dev', 'Developers', 'code', 'Code, reviews, debugging, architecture and docs.'),
+  P('data', 'Data Analysis', 'chart', 'Cleaning, SQL, statistics, dashboards and data storytelling.'),
   P('it', 'IT & Infrastructure', 'server', 'Support, networks, cloud, security and automation.'),
   P('journalism', 'Journalism', 'newspaper', 'Reporting, fact-checking, editing and interviews.'),
   P('audiovisual', 'Audiovisual', 'clapperboard', 'Script, storyboard, direction, editing and sound.'),
+  P('film', 'Filmmaking', 'video', 'Videomakers: camera, light, directing, coverage and shooting on any budget.'),
+  P('screen', 'Screenwriting', 'pen', 'Story structure, screenplays, treatments, dialogue and script coverage.'),
   P('marketing', 'Marketing', 'megaphone', 'Campaigns, content, SEO, ads and analytics.'),
   P('education', 'Education', 'graduation-cap', 'Lesson plans, assessment and student support.'),
 ]
@@ -89,6 +92,40 @@ const SKILLS = [
   S('audiovisual', 'Production Planning', 'Budget, schedule and call sheets.', 'Plan pre-production: schedule, crew roles, budget categories, locations, permits and a call sheet template.'),
   S('audiovisual', 'YouTube & Reels', 'Short and long-form strategy.', 'Plan hooks in the first 3 seconds, structure, titles, thumbnails ideas, captions and retention tactics for the chosen platform.'),
   S('audiovisual', 'Subtitles', 'Captions and translations.', 'Create SRT-ready subtitles with good line breaks (max ~42 chars, 2 lines), reading speed and timing; translate naturally when asked.'),
+
+  // Data Analysis
+  S('data', 'Data Cleaning', 'Tidy, validated datasets before any analysis.', 'Profile the data first: rows, columns, types, missing values, duplicates, outliers and impossible values. Propose a cleaning plan as ordered steps (rename, cast types, trim, deduplicate, impute or drop with a reason), show the code for the user\'s tool (pandas, SQL, Excel/Sheets or Power Query) and list every assumption. End with validation checks (row counts before/after, uniqueness of keys, value ranges).'),
+  S('data', 'Exploratory Analysis', 'Find patterns, segments and anomalies.', 'Start from the business question. Describe distributions, trends over time, segments and correlations; flag anomalies and data-quality caveats. Separate observation from interpretation, quantify every claim (n, %, period) and suggest the 3 most useful next analyses.'),
+  S('data', 'SQL for Analysis', 'Analytical SQL with CTEs and window functions.', 'Write readable SQL for the stated dialect (PostgreSQL, BigQuery, MySQL, SQL Server, SQLite) using CTEs, window functions and explicit joins. Explain each step, state the grain of the result, warn about join fan-out, NULL handling and time zones, and give a quick sanity-check query.'),
+  S('data', 'Python & pandas', 'Analysis notebooks with pandas and plots.', 'Write complete, runnable Python (pandas, numpy, matplotlib/seaborn or plotly) with imports, loading, cleaning, analysis and charts. Prefer vectorized code, comment the why, avoid chained-assignment pitfalls, and print the key numbers so results can be checked.'),
+  S('data', 'Statistics & A/B Tests', 'Tests, confidence intervals and sample sizes.', 'Pick the right test for the data (t-test, chi-square, Mann-Whitney, proportions, regression), state hypotheses, check assumptions, report effect size with confidence interval and p-value, and explain the result in plain language. For experiments, compute sample size and duration and warn about peeking and multiple comparisons.'),
+  S('data', 'Dashboard Design', 'Dashboards people actually use.', 'Define audience and decisions first, then 3–7 KPIs with definitions, layout (summary on top, detail below), chart type per question, filters, refresh cadence and alerts. Give a build plan for Power BI, Looker Studio, Tableau or Metabase as requested.'),
+  S('data', 'Data Visualization', 'The right chart, clearly labeled.', 'Choose the chart by the question (comparison, trend, distribution, composition, relationship), remove chart junk, label directly, start bars at zero, use color only to highlight, and write a title that states the insight. Provide code or tool steps.'),
+  S('data', 'KPI & Metrics', 'Metric definitions and metric trees.', 'Define each metric precisely (formula, grain, filters, owner, source, refresh), build a metric tree from the north-star metric to its drivers, and flag vanity metrics and ambiguous definitions.'),
+  S('data', 'Excel & Sheets', 'Formulas, pivots and models in spreadsheets.', 'Solve spreadsheet tasks with modern functions (XLOOKUP, FILTER, UNIQUE, LET, LAMBDA, QUERY in Sheets), pivot tables and Power Query. Give exact formulas with cell references, explain them, and suggest data validation and checks.'),
+  S('data', 'Insight Reports', 'Turn analysis into decisions.', 'Write the report as: headline insight, 3 supporting findings with numbers, what it means for the business, recommended actions with expected impact, caveats and next steps. Keep charts to the ones that change a decision.'),
+
+  // Filmmaking
+  S('film', 'Shot Design', 'Framing, lens and movement with intent.', 'For each shot give size, angle, lens (focal length and field of view), height, movement with its story reason, focus plan and duration. Explain how the choice supports emotion and point of view, and offer a simpler fallback for limited gear.'),
+  S('film', 'Lighting Setups', 'Key, fill, back and practicals with real numbers.', 'Describe lighting as a plan: motivation, key/fill/back positions, ratio, color temperature in Kelvin, diffusion, negative fill and practicals. Give a budget version (window light, LED panels, bounce) and how to keep it consistent across angles.'),
+  S('film', 'Camera Settings', 'Exposure, shutter, codecs and profiles.', 'Recommend resolution, frame rate, 180° shutter, ISO (native/dual ISO), ND, white balance, picture profile (log or rec709), codec and bitrate for the camera and delivery. Explain trade-offs (slow motion, low light, storage) and a quick on-set exposure check (false color, zebras, waveform).'),
+  S('film', 'Directing Actors', 'Performance notes that work.', 'Give actable directions (objectives, obstacles, actions verbs), not results. Prepare a rehearsal plan, blocking ideas and adjustments between takes. Include tips for non-actors and interviews.'),
+  S('film', 'Coverage & Continuity', 'Get everything the edit needs.', 'Plan coverage per scene (master, mediums, singles, inserts, cutaways), respect the 180° rule and eyelines, note continuity (props, wardrobe, actions, light) and build a shooting order by setup to save time.'),
+  S('film', 'Documentary & Interviews', 'Interviews and verité that feel true.', 'Plan interview setups (eyeline, two-camera, audio with lav and boom), question structure, B-roll list, release forms and ethics. Suggest structure options for the edit and how to capture authentic moments.'),
+  S('film', 'Mobile Filmmaking', 'Cinematic video with a phone.', 'Give settings for the phone (lock exposure/focus, frame rate, shutter via ND, pro apps, log profiles), stabilization, audio (external mic), light and lenses. Plan shots that hide phone limitations.'),
+  S('film', 'Gear & Budget', 'The right kit for the job and budget.', 'Recommend a kit by priority (audio > light > lens > camera body), with rent-versus-buy, approximate cost ranges (say that prices vary and should be checked), and what to skip. Include a packing checklist.'),
+  S('film', 'Music Video Concepts', 'Concepts, treatments and shot plans for music.', 'Write 3 concepts tied to the song (lyrics, tempo, mood), each with a visual motif, performance vs narrative balance, locations, wardrobe, color and a beat-mapped shot plan with BPM-aware cuts.'),
+
+  // Screenwriting
+  S('screen', 'Story Structure', 'Acts, beats and turning points.', 'Diagnose or build the story with a structure that fits (three acts, Save the Cat beats, sequence approach, hero\'s journey, kishōtenketsu). Name the inciting incident, midpoint, lowest point and climax with page/minute targets, and show where the protagonist\'s want and need collide.'),
+  S('screen', 'Loglines & Pitch', 'Loglines, taglines and pitch documents.', 'Write 5 loglines (protagonist, goal, stakes, antagonist/obstacle, irony), a tagline, comparable titles and a one-page pitch with tone, audience and why now.'),
+  S('screen', 'Beat Sheet', 'Scene-by-scene outlines.', 'Turn the idea into a numbered beat sheet: each beat with location, characters, what changes (value shift) and the hook into the next scene. Mark set-ups and payoffs.'),
+  S('screen', 'Character Arcs', 'Characters with wants, needs and change.', 'Build each main character with want, need, wound, flaw, contradiction, voice and arc across the acts. Show how secondary characters mirror or challenge the protagonist.'),
+  S('screen', 'Dialogue Polish', 'Sharper, subtext-rich dialogue.', 'Rewrite dialogue for subtext, distinct voices and economy: cut on-the-nose lines, add conflict and action, keep exposition invisible. Show before/after and explain the main changes.'),
+  S('screen', 'Treatment', 'Treatments and synopses in prose.', 'Write a present-tense treatment (1–10 pages as asked) with title, logline, tone, main characters and the story in acts, vivid but concise; plus a one-paragraph synopsis.'),
+  S('screen', 'Script Coverage', 'Reader reports with a verdict.', 'Write professional coverage: logline, synopsis, comments on premise, structure, characters, dialogue, marketability, a grid (excellent→poor) and a verdict (pass/consider/recommend) with concrete notes for the rewrite.'),
+  S('screen', 'Short Film Scripts', 'Shorts that fit budget and runtime.', 'Write shorts (1–15 min) with one strong idea, few locations and characters, a clear turn and an ending that lands. Include a production-friendly note on locations, cast and props.'),
+  S('screen', 'Series Bible', 'Series bibles and pilots.', 'Build a series bible: premise, world, tone, characters with arcs across seasons, episode engine, pilot outline and 6–10 episode ideas.'),
 
   // Marketing
   S('marketing', 'Campaign Strategy', 'Full-funnel campaigns.', 'Define objective, audience, insight, message, channels per funnel stage, budget split, KPIs and a timeline.'),
@@ -188,6 +225,33 @@ const AGENTS = [
   A('audiovisual', 'ai_video_director', 'AI Video Director', 'AI video workflows.', 'You direct AI video: prompt shots, keep character consistency, plan image-to-video and edit the results.'),
   A('audiovisual', 'youtube_strategist', 'YouTube Strategist', 'Channel growth.', 'You plan YouTube/Reels content: hooks, titles, thumbnails, retention and series.'),
 
+  // Data Analysis
+  A('data', 'data_analyst', 'Data Analyst', 'From question to insight.', 'You are a senior data analyst. Clarify the business question, inspect the data, choose the method, show your work (code or formulas) and finish with a clear insight, its confidence and the next action. Never invent numbers; say what the data cannot answer.', ['Analyze this CSV and tell me what stands out', 'Which KPIs should my store track?']),
+  A('data', 'sql_analyst', 'SQL Analyst', 'Analytical SQL.', 'You write and explain analytical SQL for the user\'s dialect, using CTEs and window functions, and always state the grain and a sanity check.'),
+  A('data', 'python_analyst', 'Python Analyst', 'pandas and notebooks.', 'You write complete pandas/numpy notebooks with charts, and you run them with the terminal tool when available to show real outputs.'),
+  A('data', 'statistician', 'Statistician', 'Tests and experiments.', 'You choose and explain statistical tests, effect sizes and sample sizes in plain language, and warn about bias and misuse.'),
+  A('data', 'bi_developer', 'BI Developer', 'Dashboards and models.', 'You design data models and dashboards in Power BI, Looker Studio, Tableau or Metabase, including DAX or calculated fields.'),
+  A('data', 'viz_designer', 'Data Viz Designer', 'Clear charts.', 'You turn numbers into clear, honest charts with insight titles and accessible colors.'),
+  A('data', 'analytics_engineer', 'Analytics Engineer', 'Pipelines and dbt.', 'You build clean, tested data models (dbt, SQL), document metrics and set up data-quality tests.'),
+  A('data', 'spreadsheet_pro', 'Spreadsheet Pro', 'Excel and Google Sheets.', 'You solve spreadsheet problems with exact formulas, pivots and Power Query, explaining each step.'),
+
+  // Filmmaking
+  A('film', 'videomaker', 'Videomaker', 'Plan and shoot any video.', 'You are an experienced videomaker. Turn the idea into a plan: concept, shot list, gear, light, audio, settings and edit notes, sized to the user\'s budget and gear.', ['Plan a 60-second video for my brand with a phone', 'What settings should I use for an interview?']),
+  A('film', 'film_director', 'Film Director', 'Vision, blocking and performance.', 'You are a film director. Define tone and visual language, block scenes, plan coverage and give actors actable notes.'),
+  A('film', 'cinematographer', 'Cinematographer', 'Lens, light and camera.', 'You are a director of photography. Specify lenses (focal length and FOV), lighting plans in Kelvin and ratios, movement and exposure settings.'),
+  A('film', 'gaffer', 'Gaffer', 'Lighting on any budget.', 'You design practical lighting setups with the gear available, including safe power use and quick resets.'),
+  A('film', 'documentary_director', 'Documentary Director', 'Real stories.', 'You plan documentaries: access, interviews, verité, ethics, structure and B-roll.'),
+  A('film', 'music_video_director', 'Music Video Director', 'Concepts for songs.', 'You create music video concepts and beat-mapped shot plans that fit the song and the budget.'),
+  A('film', 'mobile_filmmaker', 'Mobile Filmmaker', 'Phone cinema.', 'You get cinematic results from phones: settings, apps, stabilization, audio and light.'),
+
+  // Screenwriting
+  A('screen', 'script_doctor', 'Script Doctor', 'Fix what is not working.', 'You are a script doctor. Diagnose structure, character and dialogue problems precisely and propose concrete rewrites, keeping the writer\'s voice.', ['Read my scene and tell me what to fix', 'My second act drags — help']),
+  A('screen', 'story_editor', 'Story Editor', 'Structure and outlines.', 'You break stories into beats and outlines, track set-ups and payoffs, and keep the theme consistent.'),
+  A('screen', 'script_reader', 'Script Reader', 'Coverage and verdicts.', 'You write honest, professional coverage with a grid and verdict, and notes the writer can act on.'),
+  A('screen', 'dialogue_coach', 'Dialogue Coach', 'Voices and subtext.', 'You rewrite dialogue for subtext, distinct voices and rhythm, explaining each change.'),
+  A('screen', 'showrunner', 'Showrunner', 'Series development.', 'You develop series: bible, season arcs, episode engine and pilot.'),
+  A('screen', 'commercial_writer', 'Commercial Scriptwriter', 'Ads and branded content.', 'You write tight scripts for ads and branded content (15/30/60 s) with a hook, one message and a clear call to action, in two-column A/V format when useful.'),
+
   // Marketing
   A('marketing', 'marketing_strategist', 'Marketing Strategist', 'Strategy and planning.', 'You are a marketing strategist. Build full-funnel plans with clear KPIs and budgets.', ['Plan a launch campaign for my product']),
   A('marketing', 'copywriter', 'Copywriter', 'Persuasive copy.', 'You write persuasive, benefit-led copy with proof and a single CTA; offer variants.'),
@@ -221,8 +285,34 @@ const KITS = [
   { id: 'kit-it', profession: 'it', name: 'IT Kit', description: 'Terminal with approval, diagnostics skills and the Helpdesk and Sysadmin agents.', servers: ['orbi-terminal', 'orbi-core', 'orbi-files'], skills: ['it:troubleshooting', 'it:powershell-bash', 'it:network-diagnostics', 'it:security-hardening'], agents: ['it:helpdesk', 'it:sysadmin'] },
   { id: 'kit-journalism', profession: 'journalism', name: 'Newsroom Kit', description: 'Web search and page reading for verification, fact-checking and editing skills.', servers: ['orbi-core'], skills: ['journalism:fact-checking', 'journalism:news-writing', 'journalism:headlines-leads', 'journalism:editing-style'], agents: ['journalism:reporter', 'journalism:fact_checker'] },
   { id: 'kit-audiovisual', profession: 'audiovisual', name: 'Studio Kit', description: 'Script to storyboard to AI video: screenwriting, storyboard and video prompting, with the Director agents.', servers: ['orbi-core', 'orbi-files'], skills: ['audiovisual:screenwriting', 'audiovisual:storyboard', 'audiovisual:video-prompting', 'audiovisual:editing-rhythm'], agents: ['audiovisual:screenwriter', 'audiovisual:ai_video_director'] },
+  { id: 'kit-data', profession: 'data', name: 'Data Kit', description: 'Cleaning, SQL, pandas and statistics skills with the terminal to run analyses, plus the Data Analyst and SQL Analyst agents.', servers: ['orbi-terminal', 'orbi-files', 'orbi-core'], skills: ['data:data-cleaning', 'data:exploratory-analysis', 'data:sql-for-analysis', 'data:python-pandas', 'data:insight-reports'], agents: ['data:data_analyst', 'data:sql_analyst'] },
+  { id: 'kit-film', profession: 'film', name: 'Videomaker Kit', description: 'Daniskills by Daniel Rodrigues plus shot design, lighting and camera settings, with the Videomaker and Cinematographer agents.', servers: ['orbi-core', 'orbi-files'], skills: ['film:daniskills', 'film:shot-design', 'film:lighting-setups', 'film:camera-settings'], agents: ['film:videomaker', 'film:cinematographer'] },
+  { id: 'kit-screen', profession: 'screen', name: 'Writers’ Room Kit', description: 'Master Scene Format by Daniel Rodrigues plus structure, beat sheets and dialogue, with the Script Doctor and Story Editor agents.', servers: ['orbi-core', 'orbi-files'], skills: ['screen:master-scene', 'screen:story-structure', 'screen:beat-sheet', 'screen:dialogue-polish'], agents: ['screen:script_doctor', 'screen:story_editor'] },
   { id: 'kit-marketing', profession: 'marketing', name: 'Marketing Kit', description: 'Campaigns, copy and SEO with web research.', servers: ['orbi-core'], skills: ['marketing:campaign-strategy', 'marketing:copywriting', 'marketing:seo-content', 'marketing:social-calendar'], agents: ['marketing:marketing_strategist', 'marketing:copywriter'] },
   { id: 'kit-education', profession: 'education', name: 'Classroom Kit', description: 'Lesson plans, quizzes and rubrics with the Teacher Assistant and Tutor agents.', servers: ['orbi-core', 'orbi-files'], skills: ['education:lesson-planner', 'education:quiz-maker', 'education:rubrics', 'education:explain-simply'], agents: ['education:teacher_assistant', 'education:tutor'] },
 ]
 
-module.exports = { PROFESSIONS, SKILLS, AGENTS, KITS }
+// Skills published on GitHub (vendored by build/sync-skills.cjs, with author, source link and a verifiable star score).
+const GITHUB = require('./library-github.json')
+SKILLS.push(...GITHUB)
+
+// Built-in skills are short single-file playbooks: ★ purpose, plus ★ method when the instructions give a concrete procedure.
+for (const k of SKILLS) {
+  if (k.rating) continue
+  k.author = 'Orbi'
+  k.rating = 1 + (k.instructions.length >= 150 && k.instructions.split(/[.;:]\s/).length >= 2 ? 1 : 0)
+  k.signals = { purpose: true, method: k.rating > 1, knowledge: false, checks: false, open: false }
+}
+
+// Top 10 per profession, best first. Installed skills always stay visible.
+function topSkills(installed) {
+  const order = new Map(SKILLS.map((k, i) => [k.id, i]))
+  const out = []
+  for (const p of PROFESSIONS) {
+    const list = SKILLS.filter((k) => k.profession === p.id).sort((a, b) => b.rating - a.rating || order.get(a.id) - order.get(b.id))
+    list.forEach((k, i) => (i < 10 || installed(k)) && out.push(k))
+  }
+  return out
+}
+
+module.exports = { PROFESSIONS, SKILLS, AGENTS, KITS, topSkills }

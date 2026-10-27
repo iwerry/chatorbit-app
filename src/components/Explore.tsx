@@ -1,9 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Bot, Blocks, Check, ChevronLeft, Clapperboard, Code, GraduationCap, Layout, Megaphone, Newspaper, Package, Palette, Plus, Search, Server } from 'lucide-react'
-import { api, type Library, type LibraryAgent, type LibraryKit, type LibrarySkill } from '../lib/api'
+import { BarChart3, Bot, Blocks, Check, ChevronLeft, Clapperboard, Code, ExternalLink, GraduationCap, Layout, Megaphone, Newspaper, Package, Palette, PenLine, Plus, Search, Server, Star, Video } from 'lucide-react'
+import { api, type Library, type LibraryAgent, type LibraryKit, type LibrarySkill, type SkillSignals } from '../lib/api'
 import { t } from '../lib/i18n'
 
-const ICONS: Record<string, typeof Code> = { palette: Palette, layout: Layout, code: Code, server: Server, newspaper: Newspaper, clapperboard: Clapperboard, megaphone: Megaphone, 'graduation-cap': GraduationCap }
+const ICONS: Record<string, typeof Code> = { palette: Palette, layout: Layout, code: Code, server: Server, newspaper: Newspaper, clapperboard: Clapperboard, megaphone: Megaphone, 'graduation-cap': GraduationCap, chart: BarChart3, video: Video, pen: PenLine }
+
+const SIGNALS: [keyof SkillSignals, string][] = [
+  ['purpose', 'Clear purpose and when to use it'],
+  ['method', 'Structured method (3+ sections or a detailed playbook)'],
+  ['knowledge', '3+ reference files with the knowledge it relies on'],
+  ['checks', 'Scripts or tests that validate the result'],
+  ['open', 'Published on GitHub with an open-source license'],
+]
+
+function Stars({ skill }: { skill: LibrarySkill }) {
+  const tip = SIGNALS.map(([k, label]) => `${skill.signals[k] ? '★' : '☆'} ${t(label)}`).join('\n')
+  return (
+    <span className="lib-stars" title={tip} aria-label={t('{n} of 5 stars', { n: skill.rating })}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star key={i} size={11} className={i <= skill.rating ? 'on' : ''} />
+      ))}
+    </span>
+  )
+}
 
 type Tab = 'skills' | 'agents' | 'kits'
 
@@ -88,6 +107,19 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
               </button>
             ))}
           </div>
+          {tab === 'skills' && (
+            <details className="lib-howto">
+              <summary>
+                <Star size={12} /> {t('How the stars work')}
+              </summary>
+              <p>{t('Each star is a quality signal anyone can check in the skill’s repository. Skills are ranked by stars and each profession shows its top 10.')}</p>
+              <ul>
+                {SIGNALS.map(([k, label]) => (
+                  <li key={k}>★ {t(label)}</li>
+                ))}
+              </ul>
+            </details>
+          )}
           {!lib && <div className="hub-skeleton" aria-busy="true" />}
           <ul className="explore-list">
             {items.map((it) => {
@@ -95,6 +127,7 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
               const id = it.id
               const handle = 'handle' in it ? (it as LibraryAgent).handle : null
               const kit = 'servers' in it ? (it as LibraryKit) : null
+              const skill = tab === 'skills' ? (it as LibrarySkill) : null
               return (
                 <li key={id} className={`explore-row ${installed ? 'installed' : ''}`}>
                   <div className="min-w-0 flex-1">
@@ -102,8 +135,21 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
                       <strong>{handle ?? t(it.name)}</strong>
                       {handle && <span className="explore-sub">{t(it.name)}</span>}
                       {prof === 'all' && <span className="hub-badge">{t(profName(it.profession))}</span>}
+                      {skill && <Stars skill={skill} />}
                     </p>
                     <p className="explore-desc">{t(it.description)}</p>
+                    {skill && skill.author !== 'Orbi' && (
+                      <p className="lib-author">
+                        <span className={`lib-author-name ${skill.author === 'Daniel Rodrigues' ? 'mine' : ''}`}>{t('by {name}', { name: skill.author })}</span>
+                        {skill.license && <span>{skill.license}</span>}
+                        {skill.signals.references ? <span>{t('{n} reference files', { n: skill.signals.references })}</span> : null}
+                        {skill.source && (
+                          <button className="lib-source" onClick={() => api.openExternal(skill.source!)}>
+                            GitHub <ExternalLink size={11} />
+                          </button>
+                        )}
+                      </p>
+                    )}
                     {kit && (
                       <p className="explore-kit">
                         {kit.skills.length} {t('skills')} · {kit.agents.length} {t('agents')} · {t('tools')}: {kit.servers.join(', ')}

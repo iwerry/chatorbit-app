@@ -97,7 +97,7 @@ export type McpServer = {
 export type CatalogEntry = Omit<McpServer, 'status' | 'error' | 'tools' | 'enabled'>
 export type Plugin = { id: string; name: string; description: string; servers: string[]; skills: string[]; enabled: boolean }
 
-export type ModelKind = 'text' | 'image' | 'video' | 'stt' | 'upscale'
+export type ModelKind = 'text' | 'image' | 'video' | 'stt' | 'upscale' | 'tts'
 export type Tier = 'light' | 'medium' | 'heavy' | 'custom'
 export type Fit = { level: 'ok' | 'slow' | 'no'; reason: string; vars?: Record<string, string | number> }
 export type LocalModel = {
@@ -118,6 +118,8 @@ export type LocalModel = {
   vision?: boolean
   visionReady?: boolean
   gen?: GenInfo | null
+  lang?: string
+  partial?: number
 }
 export type GenInfo = { presets: [number, number, number]; fixedSteps: boolean; width: number; height: number; fps: number; image: boolean; ref: boolean; end: boolean }
 export type Hardware = {
@@ -132,10 +134,11 @@ export type Hardware = {
   gpuAccel: boolean
   diskFree: number
 }
+export type TtsChoice = { type: 'piper'; modelId: string; rate: number } | { type: 'system'; name: string; rate: number }
 export type EngineState = { name: string; tag: string; supported: boolean; installed: boolean; downloading: { received: number; total: number } | null }
 export type LocalStatus = {
   hardware: Hardware | null
-  engines: Record<'llama' | 'sd' | 'whisper', EngineState>
+  engines: Record<'llama' | 'sd' | 'whisper' | 'piper', EngineState>
   engineInstalled: boolean
   engineTag: string
   running: { modelId: string; port: number } | null
@@ -144,6 +147,7 @@ export type LocalStatus = {
   recommended: Partial<Record<ModelKind, string | null>>
   engineDownloading: { received: number; total: number } | null
   paths: { root: string; models: string; engines: string } | null
+  orphans?: { files: { file: string; bytes: number }[]; bytes: number }
   queue: string[]
 }
 export type HfRepo = { repo: string; downloads: number; likes: number; updated: string }
@@ -158,7 +162,8 @@ export type UpdateInfo = {
 export type ActiveWork = { kind: string; label: string }
 export type Board = { id: string; name: string; created_at: number }
 export type WebResult = { title: string; url: string; snippet: string; content?: string }
-export type LibrarySkill = { id: string; profession: string; name: string; description: string; instructions: string; installed: boolean }
+export type SkillSignals = { purpose: boolean; method: boolean; knowledge: boolean; checks: boolean; open: boolean; references?: number; checkFiles?: number; commit?: string }
+export type LibrarySkill = { id: string; profession: string; name: string; description: string; instructions: string; installed: boolean; author: string; source?: string; license?: string; rating: number; signals: SkillSignals }
 export type LibraryAgent = { id: string; profession: string; handle: string; name: string; description: string; instructions: string; starters: string[]; category: string; installed: boolean }
 export type LibraryKit = { id: string; profession: string; name: string; description: string; servers: string[]; skills: string[]; agents: string[]; installed: boolean }
 export type Library = { professions: { id: string; name: string; icon: string; description: string }[]; skills: LibrarySkill[]; agents: LibraryAgent[]; kits: LibraryKit[] }
@@ -313,6 +318,9 @@ export const api = {
   enqueueLocal: (ids: string[]): Promise<LocalStatus> => bridge.invoke('local:enqueue', ids),
   clearLocalQueue: (): Promise<LocalStatus> => bridge.invoke('local:clearQueue'),
   removeAllLocal: (): Promise<LocalStatus> => bridge.invoke('local:removeAll'),
+  cleanOrphans: (): Promise<LocalStatus> => bridge.invoke('local:cleanOrphans'),
+  speakLocal: (p: { text: string; modelId: string; rate?: number }): Promise<string> => bridge.invoke('voice:speak', p),
+  speakToMedia: (p: { text: string; modelId: string; rate?: number }): Promise<MediaItem> => bridge.invoke('voice:speakToMedia', p),
   openModelsFolder: () => bridge.invoke('local:openFolder'),
   complete: (p: { providerId: string; model: string; system?: string; prompt: string }): Promise<string> => bridge.invoke('ai:complete', p),
   speech: (p: { text: string; voice?: string }): Promise<MediaItem> => bridge.invoke('ai:speech', p),

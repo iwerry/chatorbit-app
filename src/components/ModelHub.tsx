@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
-import { AudioLines, Check, Cpu, Download, FolderOpen, HardDrive, Image as ImageIcon, Link2, Loader2, MemoryStick, MessageSquareText, Mic, MonitorCog, RefreshCw, Search, Sparkles, Square, Trash2, Video, X } from 'lucide-react'
+import { AudioLines, Check, Cpu, Download, FolderOpen, HardDrive, Image as ImageIcon, Link2, Loader2, MemoryStick, MessageSquareText, Mic, MonitorCog, RefreshCw, Volume2, Search, Sparkles, Square, Trash2, Video, X } from 'lucide-react'
 import { api, type HfFile, type HfRepo, type LocalModel, type LocalStatus, type ModelKind } from '../lib/api'
 import { fmtBytes, t } from '../lib/i18n'
+import { sampleFor, speak } from '../lib/tts'
 
 type Tab = ModelKind | 'audio'
 const TABS: { id: Tab; label: string; icon: typeof Cpu }[] = [
@@ -93,6 +94,14 @@ function ModelRow({ m, recommended, queued, onChanged }: { m: LocalModel; recomm
           <span className="hub-meta num">{[fmtBytes(m.size), m.req?.ram ? `${m.req.ram} GB RAM` : '', m.req?.vram ? `${m.req.vram} GB VRAM` : '', m.license].filter(Boolean).join(' · ')}</span>
         </p>
         <p className="hub-desc">{t(m.description)}</p>
+        {!m.installed && !m.downloading && !!m.partial && (
+          <p className="hub-note num">
+            {t('{size} already downloaded — Download continues where it stopped.', { size: fmtBytes(m.partial) })}{' '}
+            <button className="link-btn" onClick={() => run(() => api.removeLocal(m.id))}>
+              {t('Discard')}
+            </button>
+          </p>
+        )}
         <p className={`hub-fit hub-fit-${m.fit.level}`}>
           <i />
           {m.engineSupported ? t(m.fit.reason, m.fit.vars) : t('No local engine for this system yet — use a cloud provider.')}
@@ -118,6 +127,11 @@ function ModelRow({ m, recommended, queued, onChanged }: { m: LocalModel; recomm
               </button>
             )}
             {m.downloading && <span className="provider-status num">{pct}%</span>}
+            {m.kind === 'tts' && (
+              <button className="orbi-btn" title={t('Listen')} onClick={() => speak(sampleFor(m.lang || 'en'), { type: 'piper', modelId: m.id, rate: 1 }, m.lang || 'en').catch((e) => setError(cleanErr(e)))}>
+                <Volume2 size={13} />
+              </button>
+            )}
             <span className="provider-status">
               <Check size={12} className="inline" /> {t('Ready')}
             </span>
@@ -153,7 +167,7 @@ export function ModelHub({ status, onChanged, initialTab = 'text', onOpenSetup }
   const [tab, setTab] = useState<Tab>(initialTab)
   if (!status) return <div className="hub-skeleton" aria-busy="true" />
   const models = status.models.filter((m) => m.kind === tab)
-  const engineKey = tab === 'text' ? 'llama' : tab === 'stt' ? 'whisper' : tab === 'audio' ? null : 'sd'
+  const engineKey = tab === 'text' ? 'llama' : tab === 'stt' ? 'whisper' : tab === 'audio' ? 'piper' : 'sd'
   const engine = engineKey ? status.engines[engineKey] : null
   return (
     <div className="model-hub">
@@ -177,6 +191,18 @@ export function ModelHub({ status, onChanged, initialTab = 'text', onOpenSetup }
         >
           <Trash2 size={13} /> {t('Delete all models')}
         </button>
+        {!!status.orphans?.bytes && (
+          <button
+            className="orbi-btn"
+            title={status.orphans.files.map((f) => f.file).join('\n')}
+            onClick={async () => {
+              await api.cleanOrphans()
+              onChanged()
+            }}
+          >
+            <Trash2 size={13} /> {t('Free {size} of unused files', { size: fmtBytes(status.orphans.bytes) })}
+          </button>
+        )}
       </div>
       <div className="hub-tabs" role="tablist">
         {TABS.map((x) => {
@@ -218,7 +244,12 @@ export function ModelHub({ status, onChanged, initialTab = 'text', onOpenSetup }
               <Check size={12} className="inline" /> {t('Ready')}
             </span>
           </div>
-          <p className="hub-note">{t('Natural local voices (Kokoro, OuteTTS) are planned for a next update.')}</p>
+          {status.models
+            .filter((m) => m.kind === 'tts')
+            .map((m) => (
+              <ModelRow key={m.id} m={m} recommended={false} queued={!!status.queue?.includes(m.id)} onChanged={onChanged} />
+            ))}
+          <p className="hub-note">{t('Pick the default voice and listen to each one in Settings → Voice.')}</p>
         </div>
       ) : (
         TIERS.map((tier) => {

@@ -130,13 +130,13 @@ const DEFS: Record<Kind, Def> = {
   load: { title: 'Load image', hint: 'Use an image from your library', icon: FolderInput, color: '#7aa36b', group: 'Image', inputs: [], outputs: [{ id: 'image', label: 'Image', type: 'image' }], data: () => ({}) },
   voice: {
     title: 'Voiceover',
-    hint: 'Text to speech (OpenAI key)',
+    hint: 'Text to speech — offline voices or OpenAI',
     icon: AudioLines,
     color: '#e08a4b',
     group: 'Audio',
     inputs: [{ id: 'text', label: 'Script', type: 'text' }],
     outputs: [{ id: 'audio', label: 'Audio', type: 'audio' }],
-    data: () => ({ voice: 'alloy' }),
+    data: () => ({ voice: '' }),
   },
   output: {
     title: 'Save to board',
@@ -276,6 +276,7 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
   )
   const editChoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'image' && m.installed && m.gen?.ref).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
   const localImageChoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'image' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
+  const ttsVoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'tts' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
   const upscalers = useMemo(() => localStatus?.models.filter((m) => m.kind === 'upscale' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
   const [maskFor, setMaskFor] = useState<string | null>(null)
   const inputImageOf = (id: string) => {
@@ -611,7 +612,8 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
       case 'voice': {
         const text = firstText('text')
         if (!text) throw new Error(t('Connect a script to this node.'))
-        const item = await api.speech({ text, voice: String(n.data.voice || 'alloy') })
+        const v = String(n.data.voice || (ttsVoices[0] ? `local:${ttsVoices[0].key}` : 'openai:alloy'))
+        const item = v.startsWith('local:') ? await api.speakToMedia({ text, modelId: v.slice(6) }) : await api.speech({ text, voice: v.replace(/^openai:/, '') })
         onMediaCreated(item)
         return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
       }
@@ -902,7 +904,7 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
                     media={media}
                     boards={boards}
                     onOpenModels={onOpenModels}
-                    extra={{ editChoices, localImageChoices, upscalers, onPaintMask: () => setMaskFor(n.id), hasInputImage: !!inputImageOf(n.id) }}
+                    extra={{ editChoices, localImageChoices, upscalers, ttsVoices, onPaintMask: () => setMaskFor(n.id), hasInputImage: !!inputImageOf(n.id) }}
                   />
                   {n.status === 'running' && n.progress !== undefined && (
                     <div className="local-bar">
@@ -1020,7 +1022,7 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
 }
 
 type Choice = { key: string; label: string }
-type Extra = { editChoices: Choice[]; localImageChoices: Choice[]; upscalers: Choice[]; onPaintMask: () => void; hasInputImage: boolean }
+type Extra = { editChoices: Choice[]; localImageChoices: Choice[]; upscalers: Choice[]; ttsVoices: Choice[]; onPaintMask: () => void; hasInputImage: boolean }
 
 function NodeBody({
   n,
@@ -1221,10 +1223,23 @@ function NodeBody({
     case 'voice':
       return (
         <>
-          <select className="ab-input" value={String(n.data.voice || 'alloy')} onChange={(e) => setData({ voice: e.target.value })}>
-            {VOICES.map((v) => (
-              <option key={v}>{v}</option>
-            ))}
+          <select className="ab-input" value={String(n.data.voice || (extra.ttsVoices[0] ? `local:${extra.ttsVoices[0].key}` : 'openai:alloy'))} onChange={(e) => setData({ voice: e.target.value })}>
+            {extra.ttsVoices.length > 0 && (
+              <optgroup label={t('On this PC')}>
+                {extra.ttsVoices.map((v) => (
+                  <option key={v.key} value={`local:${v.key}`}>
+                    {v.label}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label={t('OpenAI (key needed)')}>
+              {VOICES.map((v) => (
+                <option key={v} value={`openai:${v}`}>
+                  {v}
+                </option>
+              ))}
+            </optgroup>
           </select>
           {preview}
         </>

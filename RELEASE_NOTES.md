@@ -1,21 +1,17 @@
-## Orbi 0.1.27-7
+## Orbi 0.1.27-8
 
-**Creative**
-- Canvas now has **Image** and **Video** modes. Each shows only the settings that make sense for it.
-- **Quality presets** (Fast / Balanced / Best) use the recommended steps for each model, or choose Custom.
-- Images: generate 1 to 8 at once. Video: choose **seconds and FPS** (8, 12, 16, 24, 30, 60). Orbi warns when a render is heavy for your PC, but never blocks it.
-- **Live render status** on the canvas (step, time, stop) and a **Renders** queue. Strong PCs render two at once.
-- Renders and workflows **keep running when you leave** Creative. The rail icon shows they are busy, and you get a "ready" notice with an Open button.
-- Upscale any image 4× (Real-ESRGAN) from the gallery.
+**Explore: the best skills per profession**
+- New professions: **Data Analysis**, **Filmmaking (Videomaker)** and **Screenwriting**, each with skills, agents and a toolkit.
+- Skills published on GitHub, with author and a link to the source: **Daniskills**, **Master Scene Format**, **Investigative Journalism**, **LinkedIn Profile Optimizer**, **DesignerX** and **AI Motion Director** by Daniel Rodrigues, plus Anthropic's Frontend Design and MCP Builder.
+- Every skill has **1–5 stars** based on signals anyone can check in its repository: clear purpose, structured method, reference files, scripts or tests, and an open-source license. Each profession shows its top 10, best first.
 
-**Workflows**
-- **Import ComfyUI workflows (.json)**: prompts, samplers, sizes, image-to-video, inpaint, edit, upscale, load and save are converted to Orbi nodes. Nodes Orbi can't run yet (e.g. FaceSwap) appear as labeled notes.
-- Export and import Orbi workflows.
-- New nodes: **Edit image with words** (FLUX.2 klein), **Inpaint** with a mask painter, and **Upscale 4×**. Video nodes now have FPS.
-- New templates. Dropdowns now follow the dark theme.
+**Voice**
+- **Listen to and choose the default voice.** Download natural offline voices (Piper) in Portuguese, English, Spanish and French, listen to each one and set the default in Settings → Voice. It is used by the speaker button and by the Voice node in Workflows.
+- Reading speed control, and a microphone test that shows what was transcribed.
 
-**Other**
-- About and installer now carry **Draft Creative Studio Ltda — Creative Design & Software Development**.
-- Removed the InvokeAI references.
+**Models**
+- Fixed the FLUX.2 klein download (404): Orbi now finds the right file in the repository instead of guessing its name.
+- Deleting a model now also removes unfinished downloads. A new **Free unused files** button in Local models clears leftovers.
+- Unfinished downloads show how much was saved and continue where they stopped.
 
 Developed by Daniel Rodrigues · Draft Creative Studio Ltda.

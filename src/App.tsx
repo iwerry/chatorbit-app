@@ -65,6 +65,7 @@ import {
   type LocalStatus,
   type ToolEvent,
   type VoiceMode,
+  type TtsChoice,
   on,
   parseJSON,
 } from './lib/api'
@@ -79,6 +80,7 @@ const TerminalPanel = lazy(() => import('./components/TerminalPanel').then((m) =
 import { RunCodeContext } from './components/Markdown'
 import { ThemeSwitcher, type ThemeMode } from './components/ThemeSwitcher'
 import { recordWav } from './lib/voice'
+import { speak as speak_, stopSpeaking } from './lib/tts'
 import { activity, useActivities, type ActivityDone } from './lib/activity'
 
 const SettingsModal = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal })))
@@ -728,21 +730,21 @@ export default function App() {
       setNotice(`${t('Microphone unavailable')}: ${cleanError(e)}`)
     }
   }
-  const speak = (m: ChatMessage) => {
-    const synth = window.speechSynthesis
-    if (!synth) return setNotice(t('This system has no voices for reading aloud.'))
+  const speak = async (m: ChatMessage) => {
     if (speaking === m.id) {
-      synth.cancel()
+      stopSpeaking()
       setSpeaking(null)
       return
     }
-    synth.cancel()
-    const plain = m.content.replace(/```[\s\S]*?```/g, ' ').replace(/\]\([^)]*\)/g, ']').replace(/[#*_>`~[\]]/g, '')
-    const u = new SpeechSynthesisUtterance(plain.slice(0, 6000))
-    u.lang = lang === 'en' ? 'en-US' : lang
-    u.onend = u.onerror = () => setSpeaking(null)
     setSpeaking(m.id)
-    synth.speak(u)
+    try {
+      const choice = await api.getSetting<TtsChoice | null>('ttsVoice', null)
+      await speak_(m.content, choice, lang)
+    } catch (e) {
+      setNotice(cleanError(e))
+    } finally {
+      setSpeaking((cur) => (cur === m.id ? null : cur))
+    }
   }
 
   const regenerate = async () => {
@@ -2039,7 +2041,8 @@ export default function App() {
             setLang={changeLang}
             themeMode={themeMode}
             setThemeMode={setThemeMode}
-            onDone={({ sttModel }) => {
+            onDone={({ sttModel, ttsModel }) => {
+              if (ttsModel) api.getSetting('ttsVoice', null).then((v) => !v && api.setSetting('ttsVoice', { type: 'piper', modelId: ttsModel, rate: 1 }))
               setSetupOpen(null)
               api.setSetting('onboarded', true)
               if (sttModel && !voiceMode) {

@@ -46,6 +46,15 @@ const ENGINES = {
       return a && `https://github.com/leejet/stable-diffusion.cpp/releases/download/${this.tag}/${a}`
     },
   },
+  piper: {
+    name: 'Piper voices',
+    tag: '2023.11.14-2',
+    exe: { cli: 'piper' },
+    asset() {
+      const a = { 'win32-x64': 'piper_windows_amd64.zip', 'linux-x64': 'piper_linux_x86_64.tar.gz', 'darwin-arm64': 'piper_macos_aarch64.tar.gz', 'darwin-x64': 'piper_macos_x64.tar.gz' }[`${process.platform}-${process.arch}`]
+      return a && `https://github.com/rhasspy/piper/releases/download/${this.tag}/${a}`
+    },
+  },
   whisper: {
     name: 'whisper.cpp',
     tag: 'v1.9.2',
@@ -120,7 +129,7 @@ const CATALOG = [
     ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '8', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 768, height: 768, presets: [6, 8, 12] } },
   { id: 'flux2-klein-4b', kind: 'image', tier: 'medium', name: 'FLUX.2 klein 4B', license: 'Apache-2.0', size: 5.3, req: { ram: 8, vram: 4 },
     description: 'Newest FLUX: sharp detail, great prompt following and image editing in 4 steps.', files: [
-      { role: 'diffusion', repo: 'leejet/FLUX.2-klein-4B-GGUF', file: 'flux2-klein-4b-q4_0.gguf' },
+      { role: 'diffusion', repo: 'leejet/FLUX.2-klein-4B-GGUF', pattern: 'q4_0[^/]*\\.gguf$' },
       { role: 'llm', repo: 'unsloth/Qwen3-4B-GGUF', file: 'Qwen3-4B-Q4_K_M.gguf' },
       { role: 'vae', repo: 'Comfy-Org/flux2-dev', file: 'split_files/vae/flux2-vae.safetensors' },
     ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '4', '--sampling-method', 'euler', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 1024, height: 1024, presets: [4, 6, 8], ref: true } },
@@ -152,6 +161,26 @@ const CATALOG = [
       { role: 't5xxl', repo: 'city96/umt5-xxl-encoder-gguf', file: 'umt5-xxl-encoder-Q4_K_M.gguf' },
     ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '49', '--flow-shift', '3.0', '--offload-to-cpu', '--vae-tiling'], width: 1280, height: 704, presets: [12, 20, 30], fps: 24, image: true, end: true } },
 
+  // VOICES (Piper text-to-speech, offline)
+  { id: 'tts-pt_BR-faber-medium', kind: 'tts', tier: 'light', name: 'Faber · Português (BR)', lang: 'pt-BR', license: 'see voice card', size: 0.063, req: { ram: 1, vram: 0 },
+    description: 'Natural male voice in Brazilian Portuguese.', files: [{ role: 'model', repo: 'rhasspy/piper-voices', file: 'pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx' }, { role: 'config', repo: 'rhasspy/piper-voices', file: 'pt/pt_BR/faber/medium/pt_BR-faber-medium.onnx.json' }] },
+  { id: 'tts-pt_BR-edresson-low', kind: 'tts', tier: 'light', name: 'Edresson · Português (BR)', lang: 'pt-BR', license: 'see voice card', size: 0.028, req: { ram: 1, vram: 0 },
+    description: 'Lighter Brazilian Portuguese male voice. Very fast.', files: [{ role: 'model', repo: 'rhasspy/piper-voices', file: 'pt/pt_BR/edresson/low/pt_BR-edresson-low.onnx' }, { role: 'config', repo: 'rhasspy/piper-voices', file: 'pt/pt_BR/edresson/low/pt_BR-edresson-low.onnx.json' }] },
+  { id: 'tts-en_US-lessac-medium', kind: 'tts', tier: 'light', name: 'Lessac · English (US)', lang: 'en', license: 'see voice card', size: 0.063, req: { ram: 1, vram: 0 },
+    description: 'Clear, neutral American English voice.', files: [{ role: 'model', repo: 'rhasspy/piper-voices', file: 'en/en_US/lessac/medium/en_US-lessac-medium.onnx' }, { role: 'config', repo: 'rhasspy/piper-voices', file: 'en/en_US/lessac/medium/en_US-lessac-medium.onnx.json' }] },
+  { id: 'tts-en_US-amy-medium', kind: 'tts', tier: 'light', name: 'Amy · English (US)', lang: 'en', license: 'see voice card', size: 0.063, req: { ram: 1, vram: 0 },
+    description: 'Warm American English female voice.', files: [{ role: 'model', repo: 'rhasspy/piper-voices', file: 'en/en_US/amy/medium/en_US-amy-medium.onnx' }, { role: 'config', repo: 'rhasspy/piper-voices', file: 'en/en_US/amy/medium/en_US-amy-medium.onnx.json' }] },
+  { id: 'tts-en_US-ryan-high', kind: 'tts', tier: 'light', name: 'Ryan · English (US)', lang: 'en', license: 'see voice card', size: 0.12, req: { ram: 1, vram: 0 },
+    description: 'High-quality American English male voice.', files: [{ role: 'model', repo: 'rhasspy/piper-voices', file: 'en/en_US/ryan/high/en_US-ryan-high.onnx' }, { role: 'config', repo: 'rhasspy/piper-voices', file: 'en/en_US/ryan/high/en_US-ryan-high.onnx.json' }] },
+  { id: 'tts-en_GB-alba-medium', kind: 'tts', tier: 'light', name: 'Alba · English (UK)', lang: 'en', license: 'see voice card', size: 0.063, req: { ram: 1, vram: 0 },
+    description: 'British English female voice.', files: [{ role: 'model', repo: 'rhasspy/piper-voices', file: 'en/en_GB/alba/medium/en_GB-alba-medium.onnx' }, { role: 'config', repo: 'rhasspy/piper-voices', file: 'en/en_GB/alba/medium/en_GB-alba-medium.onnx.json' }] },
+  { id: 'tts-es_ES-davefx-medium', kind: 'tts', tier: 'light', name: 'Davefx · Español (ES)', lang: 'es', license: 'see voice card', size: 0.063, req: { ram: 1, vram: 0 },
+    description: 'Spanish (Spain) male voice.', files: [{ role: 'model', repo: 'rhasspy/piper-voices', file: 'es/es_ES/davefx/medium/es_ES-davefx-medium.onnx' }, { role: 'config', repo: 'rhasspy/piper-voices', file: 'es/es_ES/davefx/medium/es_ES-davefx-medium.onnx.json' }] },
+  { id: 'tts-es_MX-ald-medium', kind: 'tts', tier: 'light', name: 'Ald · Español (MX)', lang: 'es', license: 'see voice card', size: 0.063, req: { ram: 1, vram: 0 },
+    description: 'Mexican Spanish male voice.', files: [{ role: 'model', repo: 'rhasspy/piper-voices', file: 'es/es_MX/ald/medium/es_MX-ald-medium.onnx' }, { role: 'config', repo: 'rhasspy/piper-voices', file: 'es/es_MX/ald/medium/es_MX-ald-medium.onnx.json' }] },
+  { id: 'tts-fr_FR-siwis-medium', kind: 'tts', tier: 'light', name: 'Siwis · Français', lang: 'fr', license: 'see voice card', size: 0.063, req: { ram: 1, vram: 0 },
+    description: 'French female voice.', files: [{ role: 'model', repo: 'rhasspy/piper-voices', file: 'fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx' }, { role: 'config', repo: 'rhasspy/piper-voices', file: 'fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx.json' }] },
+
   // UPSCALE (stable-diffusion.cpp ESRGAN)
   { id: 'realesrgan-x4', kind: 'upscale', tier: 'light', name: 'Real-ESRGAN 4×', license: 'BSD-3-Clause', size: 0.067, req: { ram: 2, vram: 0 },
     description: 'Makes images 4× bigger and sharper. Small and fast.', files: [{ role: 'model', url: 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth', file: 'RealESRGAN_x4plus.pth' }] },
@@ -160,7 +189,7 @@ const CATALOG = [
 ]
 // Models removed from the catalog because the engine rejects them; their files are cleaned up on start.
 const RETIRED = ['tiny-sd-turbo']
-const ENGINE_FOR = { text: 'llama', image: 'sd', video: 'sd', upscale: 'sd', stt: 'whisper' }
+const ENGINE_FOR = { text: 'llama', image: 'sd', video: 'sd', upscale: 'sd', stt: 'whisper', tts: 'piper' }
 
 // ---------- state ----------
 let root = null
@@ -274,6 +303,8 @@ function status() {
       size: Math.round((m.size || 0) * GB), req: m.req, ram: m.req?.ram ? `${m.req.ram} GB RAM` : '',
       badge: m.tier === 'light' ? 'Light' : m.tier === 'medium' ? 'Medium' : m.tier === 'heavy' ? 'Heavy' : 'Custom',
       fit: fitFor(m), installed: isInstalled(m), engineSupported: engineSupported(m.kind), vision: !!m.vision, visionReady: hasVision(m),
+      lang: m.lang,
+      partial: partialBytes(m),
       gen: m.args ? { presets: m.args.presets || [20, 28, 40], fixedSteps: !!m.args.fixedSteps, width: m.args.width, height: m.args.height, fps: m.args.fps || 0, image: m.kind === 'image' || !!m.args.image, ref: !!m.args.ref, end: !!m.args.end } : null,
       downloading: job ? { received: job.received, total: job.total, label: job.label } : null,
     }
@@ -287,6 +318,7 @@ function status() {
     recommended[kind] = ok.length ? ok[ok.length - 1].id : slow.length && kind !== 'video' ? slow[0].id : null
   }
   return {
+    orphans: orphans(),
     hardware: hw,
     paths: root ? { root, models: path.join(root, 'models'), engines: path.join(root, 'engine') } : null,
     queue: queue.map((q) => q.id),
@@ -558,6 +590,33 @@ function activeWork() {
   return list
 }
 
+function partialBytes(m) {
+  let n = 0
+  for (const f of m.files) {
+    const p = f.file && path.join(modelsDir(), localName(f) + '.part')
+    if (p && fs.existsSync(p)) n += fs.statSync(p).size
+  }
+  return n
+}
+
+// Files in the models folder that no model uses anymore (old versions, retired models, broken downloads).
+function orphans() {
+  if (!root || !fs.existsSync(path.join(root, 'models'))) return { files: [], bytes: 0 }
+  const used = new Set()
+  for (const m of allModels()) for (const f of m.files) if (f.file) used.add(localName(f))
+  const busy = new Set([...jobs.keys()].flatMap((id) => (allModels().find((m) => m.id === id)?.files || []).map((f) => localName(f) + '.part')))
+  const files = fs
+    .readdirSync(modelsDir())
+    .filter((f) => !busy.has(f) && (f.endsWith('.part') ? !jobs.size : !used.has(f)))
+    .map((f) => ({ file: f, bytes: fs.statSync(path.join(modelsDir(), f)).size }))
+  return { files, bytes: files.reduce((a, f) => a + f.bytes, 0) }
+}
+function cleanOrphans() {
+  for (const f of orphans().files) fs.rmSync(path.join(modelsDir(), f.file), { force: true })
+  emit()
+  return status()
+}
+
 function cancel(id) {
   jobs.get(id)?.controller.abort()
 }
@@ -571,6 +630,8 @@ function removeModel(id) {
   m.files.forEach((f, i) => {
     const name = path.basename(resolved[i] || f.file || f.url || '')
     if (name && !shared.has(name)) fs.rmSync(path.join(modelsDir(), name), { force: true })
+    // Interrupted downloads leave a .part file — remove it too.
+    if (name) fs.rmSync(path.join(modelsDir(), name + '.part'), { force: true })
   })
   if (id.startsWith('custom-')) fs.writeFileSync(path.join(root, 'custom-models.json'), JSON.stringify(readCustom().filter((x) => x.id !== id), null, 2))
   emit()
@@ -800,6 +861,30 @@ async function transcribe({ wavPath, modelId, language }) {
   return outText.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim()
 }
 
+// ---------- text to speech: piper ----------
+async function speak({ modelId, text, rate = 1 }) {
+  const m = allModels().find((x) => x.id === modelId && x.kind === 'tts')
+  if (!m || !isInstalled(m)) throw new Error('This voice is not downloaded yet.')
+  const bin = engineBinary('piper')
+  if (!bin) throw new Error('The voice engine is not installed.')
+  const out = path.join(os.tmpdir(), `orbi-tts-${Date.now()}.wav`)
+  const args = ['-m', path.join(modelsDir(), localName(m.files[0])), '-c', path.join(modelsDir(), localName(m.files[1])), '-f', out, '--length_scale', String(Math.max(0.5, Math.min(2, 1 / (rate || 1)))), '-q']
+  const espeak = path.join(path.dirname(bin), 'espeak-ng-data')
+  if (fs.existsSync(espeak)) args.push('--espeak_data', espeak)
+  await new Promise((resolve, reject) => {
+    const proc = spawn(bin, args, { cwd: path.dirname(bin), windowsHide: true })
+    let err = ''
+    proc.stderr.on('data', (d) => (err = (err + d).slice(-2000)))
+    proc.on('error', reject)
+    proc.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(err.trim().split('\n').pop() || `exit ${code}`))))
+    // One paragraph per line; Piper reads stdin until it closes.
+    proc.stdin.end(String(text).replace(/[*_#`>]/g, '').replace(/\s*\n+\s*/g, '\n').slice(0, 8000) + '\n')
+  })
+  const buffer = fs.readFileSync(out)
+  fs.rmSync(out, { force: true })
+  return buffer
+}
+
 async function init(dir, sender, app) {
   root = dir
   send = sender
@@ -822,5 +907,5 @@ async function refreshHardware() {
 
 module.exports = {
   init, status, installEngine, installModel, addCustomModel, removeModel, cancel, ensureRunning, stop, installedModels,
-  generateMedia, cancelMedia, upscaleImage, runningJobs, transcribe, refreshHardware, hfSearch, hfFiles, enqueue, clearQueue, removeAll, activeWork, CTX, CATALOG,
+  generateMedia, cancelMedia, upscaleImage, runningJobs, transcribe, speak, cleanOrphans, refreshHardware, hfSearch, hfFiles, enqueue, clearQueue, removeAll, activeWork, CTX, CATALOG,
 }

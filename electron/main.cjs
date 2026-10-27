@@ -401,7 +401,7 @@ const api = {
     const installedAgents = new Set(db.all('SELECT handle FROM agents').map((r) => r.handle))
     return {
       professions: library.PROFESSIONS,
-      skills: library.SKILLS.map((k) => ({ ...k, installed: installedSkills.has(k.id) || installedSkills.has(k.name) })),
+      skills: library.topSkills((k) => installedSkills.has(k.id) || installedSkills.has(k.name)).map((k) => ({ ...k, installed: installedSkills.has(k.id) || installedSkills.has(k.name) })),
       agents: library.AGENTS.map((a) => ({ ...a, installed: installedAgents.has(a.handle) })),
       kits: library.KITS.map((k) => ({ ...k, installed: k.skills.every((s) => installedSkills.has(s)) && k.agents.every((a) => installedAgents.has(library.AGENTS.find((x) => x.id === a)?.handle)) })),
     }
@@ -480,6 +480,13 @@ const api = {
   'local:enqueue': (ids) => localAI.enqueue(ids),
   'local:clearQueue': () => localAI.clearQueue(),
   'local:removeAll': () => localAI.removeAll(),
+  'local:cleanOrphans': () => localAI.cleanOrphans(),
+  // Read text aloud with a downloaded Piper voice (returns a WAV data URL to play).
+  'voice:speak': async ({ text, modelId, rate }) => 'data:audio/wav;base64,' + (await localAI.speak({ text, modelId, rate })).toString('base64'),
+  'voice:speakToMedia': async ({ text, modelId, rate }) => {
+    const buffer = await localAI.speak({ text, modelId, rate })
+    return saveMedia({ buffer, mime: 'audio/wav', kind: 'audio', name: `voiceover-${Date.now()}.wav`, prompt: String(text).slice(0, 300), model: modelId, source: 'creative' })
+  },
   'local:openFolder': () => shell.openPath(path.join(app.getPath('userData'), 'local-ai')),
 
   // updates

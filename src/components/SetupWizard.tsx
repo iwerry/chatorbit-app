@@ -1,6 +1,6 @@
 // First-run setup: name, language and theme, then the right local models for this PC.
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, Download, Image as ImageIcon, Loader2, MessageSquareText, Mic, Monitor, Moon, SquareTerminal, Sun, Video, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Download, Image as ImageIcon, Loader2, MessageSquareText, Mic, Monitor, Moon, SquareTerminal, Sun, Video, Volume2, X } from 'lucide-react'
 import { api, type LocalModel, type LocalStatus, type ModelKind } from '../lib/api'
 import { fmtBytes, LANGUAGES, t, type Lang } from '../lib/i18n'
 import { OrbiMark } from './Logo'
@@ -12,6 +12,7 @@ const KINDS: { kind: ModelKind; label: string; hint: string; icon: typeof ImageI
   { kind: 'image', label: 'Images', hint: 'Generate and edit images', icon: ImageIcon },
   { kind: 'video', label: 'Video', hint: 'Short clips from text or an image', icon: Video },
   { kind: 'stt', label: 'Voice input', hint: 'Dictate with the microphone', icon: Mic },
+  { kind: 'tts', label: 'Read aloud', hint: 'A natural voice for answers and voiceovers', icon: Volume2 },
 ]
 
 export function SetupWizard({
@@ -32,7 +33,7 @@ export function SetupWizard({
   setLang: (l: Lang) => void
   themeMode: ThemeMode
   setThemeMode: (m: ThemeMode) => void
-  onDone: (opts: { sttModel?: string }) => void
+  onDone: (opts: { sttModel?: string; ttsModel?: string }) => void
   startStep?: number
 }) {
   const [step, setStep] = useState(startStep)
@@ -48,9 +49,11 @@ export function SetupWizard({
     const inc: Partial<Record<ModelKind, boolean>> = {}
     for (const { kind } of KINDS) {
       const usable = status.models.filter((m) => m.kind === kind && m.engineSupported && m.tier !== 'custom')
-      const rec = status.recommended[kind] || usable.find((m) => m.fit.level !== 'no')?.id
+      // Voices: the first one in the user's language.
+      const byLang = kind === 'tts' ? usable.find((m) => m.lang && lang.toLowerCase().startsWith(m.lang.slice(0, 2).toLowerCase()))?.id : undefined
+      const rec = byLang || status.recommended[kind] || usable.find((m) => m.fit.level !== 'no')?.id
       if (rec) p[kind] = rec
-      inc[kind] = !!status.recommended[kind] && usable.length > 0
+      inc[kind] = (!!status.recommended[kind] || !!byLang) && usable.length > 0
     }
     setPick(p)
     setInclude(inc)
@@ -70,7 +73,7 @@ export function SetupWizard({
     setStep(2)
   }
 
-  const finish = () => onDone({ sttModel: include.stt ? pick.stt : undefined })
+  const finish = () => onDone({ sttModel: include.stt ? pick.stt : undefined, ttsModel: include.tts ? pick.tts : undefined })
 
   return (
     <div className="orbi-modal-backdrop setup-backdrop">

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Boxes, Check, ExternalLink, FolderOpen, Globe, Info, KeyRound, Loader2, Mic, Plug, Server, SlidersHorizontal, UserRound, X } from 'lucide-react'
-import { api, type AppInfo, type LocalStatus, type ProviderInfo, type VoiceMode } from '../lib/api'
-import { LANGUAGES, t, type Lang } from '../lib/i18n'
+import { Boxes, Check, Download, ExternalLink, FolderOpen, Globe, Info, KeyRound, Loader2, Mic, Plug, Server, SlidersHorizontal, Square, UserRound, Volume2, X } from 'lucide-react'
+import { api, type AppInfo, type LocalStatus, type ProviderInfo, type TtsChoice, type VoiceMode } from '../lib/api'
+import { sampleFor, speak, stopSpeaking, systemVoices } from '../lib/tts'
+import { recordWav } from '../lib/voice'
+import { LANGUAGES, getLang, t, type Lang } from '../lib/i18n'
 import { OrbiMark } from './Logo'
 import { UpdateSection } from './UpdateCenter'
 import { ModelHub } from './ModelHub'
@@ -195,7 +197,210 @@ export function VoiceSettings({ status, onLocalChanged, onPicked }: { status: Lo
           )
         })}
       </div>
+      {mode && <MicTest mode={mode} />}
       {error && <p className="provider-status provider-status-error">{error}</p>}
+    </div>
+  )
+}
+
+// Record a few seconds and show what the chosen voice-input model understood.
+function MicTest({ mode }: { mode: VoiceMode }) {
+  const [state, setState] = useState<'idle' | 'recording' | 'working'>('idle')
+  const [stopFn, setStopFn] = useState<null | (() => Promise<string>)>(null)
+  const [result, setResult] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const toggle = async () => {
+    setErr(null)
+    if (state === 'recording' && stopFn) {
+      setState('working')
+      try {
+        const wav = await stopFn()
+        const text = await api.transcribe({ wav, mode, language: getLang().slice(0, 2) })
+        setResult(text || t('(nothing was heard)'))
+      } catch (e) {
+        setErr(cleanErr(e))
+      } finally {
+        setState('idle')
+        setStopFn(null)
+      }
+      return
+    }
+    try {
+      const fn = await recordWav()
+      setStopFn(() => fn)
+      setResult(null)
+      setState('recording')
+    } catch (e) {
+      setErr(cleanErr(e))
+    }
+  }
+  return (
+    <div className="voice-test">
+      <button className={`orbi-btn ${state === 'recording' ? 'orbi-btn-primary' : ''}`} onClick={toggle} disabled={state === 'working'}>
+        {state === 'working' ? <Loader2 size={13} className="animate-spin" /> : state === 'recording' ? <Square size={11} /> : <Mic size={13} />}
+        {state === 'recording' ? t('Stop and transcribe') : t('Test the microphone')}
+      </button>
+      {result && <p className="voice-test-result">“{result}”</p>}
+      {err && <p className="provider-status provider-status-error">{err}</p>}
+    </div>
+  )
+}
+
+// Read-aloud voice: downloadable Piper voices (natural, offline) and the system voices.
+export function VoiceOutputSettings({ status, onLocalChanged }: { status: LocalStatus | null; onLocalChanged: () => void }) {
+  const [choice, setChoice] = useState<TtsChoice | null>(null)
+  const [rate, setRate] = useState(1)
+  const [playing, setPlaying] = useState<string | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [sys, setSys] = useState<SpeechSynthesisVoice[]>(systemVoices())
+  const [showAllSystem, setShowAllSystem] = useState(false)
+  const lang = getLang()
+  useEffect(() => {
+    api.getSetting<TtsChoice | null>('ttsVoice', null).then((c) => {
+      setChoice(c)
+      if (c?.rate) setRate(c.rate)
+    })
+    const update = () => setSys(systemVoices())
+    if (typeof speechSynthesis !== 'undefined') speechSynthesis.onvoiceschanged = update
+    update()
+    return () => stopSpeaking()
+  }, [])
+  const save = (c: TtsChoice) => {
+    setChoice(c)
+    api.setSetting('ttsVoice', c)
+  }
+  const listen = async (key: string, c: TtsChoice) => {
+    if (playing === key) {
+      stopSpeaking()
+      setPlaying(null)
+      return
+    }
+    setErr(null)
+    setPlaying(key)
+    try {
+      await speak(sampleFor(lang), c, lang)
+    } catch (e) {
+      setErr(cleanErr(e))
+    } finally {
+      setPlaying((p) => (p === key ? null : p))
+    }
+  }
+  const short = lang.slice(0, 2)
+  const voices = (status?.models.filter((m) => m.kind === 'tts') ?? []).sort((a, b) => Number(b.lang?.startsWith(short)) - Number(a.lang?.startsWith(short)))
+  const sysShown = sys.filter((v) => showAllSystem || v.lang.toLowerCase().startsWith(short)).slice(0, showAllSystem ? 60 : 8)
+  const piperOk = !!status?.engines.piper?.supported
+  return (
+    <div className="voice-setup">
+      <label className="studio-slider voice-rate">
+        <span>{t('Speed')}</span>
+        <input
+          type="range"
+          min={0.7}
+          max={1.6}
+          step={0.05}
+          value={rate}
+          onChange={(e) => {
+            const r = Number(e.target.value)
+            setRate(r)
+            if (choice) save({ ...choice, rate: r })
+          }}
+        />
+        <span className="num">{rate.toFixed(2)}×</span>
+      </label>
+      {piperOk && (
+        <div className="voice-option">
+          <div className="voice-option-head">
+            <Volume2 size={16} />
+            <div>
+              <strong>{t('Natural voices (offline)')}</strong>
+              <small>{t('Piper voices run on this PC, sound natural and are small (30–120 MB). Your language comes first.')}</small>
+            </div>
+          </div>
+          {voices.map((m) => {
+            const active = choice?.type === 'piper' && choice.modelId === m.id
+            const pct = m.downloading?.total ? Math.round((m.downloading.received / m.downloading.total) * 100) : 0
+            const c: TtsChoice = { type: 'piper', modelId: m.id, rate }
+            return (
+              <div key={m.id} className={`voice-model ${active ? 'active' : ''}`}>
+                <div className="min-w-0 flex-1">
+                  <strong>{m.name}</strong>
+                  <small>
+                    {t(m.description)} · <span className="num">{Math.round(m.size / 1e6)} MB</span>
+                  </small>
+                  {m.downloading && (
+                    <div className="local-bar mt-1">
+                      <i style={{ width: `${Math.max(3, pct)}%` }} />
+                    </div>
+                  )}
+                </div>
+                {m.installed ? (
+                  <>
+                    <button className="orbi-btn" onClick={() => listen(m.id, c)} title={t('Listen')}>
+                      {playing === m.id ? <Square size={11} /> : <Volume2 size={13} />} {t('Listen')}
+                    </button>
+                    <button className={`orbi-btn ${active ? 'orbi-btn-primary' : ''}`} onClick={() => save(c)}>
+                      {active ? <Check size={13} /> : null} {active ? t('Default') : t('Use')}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="orbi-btn"
+                    disabled={!!busy || !!m.downloading}
+                    onClick={async () => {
+                      setBusy(m.id)
+                      setErr(null)
+                      try {
+                        await api.installLocalModel(m.id)
+                        onLocalChanged()
+                        if (!choice || choice.type === 'system') save(c)
+                      } catch (e) {
+                        setErr(cleanErr(e))
+                      } finally {
+                        setBusy(null)
+                      }
+                    }}
+                  >
+                    {busy === m.id || m.downloading ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} {m.downloading ? `${pct}%` : t('Download')}
+                  </button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+      <div className="voice-option">
+        <div className="voice-option-head">
+          <Globe size={16} />
+          <div>
+            <strong>{t('System voices')}</strong>
+            <small>{t('Already installed on your computer. Quality depends on Windows.')}</small>
+          </div>
+        </div>
+        {sysShown.map((v) => {
+          const active = choice?.type === 'system' && choice.name === v.name
+          const c: TtsChoice = { type: 'system', name: v.name, rate }
+          return (
+            <div key={v.name} className={`voice-model ${active ? 'active' : ''}`}>
+              <div className="min-w-0 flex-1">
+                <strong className="truncate">{v.name}</strong>
+                <small>{v.lang}</small>
+              </div>
+              <button className="orbi-btn" onClick={() => listen(v.name, c)}>
+                {playing === v.name ? <Square size={11} /> : <Volume2 size={13} />} {t('Listen')}
+              </button>
+              <button className={`orbi-btn ${active ? 'orbi-btn-primary' : ''}`} onClick={() => save(c)}>
+                {active ? <Check size={13} /> : null} {active ? t('Default') : t('Use')}
+              </button>
+            </div>
+          )
+        })}
+        {!sysShown.length && <p className="hub-note">{t('No system voices for this language.')}</p>}
+        <button className="link-btn self-start text-[12px]" onClick={() => setShowAllSystem((v) => !v)}>
+          {showAllSystem ? t('Show only my language') : t('Show all languages')}
+        </button>
+      </div>
+      {err && <p className="provider-status provider-status-error">{err}</p>}
     </div>
   )
 }
@@ -335,8 +540,12 @@ export function SettingsModal({
           {tab === 'voice' && (
             <>
               <h3>{t('Voice')}</h3>
-              <p className="orbi-muted">{t('Choose how the microphone button turns speech into text.')}</p>
+              <p className="orbi-label">{t('Voice input (microphone)')}</p>
+              <p className="orbi-muted">{t('Whisper models turn your speech into text — they don’t have a voice. Test them with the button below.')}</p>
               <VoiceSettings status={localStatus} onLocalChanged={onLocalChanged} />
+              <p className="orbi-label mt-6">{t('Read-aloud voice')}</p>
+              <p className="orbi-muted">{t('Listen to each voice and pick the default for the speaker button and for voiceovers.')}</p>
+              <VoiceOutputSettings status={localStatus} onLocalChanged={onLocalChanged} />
             </>
           )}
 
