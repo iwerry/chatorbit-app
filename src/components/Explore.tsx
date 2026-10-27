@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BarChart3, Bot, Blocks, Check, ChevronLeft, Clapperboard, Code, ExternalLink, GraduationCap, Layout, Megaphone, Newspaper, Package, Palette, PenLine, Plus, Search, Server, Star, Video } from 'lucide-react'
-import { api, type Library, type LibraryAgent, type LibraryKit, type LibrarySkill, type SkillSignals } from '../lib/api'
+import { BarChart3, Bot, Blocks, Check, ChevronLeft, Clapperboard, Code, ExternalLink, GraduationCap, Layout, Megaphone, Newspaper, Package, Palette, PenLine, Plus, Search, Server, Share2, Sparkles, Star, UserRound, Video } from 'lucide-react'
+import { api, type Library, type LibraryAgent, type LibraryKit, type LibraryLink, type LibrarySkill, type SkillSignals } from '../lib/api'
 import { t } from '../lib/i18n'
 
-const ICONS: Record<string, typeof Code> = { palette: Palette, layout: Layout, code: Code, server: Server, newspaper: Newspaper, clapperboard: Clapperboard, megaphone: Megaphone, 'graduation-cap': GraduationCap, chart: BarChart3, video: Video, pen: PenLine }
+const ICONS: Record<string, typeof Code> = { palette: Palette, layout: Layout, code: Code, server: Server, newspaper: Newspaper, clapperboard: Clapperboard, megaphone: Megaphone, 'graduation-cap': GraduationCap, chart: BarChart3, video: Video, pen: PenLine, sparkles: Sparkles, share: Share2 }
+const CREATOR = 'Daniel Rodrigues'
+const PLATFORMS = ['Instagram', 'TikTok', 'YouTube', 'LinkedIn', 'Facebook', 'Threads', 'X']
 
 const SIGNALS: [keyof SkillSignals, string][] = [
   ['purpose', 'Clear purpose and when to use it'],
@@ -32,6 +34,7 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
   const [tab, setTab] = useState<Tab>('kits')
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
+  const [platform, setPlatform] = useState('all')
 
   const load = () => api.library().then(setLib)
   useEffect(() => {
@@ -39,14 +42,26 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
   }, [])
 
   const match = (s: string) => s.toLowerCase().includes(q.toLowerCase())
-  const inProf = (p: string) => prof === 'all' || p === prof
-  type Item = LibrarySkill | LibraryAgent | LibraryKit
+  const inProf = (p: string) => prof === 'all' || prof === 'mine' || p === prof
+  type Item = LibrarySkill | LibraryAgent | LibraryKit | LibraryLink
   const items = useMemo((): Item[] => {
     if (!lib) return []
-    if (tab === 'skills') return lib.skills.filter((x) => inProf(x.profession) && (match(x.name) || match(x.description)))
+    if (tab === 'skills') {
+      let list: Item[] = lib.skills.filter((x) => inProf(x.profession) && (prof !== 'mine' || x.author === CREATOR) && (match(x.name) || match(x.description) || match(x.author)))
+      if (prof === 'social') {
+        list = platform === 'all' ? list.slice(0, 10) : list.filter((x) => (x as LibrarySkill).platforms.includes(platform))
+      } else if (prof === 'all' && !q) {
+        // Social Media lists every skill for its platform filter; keep its top 10 here.
+        const social = list.filter((x) => x.profession === 'social')
+        list = list.filter((x) => x.profession !== 'social' || social.indexOf(x) < 10)
+      }
+      const links = prof === 'mine' ? [] : lib.links.filter((x) => inProf(x.profession) && (match(x.name) || match(x.description)))
+      return [...list, ...links]
+    }
+    if (prof === 'mine') return []
     if (tab === 'agents') return lib.agents.filter((x) => inProf(x.profession) && (match(x.name) || match(x.description) || match(x.handle)))
     return lib.kits.filter((x) => inProf(x.profession) && (match(x.name) || match(x.description)))
-  }, [lib, tab, prof, q])
+  }, [lib, tab, prof, q, platform])
 
   const install = async (id: string, fn: () => Promise<unknown>) => {
     setBusy(id)
@@ -82,6 +97,10 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
             <Package size={15} />
             {t('All professions')}
           </button>
+          <button className={`explore-creator ${prof === 'mine' ? 'active' : ''}`} onClick={() => { setProf('mine'); setTab('skills') }} title={t('Skills created by {name}', { name: CREATOR })}>
+            <UserRound size={15} />
+            {CREATOR}
+          </button>
           {lib?.professions.map((p) => {
             const Icon = ICONS[p.icon] ?? Package
             return (
@@ -107,6 +126,15 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
               </button>
             ))}
           </div>
+          {tab === 'skills' && prof === 'social' && (
+            <div className="lib-platforms" role="group" aria-label={t('Platform')}>
+              {['all', ...PLATFORMS].map((pl) => (
+                <button key={pl} className={platform === pl ? 'active' : ''} onClick={() => setPlatform(pl)}>
+                  {pl === 'all' ? t('Top 10') : pl}
+                </button>
+              ))}
+            </div>
+          )}
           {tab === 'skills' && (
             <details className="lib-howto">
               <summary>
@@ -123,11 +151,12 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
           {!lib && <div className="hub-skeleton" aria-busy="true" />}
           <ul className="explore-list">
             {items.map((it) => {
-              const installed = it.installed
+              const installed = 'installed' in it ? it.installed : false
               const id = it.id
               const handle = 'handle' in it ? (it as LibraryAgent).handle : null
               const kit = 'servers' in it ? (it as LibraryKit) : null
-              const skill = tab === 'skills' ? (it as LibrarySkill) : null
+              const link = 'repo' in it ? (it as LibraryLink) : null
+              const skill = tab === 'skills' && !link ? (it as LibrarySkill) : null
               return (
                 <li key={id} className={`explore-row ${installed ? 'installed' : ''}`}>
                   <div className="min-w-0 flex-1">
@@ -136,6 +165,9 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
                       {handle && <span className="explore-sub">{t(it.name)}</span>}
                       {prof === 'all' && <span className="hub-badge">{t(profName(it.profession))}</span>}
                       {skill && <Stars skill={skill} />}
+                      {skill?.kind === 'own' && <span className="lib-kind lib-kind-own">{t('Own creation')}</span>}
+                      {skill?.kind === 'official' && <span className="lib-kind lib-kind-official">{t('Official')}</span>}
+                      {link && <span className="lib-kind">{t('GitHub only')}</span>}
                     </p>
                     <p className="explore-desc">{t(it.description)}</p>
                     {skill && skill.author !== 'Orbi' && (
@@ -150,6 +182,13 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
                         )}
                       </p>
                     )}
+                    {link && (
+                      <p className="lib-author">
+                        <span className="lib-author-name">{t('by {name}', { name: link.author })}</span>
+                        <span>{link.license === 'None' ? t('No license') : link.license}</span>
+                        <span>{t('Its license doesn’t allow bundling it in Orbi — open it on GitHub.')}</span>
+                      </p>
+                    )}
                     {kit && (
                       <p className="explore-kit">
                         {kit.skills.length} {t('skills')} · {kit.agents.length} {t('agents')} · {t('tools')}: {kit.servers.join(', ')}
@@ -162,7 +201,11 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
                         {t('Chat')}
                       </button>
                     )}
-                    {installed ? (
+                    {link ? (
+                      <button className="orbi-btn" onClick={() => api.openExternal(link.source)}>
+                        GitHub <ExternalLink size={12} />
+                      </button>
+                    ) : installed ? (
                       <span className="provider-status">
                         <Check size={12} className="inline" /> {t('Installed')}
                       </span>
@@ -183,6 +226,21 @@ export function Explore({ onBack, onChanged, onUseAgent }: { onBack: () => void;
             })}
           </ul>
           {lib && !items.length && <p className="library-empty-row">{t('Nothing matches your search.')}</p>}
+          {lib && tab === 'skills' && prof !== 'mine' && (
+            <section className="lib-dirs">
+              <h3>{t('Find more on GitHub')}</h3>
+              <ul>
+                {lib.directories.map((d) => (
+                  <li key={d.repo}>
+                    <button onClick={() => api.openExternal(d.source)}>
+                      {d.repo} <ExternalLink size={11} />
+                    </button>
+                    <span>{t(d.description)}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </section>
       </div>
     </main>

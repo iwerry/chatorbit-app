@@ -163,10 +163,11 @@ export type ActiveWork = { kind: string; label: string }
 export type Board = { id: string; name: string; created_at: number }
 export type WebResult = { title: string; url: string; snippet: string; content?: string }
 export type SkillSignals = { purpose: boolean; method: boolean; knowledge: boolean; checks: boolean; open: boolean; references?: number; checkFiles?: number; commit?: string }
-export type LibrarySkill = { id: string; profession: string; name: string; description: string; instructions: string; installed: boolean; author: string; source?: string; license?: string; rating: number; signals: SkillSignals }
+export type LibrarySkill = { id: string; profession: string; name: string; description: string; instructions: string; installed: boolean; author: string; kind?: 'own' | 'official' | 'community'; source?: string; license?: string; rating: number; signals: SkillSignals; platforms: string[] }
+export type LibraryLink = { id: string; repo: string; profession: string; name: string; description: string; author: string; source: string; license: string }
 export type LibraryAgent = { id: string; profession: string; handle: string; name: string; description: string; instructions: string; starters: string[]; category: string; installed: boolean }
 export type LibraryKit = { id: string; profession: string; name: string; description: string; servers: string[]; skills: string[]; agents: string[]; installed: boolean }
-export type Library = { professions: { id: string; name: string; icon: string; description: string }[]; skills: LibrarySkill[]; agents: LibraryAgent[]; kits: LibraryKit[] }
+export type Library = { professions: { id: string; name: string; icon: string; description: string }[]; skills: LibrarySkill[]; agents: LibraryAgent[]; kits: LibraryKit[]; links: LibraryLink[]; directories: { repo: string; description: string; source: string }[] }
 export type VoiceMode = { type: 'local'; modelId: string } | { type: 'api'; provider: 'openai' | 'groq' }
 
 export function parseJSON<T>(v: unknown, fallback: T): T {

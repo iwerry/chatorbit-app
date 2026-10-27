@@ -403,6 +403,8 @@ const api = {
       professions: library.PROFESSIONS,
       skills: library.topSkills((k) => installedSkills.has(k.id) || installedSkills.has(k.name)).map((k) => ({ ...k, installed: installedSkills.has(k.id) || installedSkills.has(k.name) })),
       agents: library.AGENTS.map((a) => ({ ...a, installed: installedAgents.has(a.handle) })),
+      links: library.LINKS,
+      directories: library.DIRECTORIES,
       kits: library.KITS.map((k) => ({ ...k, installed: k.skills.every((s) => installedSkills.has(s)) && k.agents.every((a) => installedAgents.has(library.AGENTS.find((x) => x.id === a)?.handle)) })),
     }
   },

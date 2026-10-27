@@ -1,0 +1,1043 @@
+{
+ "skills": [
+  {
+   "repo": "iwerry/Daniskills",
+   "profession": "film",
+   "path": "",
+   "author": "Daniel Rodrigues",
+   "kind": "own",
+   "main": "UNIVERSAL_PROMPT.md",
+   "extract": "textblock",
+   "id": "film:daniskills",
+   "name": "Daniskills — Cinematic AI Production",
+   "description": "Story → cinema → AI generation → continuity → QA → edit: real optics (FOV, Kelvin, 180° shutter) instead of empty adjectives."
+  },
+  {
+   "repo": "iwerry/skill-master-scene",
+   "profession": "screen",
+   "path": "",
+   "author": "Daniel Rodrigues",
+   "kind": "own",
+   "id": "screen:master-scene",
+   "name": "Master Scene Format",
+   "description": "Industry-standard screenplay format: page geometry, element grammar, page breaks, runtime and Fountain/FDX."
+  },
+  {
+   "repo": "iwerry/jornalism.skill",
+   "profession": "journalism",
+   "path": "",
+   "author": "Daniel Rodrigues",
+   "kind": "own",
+   "id": "journalism:investigative",
+   "name": "Investigative Journalism",
+   "description": "Research, OSINT, verification and data methods routed by task, with a standard investigation loop."
+  },
+  {
+   "repo": "iwerry/linkedin-skills-pro",
+   "profession": "social",
+   "path": "",
+   "author": "Daniel Rodrigues",
+   "kind": "own",
+   "id": "social:linkedin-optimizer",
+   "name": "LinkedIn Profile Optimizer",
+   "description": "Headline, About, experiences and the right 50 skills from LinkedIn’s taxonomy — found by recruiters, convincing to people."
+  },
+  {
+   "repo": "iwerry/designerx",
+   "profession": "ux",
+   "path": "skill",
+   "main": "skill/SKILL.src.md",
+   "author": "Daniel Rodrigues",
+   "kind": "own",
+   "extract": "designerx",
+   "id": "ux:designerx",
+   "name": "DesignerX",
+   "description": "A designer’s eye for interfaces: critique, polish, bolder, quieter, typography, color, motion and anti-patterns."
+  },
+  {
+   "repo": "iwerry/code2video",
+   "profession": "motion",
+   "path": "ai-motion-director",
+   "author": "Daniel Rodrigues",
+   "kind": "own",
+   "id": "motion:motion-director",
+   "name": "AI Motion Director",
+   "description": "Motion graphics with code (Canvas, SVG, GSAP, Remotion, Manim, FFmpeg): brief, concept, timecoded script, storyboard and render."
+  },
+  {
+   "repo": "anthropics/skills",
+   "profession": "ux",
+   "path": "skills/frontend-design",
+   "author": "Anthropic",
+   "kind": "official"
+  },
+  {
+   "repo": "anthropics/skills",
+   "profession": "dev",
+   "path": "skills/mcp-builder",
+   "author": "Anthropic",
+   "kind": "official"
+  },
+  {
+   "repo": "anthropics/skills",
+   "profession": "design",
+   "path": "skills/canvas-design",
+   "author": "Anthropic",
+   "kind": "official"
+  },
+  {
+   "repo": "anthropics/skills",
+   "profession": "design",
+   "path": "skills/theme-factory",
+   "author": "Anthropic",
+   "kind": "official"
+  },
+  {
+   "repo": "EverMind-AI/Raven",
+   "profession": "design",
+   "path": "plugins-dist/design-engine/raven_design/skills/design-brand-identities",
+   "author": "EverMind-AI",
+   "kind": "community"
+  },
+  {
+   "repo": "EverMind-AI/Raven",
+   "profession": "design",
+   "path": "plugins-dist/design-engine/raven_design/skills/create-marketing-graphics",
+   "author": "EverMind-AI",
+   "kind": "community"
+  },
+  {
+   "repo": "EverMind-AI/Raven",
+   "profession": "design",
+   "path": "plugins-dist/design-engine/raven_design/skills/design-typefaces-and-lettering",
+   "author": "EverMind-AI",
+   "kind": "community"
+  },
+  {
+   "repo": "EverMind-AI/Raven",
+   "profession": "design",
+   "path": "plugins-dist/design-engine/raven_design/skills/design-icons-and-symbols",
+   "author": "EverMind-AI",
+   "kind": "community"
+  },
+  {
+   "repo": "EverMind-AI/Raven",
+   "profession": "design",
+   "path": "plugins-dist/design-engine/raven_design/skills/create-illustrations-and-scenes",
+   "author": "EverMind-AI",
+   "kind": "community"
+  },
+  {
+   "repo": "EverMind-AI/Raven",
+   "profession": "design",
+   "path": "plugins-dist/design-engine/raven_design/skills/design-editorial-and-presentations",
+   "author": "EverMind-AI",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "design",
+   "path": "critique-visual-hierarchy",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "design",
+   "path": "critique-typography",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "design",
+   "path": "critique-color",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "design",
+   "path": "critique-composition",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "design",
+   "path": "color-system",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "design",
+   "path": "layout-grid",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "ux",
+   "path": "heuristic-evaluation",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "ux",
+   "path": "journey-map",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "ux",
+   "path": "user-persona",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "ux",
+   "path": "interview-script",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "ux",
+   "path": "usability-test-plan",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "ux",
+   "path": "information-architecture",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "ux",
+   "path": "survey-design",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "ux",
+   "path": "service-blueprint",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "ux",
+   "path": "form-design",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "profession": "ux",
+   "path": "onboarding-design",
+   "author": "Owl-Listener",
+   "kind": "community"
+  },
+  {
+   "repo": "emilkowalski/skills",
+   "profession": "ux",
+   "path": "skills/emil-design-eng",
+   "author": "Emil Kowalski",
+   "kind": "community"
+  },
+  {
+   "repo": "emilkowalski/skills",
+   "profession": "ux",
+   "path": "skills/apple-design",
+   "author": "Emil Kowalski",
+   "kind": "community"
+  },
+  {
+   "repo": "emilkowalski/skills",
+   "profession": "ux",
+   "path": "skills/break-ui",
+   "author": "Emil Kowalski",
+   "kind": "community"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "dev",
+   "path": "plugins/superpowers/skills/systematic-debugging",
+   "author": "Jesse Vincent (Superpowers)",
+   "kind": "community"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "dev",
+   "path": "plugins/superpowers/skills/test-driven-development",
+   "author": "Jesse Vincent (Superpowers)",
+   "kind": "community"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "dev",
+   "path": "plugins/superpowers/skills/writing-plans",
+   "author": "Jesse Vincent (Superpowers)",
+   "kind": "community"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "dev",
+   "path": "plugins/superpowers/skills/brainstorming",
+   "author": "Jesse Vincent (Superpowers)",
+   "kind": "community"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "dev",
+   "path": "plugins/superpowers/skills/receiving-code-review",
+   "author": "Jesse Vincent (Superpowers)",
+   "kind": "community"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "dev",
+   "path": "plugins/superpowers/skills/verification-before-completion",
+   "author": "Jesse Vincent (Superpowers)",
+   "kind": "community"
+  },
+  {
+   "repo": "emilkowalski/skills",
+   "profession": "dev",
+   "path": "skills/animation-performance",
+   "author": "Emil Kowalski",
+   "kind": "community"
+  },
+  {
+   "repo": "emilkowalski/skills",
+   "profession": "dev",
+   "path": "skills/mobile-native",
+   "author": "Emil Kowalski",
+   "kind": "community"
+  },
+  {
+   "repo": "K-Dense-AI/scientific-agent-skills",
+   "profession": "data",
+   "path": "skills/statistical-analysis",
+   "author": "K-Dense AI",
+   "kind": "community"
+  },
+  {
+   "repo": "K-Dense-AI/scientific-agent-skills",
+   "profession": "data",
+   "path": "skills/exploratory-data-analysis",
+   "author": "K-Dense AI",
+   "kind": "community"
+  },
+  {
+   "repo": "K-Dense-AI/scientific-agent-skills",
+   "profession": "data",
+   "path": "skills/statistical-power",
+   "author": "K-Dense AI",
+   "kind": "community"
+  },
+  {
+   "repo": "K-Dense-AI/scientific-agent-skills",
+   "profession": "data",
+   "path": "skills/polars",
+   "author": "K-Dense AI",
+   "kind": "community"
+  },
+  {
+   "repo": "K-Dense-AI/scientific-agent-skills",
+   "profession": "data",
+   "path": "skills/matplotlib",
+   "author": "K-Dense AI",
+   "kind": "community"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "data",
+   "path": "plugins/build-web-data-visualization/skills/visualization-strategy-and-critique",
+   "author": "OpenAI",
+   "kind": "official"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "data",
+   "path": "plugins/build-web-data-visualization/skills/data-visualization",
+   "author": "OpenAI",
+   "kind": "official"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "data",
+   "path": "plugins/build-web-data-visualization/skills/dashboards-and-real-time-visualization",
+   "author": "OpenAI",
+   "kind": "official"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "data",
+   "path": "plugins/build-web-data-visualization/skills/d3-data-visualization",
+   "author": "OpenAI",
+   "kind": "official"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "data",
+   "path": "plugins/build-web-data-visualization/skills/accessibility-and-inclusive-visualization",
+   "author": "OpenAI",
+   "kind": "official"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "data",
+   "path": "plugins/build-web-data-visualization/skills/statistical-and-uncertainty-visualization",
+   "author": "OpenAI",
+   "kind": "official"
+  },
+  {
+   "repo": "K-Dense-AI/scientific-agent-skills",
+   "profession": "education",
+   "path": "skills/literature-review",
+   "author": "K-Dense AI",
+   "kind": "community"
+  },
+  {
+   "repo": "K-Dense-AI/scientific-agent-skills",
+   "profession": "education",
+   "path": "skills/scientific-writing",
+   "author": "K-Dense AI",
+   "kind": "community"
+  },
+  {
+   "repo": "K-Dense-AI/scientific-agent-skills",
+   "profession": "education",
+   "path": "skills/citation-management",
+   "author": "K-Dense AI",
+   "kind": "community"
+  },
+  {
+   "repo": "K-Dense-AI/scientific-agent-skills",
+   "profession": "education",
+   "path": "skills/peer-review",
+   "author": "K-Dense AI",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "journalism",
+   "path": "skills/content-research-and-sourcing",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "journalism",
+   "path": "skills/data-and-original-research",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "Vincentwei1021/video-shotcraft",
+   "profession": "film",
+   "path": "",
+   "author": "Vincentwei1021",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "film",
+   "path": "skills/talking-head-and-piece-to-camera",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "digitalsamba/claude-code-video-toolkit",
+   "profession": "audiovisual",
+   "path": ".claude/skills/ffmpeg",
+   "author": "Digital Samba",
+   "kind": "community"
+  },
+  {
+   "repo": "digitalsamba/claude-code-video-toolkit",
+   "profession": "audiovisual",
+   "path": ".claude/skills/moviepy",
+   "author": "Digital Samba",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "audiovisual",
+   "path": "skills/podcast-and-audiograms",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "audiovisual",
+   "path": "skills/ai-voiceover",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "audiovisual",
+   "path": "skills/captions-and-clipping",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "Alisa0808/vox-director",
+   "profession": "screen",
+   "path": "",
+   "author": "Alisa0808",
+   "kind": "community"
+  },
+  {
+   "repo": "jtydhr88/screenwriting-skills",
+   "profession": "screen",
+   "path": "plugins/screenwriting/skills/sw-story-structure",
+   "author": "jtydhr88",
+   "kind": "community"
+  },
+  {
+   "repo": "jtydhr88/screenwriting-skills",
+   "profession": "screen",
+   "path": "plugins/screenwriting/skills/sw-dialogue",
+   "author": "jtydhr88",
+   "kind": "community"
+  },
+  {
+   "repo": "jtydhr88/screenwriting-skills",
+   "profession": "screen",
+   "path": "plugins/screenwriting/skills/sw-character-conflict",
+   "author": "jtydhr88",
+   "kind": "community"
+  },
+  {
+   "repo": "jtydhr88/screenwriting-skills",
+   "profession": "screen",
+   "path": "plugins/screenwriting/skills/sw-scene-craft",
+   "author": "jtydhr88",
+   "kind": "community"
+  },
+  {
+   "repo": "jtydhr88/screenwriting-skills",
+   "profession": "screen",
+   "path": "plugins/screenwriting/skills/sw-premise-theme",
+   "author": "jtydhr88",
+   "kind": "community"
+  },
+  {
+   "repo": "jtydhr88/screenwriting-skills",
+   "profession": "screen",
+   "path": "plugins/screenwriting/skills/sw-series-engine-bible",
+   "author": "jtydhr88",
+   "kind": "community"
+  },
+  {
+   "repo": "jtydhr88/screenwriting-skills",
+   "profession": "screen",
+   "path": "plugins/screenwriting/skills/sw-series-structure",
+   "author": "jtydhr88",
+   "kind": "community"
+  },
+  {
+   "repo": "jtydhr88/screenwriting-skills",
+   "profession": "screen",
+   "path": "plugins/screenwriting/skills/sw-format-adaptation",
+   "author": "jtydhr88",
+   "kind": "community"
+  },
+  {
+   "repo": "jtydhr88/screenwriting-skills",
+   "profession": "screen",
+   "path": "plugins/screenwriting/skills/sw-writers-room",
+   "author": "jtydhr88",
+   "kind": "community",
+   "description": "How episodic TV gets made by a group: pitching, cracking the story, beat sheets and notes."
+  },
+  {
+   "repo": "jtydhr88/screenwriting-skills",
+   "profession": "screen",
+   "path": "plugins/screenwriting/skills/sw-sitcom-comedy",
+   "author": "jtydhr88",
+   "kind": "community",
+   "description": "Half-hour TV comedy craft: joke mechanics, the predicament machine, multicam vs single-cam format."
+  },
+  {
+   "repo": "jtydhr88/screenwriting-skills",
+   "profession": "screen",
+   "path": "plugins/screenwriting/skills/sw-truby-anatomy",
+   "author": "jtydhr88",
+   "kind": "community"
+  },
+  {
+   "repo": "jtydhr88/screenwriting-skills",
+   "profession": "screen",
+   "path": "plugins/screenwriting/skills/sw-genre-anatomy",
+   "author": "jtydhr88",
+   "kind": "community"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "motion",
+   "path": "plugins/remotion/skills/remotion-best-practices",
+   "author": "Remotion",
+   "kind": "official"
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "motion",
+   "path": "plugins/remotion/skills/remotion-markup",
+   "author": "Remotion",
+   "kind": "official",
+   "description": "Content, animation and effects best practices for Remotion videos."
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "motion",
+   "path": "plugins/remotion/skills/remotion-interactivity",
+   "author": "Remotion",
+   "kind": "official",
+   "description": "Structure Remotion compositions so they can be interactive and edited by parameters."
+  },
+  {
+   "repo": "openai/plugins",
+   "profession": "motion",
+   "path": "plugins/remotion/skills/remotion-captions",
+   "author": "Remotion",
+   "kind": "official"
+  },
+  {
+   "repo": "heygen-com/hyperframes",
+   "profession": "motion",
+   "path": "skills/hyperframes",
+   "author": "HeyGen",
+   "kind": "official"
+  },
+  {
+   "repo": "heygen-com/hyperframes",
+   "profession": "motion",
+   "path": ".claude/skills/motion-doctrine",
+   "author": "HeyGen",
+   "kind": "official",
+   "description": "The motion laws to read first before composing any HyperFrames animation."
+  },
+  {
+   "repo": "heygen-com/hyperframes",
+   "profession": "motion",
+   "path": ".claude/skills/cut-the-curve",
+   "author": "HeyGen",
+   "kind": "official",
+   "description": "Seamless scene transitions: zoom-through, cut-the-curve, waterfall cut and rack-focus blur-cut."
+  },
+  {
+   "repo": "emilkowalski/skills",
+   "profession": "motion",
+   "path": "skills/animate",
+   "author": "Emil Kowalski",
+   "kind": "community"
+  },
+  {
+   "repo": "emilkowalski/skills",
+   "profession": "motion",
+   "path": "skills/animation-vocabulary",
+   "author": "Emil Kowalski",
+   "kind": "community"
+  },
+  {
+   "repo": "iart-ai/data-animation-skills",
+   "profession": "motion",
+   "path": "skills/chart-animation",
+   "author": "iart-ai",
+   "kind": "community",
+   "description": "Bar chart races and animated data visualizations from a CSV."
+  },
+  {
+   "repo": "iart-ai/data-animation-skills",
+   "profession": "motion",
+   "path": "skills/animated-infographic",
+   "author": "iart-ai",
+   "kind": "community",
+   "description": "Animated infographics and explainer graphics as video."
+  },
+  {
+   "repo": "iart-ai/data-animation-skills",
+   "profession": "motion",
+   "path": "skills/presentation-video",
+   "author": "iart-ai",
+   "kind": "community",
+   "description": "Turn a pitch deck or slides into an animated presentation video."
+  },
+  {
+   "repo": "aijiduonadegou/Paper-Cut",
+   "profession": "motion",
+   "path": "",
+   "author": "aijiduonadegou",
+   "kind": "community"
+  },
+  {
+   "repo": "nolangz/pixel2motion",
+   "profession": "motion",
+   "path": "",
+   "author": "nolangz",
+   "kind": "community",
+   "description": "Turn a raster logo into a clean SVG ready to animate."
+  },
+  {
+   "repo": "diffusionstudio/lottie",
+   "profession": "motion",
+   "path": "skills/text-to-lottie",
+   "author": "Diffusion Studio",
+   "kind": "community"
+  },
+  {
+   "repo": "gnipbao/story-to-handdrawn-video",
+   "profession": "motion",
+   "path": "skill-package/story-to-handdrawn-video",
+   "author": "gnipbao",
+   "kind": "community"
+  },
+  {
+   "repo": "lemomo-ai/lemo-opuscar",
+   "profession": "motion",
+   "path": "plugin/skills/lemo-opuscar",
+   "author": "lemomo-ai",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/linkedin-post-writer",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/tiktok-script",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/reels-script",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/short-form-video-script",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/carousel-writer",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/caption-writer",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/hook-writer",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/story-writer",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/scripting-and-storyboarding",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/reply-and-comment-writer",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/youtube-long-form",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/youtube-shorts",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/thumbnail-design",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/social-strategy",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/content-calendar",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/instagram-growth",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/tiktok-growth",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/threads-post",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/x-growth",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "profession": "social",
+   "path": "skills/facebook-strategy",
+   "author": "pavelhov",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/copywriting",
+   "author": "Corey Haines",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/seo-audit",
+   "author": "Corey Haines",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/content-strategy",
+   "author": "Corey Haines",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/launch",
+   "author": "Corey Haines",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/ab-testing",
+   "author": "Corey Haines",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/cro",
+   "author": "Corey Haines",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/emails",
+   "author": "Corey Haines",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/ads",
+   "author": "Corey Haines",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/marketing-psychology",
+   "author": "Corey Haines",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/analytics",
+   "author": "Corey Haines",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/pricing",
+   "author": "Corey Haines",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/customer-research",
+   "author": "Corey Haines",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/public-relations",
+   "author": "Corey Haines",
+   "kind": "community"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "profession": "marketing",
+   "path": "skills/ai-seo",
+   "author": "Corey Haines",
+   "kind": "community"
+  }
+ ],
+ "links": [
+  {
+   "repo": "calesthio/OpenMontage",
+   "profession": "film",
+   "name": "OpenMontage",
+   "description": "Agentic video production studio: research, script, assets, edit and render with many AI tools.",
+   "author": "calesthio"
+  },
+  {
+   "repo": "0xsline/OpenChatCut",
+   "profession": "audiovisual",
+   "name": "OpenChatCut",
+   "description": "Chat-driven video editing on a local timeline.",
+   "author": "0xsline"
+  },
+  {
+   "repo": "Vincentwei1021/video-talkcraft",
+   "profession": "screen",
+   "name": "Video Talkcraft",
+   "description": "Narrated video scripts with synced voiceover.",
+   "author": "Vincentwei1021"
+  },
+  {
+   "repo": "remotion-dev/skills",
+   "profession": "motion",
+   "name": "Remotion Skills (upstream)",
+   "description": "The upstream Remotion skills repository.",
+   "author": "Remotion"
+  },
+  {
+   "repo": "nklisch/skills",
+   "profession": "dev",
+   "name": "Workbench Skills",
+   "description": "Planning, agile workflow, code audit and research skills for coding agents.",
+   "author": "nklisch"
+  },
+  {
+   "repo": "FireRedTeam/FireRed-OpenStoryline",
+   "profession": "audiovisual",
+   "name": "FireRed OpenStoryline",
+   "description": "AI video editing agent with editing-style skills (needs its own app).",
+   "author": "FireRedTeam"
+  }
+ ],
+ "directories": [
+  {
+   "repo": "clonn/awesome-agent-video-skills",
+   "description": "184 video repositories"
+  },
+  {
+   "repo": "Owl-Listener/designer-skills",
+   "description": "100+ UX/UI skills"
+  },
+  {
+   "repo": "pavelhov/social-media-skills",
+   "description": "100+ social media skills"
+  },
+  {
+   "repo": "itsual/agent-skills-collection",
+   "description": "500 skills across professions"
+  },
+  {
+   "repo": "jtydhr88/screenwriting-skills",
+   "description": "26 screenwriting skills"
+  },
+  {
+   "repo": "coreyhaines31/marketingskills",
+   "description": "50+ marketing skills"
+  },
+  {
+   "repo": "K-Dense-AI/scientific-agent-skills",
+   "description": "170+ science and data skills"
+  },
+  {
+   "repo": "anthropics/skills",
+   "description": "Official Anthropic skills"
+  },
+  {
+   "repo": "openai/plugins",
+   "description": "Official OpenAI plugins and skills"
+  },
+  {
+   "repo": "JuneYaooo/awesome-ai-media-skills",
+   "description": "AI media and social"
+  },
+  {
+   "repo": "j1ngg/awesome-marketing-agents",
+   "description": "Marketing agents"
+  }
+ ]
+}

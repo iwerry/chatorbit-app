@@ -11,8 +11,10 @@ const PROFESSIONS = [
   P('it', 'IT & Infrastructure', 'server', 'Support, networks, cloud, security and automation.'),
   P('journalism', 'Journalism', 'newspaper', 'Reporting, fact-checking, editing and interviews.'),
   P('audiovisual', 'Audiovisual', 'clapperboard', 'Script, storyboard, direction, editing and sound.'),
+  P('motion', 'Motion & VFX', 'sparkles', 'Motion graphics, animation in code, Lottie, Remotion and visual effects.'),
   P('film', 'Filmmaking', 'video', 'Videomakers: camera, light, directing, coverage and shooting on any budget.'),
   P('screen', 'Screenwriting', 'pen', 'Story structure, screenplays, treatments, dialogue and script coverage.'),
+  P('social', 'Social Media', 'share', 'Instagram, TikTok, YouTube, LinkedIn and more: scripts, hooks, captions and growth.'),
   P('marketing', 'Marketing', 'megaphone', 'Campaigns, content, SEO, ads and analytics.'),
   P('education', 'Education', 'graduation-cap', 'Lesson plans, assessment and student support.'),
 ]
@@ -252,6 +254,22 @@ const AGENTS = [
   A('screen', 'showrunner', 'Showrunner', 'Series development.', 'You develop series: bible, season arcs, episode engine and pilot.'),
   A('screen', 'commercial_writer', 'Commercial Scriptwriter', 'Ads and branded content.', 'You write tight scripts for ads and branded content (15/30/60 s) with a hook, one message and a clear call to action, in two-column A/V format when useful.'),
 
+  // Motion & VFX
+  A('motion', 'motion_designer', 'Motion Designer', 'Motion graphics from brief to render.', 'You are a senior motion designer. Start from the message and emotion, then choose technique (After Effects, Lottie, Remotion, GSAP, Blender), timing (easing, frame counts at the chosen FPS) and sound sync. Deliver a timecoded storyboard and the exact build steps or code.', ['Animate my logo in 5 seconds', 'Plan a 15-second product motion piece']),
+  A('motion', 'remotion_dev', 'Remotion Developer', 'Videos written in React.', 'You write complete Remotion compositions (TypeScript/React): sequences, springs, interpolate, audio and captions, with props for variations and the render command.'),
+  A('motion', 'vfx_artist', 'VFX Artist', 'Compositing and effects.', 'You plan visual effects shots: plates, tracking, keying, rotoscoping, CG integration, particles and grading, with steps for After Effects, Nuke, Blender or DaVinci Fusion.'),
+  A('motion', 'lottie_animator', 'Lottie Animator', 'Lightweight UI and web animation.', 'You create and fix Lottie animations and UI micro-interactions with sensible durations (150–400 ms), easing and performance in mind.'),
+  A('motion', 'kinetic_typographer', 'Kinetic Typographer', 'Animated type.', 'You design kinetic typography: rhythm to the voiceover or beat, hierarchy, readable on-screen time and transitions.'),
+  A('motion', 'explainer_director', 'Explainer Video Director', 'Explain anything in motion.', 'You turn a topic into an explainer: script with timecodes, visual metaphors per beat, style frames and an animation plan.'),
+
+  // Social Media
+  A('social', 'social_strategist', 'Social Media Strategist', 'Channels, pillars and growth.', 'You are a social media strategist. Pick the channels that matter, define content pillars, formats and cadence, and set KPIs per platform. Base advice on the brand and audience; never promise virality.', ['Build a 30-day plan for my Instagram', 'Which platforms should my brand focus on?']),
+  A('social', 'short_video_writer', 'Short Video Writer', 'Reels, TikTok and Shorts.', 'You write short vertical video scripts with a hook in the first 1–3 seconds, causal beats, on-screen text, shots and a payoff that earns the watch-through.'),
+  A('social', 'linkedin_ghostwriter', 'LinkedIn Writer', 'Posts and profile.', 'You write LinkedIn posts and profile sections in the person\'s own voice: specific stories, useful insight, no clichés or engagement bait.'),
+  A('social', 'youtube_producer', 'YouTube Producer', 'Long-form videos and titles.', 'You plan YouTube videos: idea validation, title and thumbnail pairs, retention-driven structure, chapters, description and end screens.'),
+  A('social', 'community_manager_social', 'Community Manager', 'Comments, DMs and moderation.', 'You reply to comments and messages in the brand voice, de-escalate conflicts, and turn conversations into community.'),
+  A('social', 'social_analyst', 'Social Analyst', 'Metrics that matter.', 'You read social metrics per platform (reach, saves, shares, watch time, follows), find what drives results and propose the next experiments.'),
+
   // Marketing
   A('marketing', 'marketing_strategist', 'Marketing Strategist', 'Strategy and planning.', 'You are a marketing strategist. Build full-funnel plans with clear KPIs and budgets.', ['Plan a launch campaign for my product']),
   A('marketing', 'copywriter', 'Copywriter', 'Persuasive copy.', 'You write persuasive, benefit-led copy with proof and a single CTA; offer variants.'),
@@ -288,13 +306,29 @@ const KITS = [
   { id: 'kit-data', profession: 'data', name: 'Data Kit', description: 'Cleaning, SQL, pandas and statistics skills with the terminal to run analyses, plus the Data Analyst and SQL Analyst agents.', servers: ['orbi-terminal', 'orbi-files', 'orbi-core'], skills: ['data:data-cleaning', 'data:exploratory-analysis', 'data:sql-for-analysis', 'data:python-pandas', 'data:insight-reports'], agents: ['data:data_analyst', 'data:sql_analyst'] },
   { id: 'kit-film', profession: 'film', name: 'Videomaker Kit', description: 'Daniskills by Daniel Rodrigues plus shot design, lighting and camera settings, with the Videomaker and Cinematographer agents.', servers: ['orbi-core', 'orbi-files'], skills: ['film:daniskills', 'film:shot-design', 'film:lighting-setups', 'film:camera-settings'], agents: ['film:videomaker', 'film:cinematographer'] },
   { id: 'kit-screen', profession: 'screen', name: 'Writers’ Room Kit', description: 'Master Scene Format by Daniel Rodrigues plus structure, beat sheets and dialogue, with the Script Doctor and Story Editor agents.', servers: ['orbi-core', 'orbi-files'], skills: ['screen:master-scene', 'screen:story-structure', 'screen:beat-sheet', 'screen:dialogue-polish'], agents: ['screen:script_doctor', 'screen:story_editor'] },
+  { id: 'kit-motion', profession: 'motion', name: 'Motion Kit', description: 'AI Motion Director by Daniel Rodrigues with Remotion and animation skills, plus the Motion Designer and Remotion Developer agents. Uses the terminal to render.', servers: ['orbi-terminal', 'orbi-files', 'orbi-core'], skills: ['motion:motion-director', 'motion:openai-remotion-best-practices', 'motion:emilkowalski-animate'], agents: ['motion:motion_designer', 'motion:remotion_dev'] },
+  { id: 'kit-social', profession: 'social', name: 'Social Media Kit', description: 'LinkedIn Profile Optimizer by Daniel Rodrigues plus hooks, short-video scripts, captions and carousels, with the Strategist and Short Video Writer agents.', servers: ['orbi-core', 'orbi-files'], skills: ['social:linkedin-optimizer', 'social:pavelhov-hook-writer', 'social:pavelhov-short-form-video-script', 'social:pavelhov-caption-writer', 'social:pavelhov-carousel-writer'], agents: ['social:social_strategist', 'social:short_video_writer'] },
   { id: 'kit-marketing', profession: 'marketing', name: 'Marketing Kit', description: 'Campaigns, copy and SEO with web research.', servers: ['orbi-core'], skills: ['marketing:campaign-strategy', 'marketing:copywriting', 'marketing:seo-content', 'marketing:social-calendar'], agents: ['marketing:marketing_strategist', 'marketing:copywriter'] },
   { id: 'kit-education', profession: 'education', name: 'Classroom Kit', description: 'Lesson plans, quizzes and rubrics with the Teacher Assistant and Tutor agents.', servers: ['orbi-core', 'orbi-files'], skills: ['education:lesson-planner', 'education:quiz-maker', 'education:rubrics', 'education:explain-simply'], agents: ['education:teacher_assistant', 'education:tutor'] },
 ]
 
 // Skills published on GitHub (vendored by build/sync-skills.cjs, with author, source link and a verifiable star score).
 const GITHUB = require('./library-github.json')
-SKILLS.push(...GITHUB)
+SKILLS.push(...GITHUB.skills)
+const LINKS = GITHUB.links
+const DIRECTORIES = GITHUB.directories
+
+// Platform tags power the Social Media filter.
+const PLATFORMS = [
+  ['Instagram', /instagram|reels?\b|carousel|stories|story writer/i],
+  ['TikTok', /tiktok|short-form|shorts/i],
+  ['YouTube', /youtube|shorts|thumbnail|long-form/i],
+  ['LinkedIn', /linkedin|carousel/i],
+  ['Facebook', /facebook/i],
+  ['Threads', /threads/i],
+  ['X', /\bx growth|twitter|\bx\/|thread opener/i],
+]
+for (const k of SKILLS) k.platforms = k.profession === 'social' ? PLATFORMS.filter(([, re]) => re.test(k.name + ' ' + k.description)).map(([n]) => n) : []
 
 // Built-in skills are short single-file playbooks: ★ purpose, plus ★ method when the instructions give a concrete procedure.
 for (const k of SKILLS) {
@@ -308,11 +342,23 @@ for (const k of SKILLS) {
 function topSkills(installed) {
   const order = new Map(SKILLS.map((k, i) => [k.id, i]))
   const out = []
+  const KIND = { own: 0, official: 1, community: 2 }
+  const norm = (n) => n.toLowerCase().replace(/[^a-z0-9]+/g, '')
   for (const p of PROFESSIONS) {
-    const list = SKILLS.filter((k) => k.profession === p.id).sort((a, b) => b.rating - a.rating || order.get(a.id) - order.get(b.id))
-    list.forEach((k, i) => (i < 10 || installed(k)) && out.push(k))
+    const list = SKILLS.filter((k) => k.profession === p.id).sort((a, b) => b.rating - a.rating || (KIND[a.kind] ?? 3) - (KIND[b.kind] ?? 3) || order.get(a.id) - order.get(b.id))
+    // No duplicates: when two skills share a name, only the better one is listed.
+    const names = new Set()
+    let shown = 0
+    for (const k of list) {
+      const dup = names.has(norm(k.name))
+      names.add(norm(k.name))
+      if (installed(k) || (!dup && (shown < 10 || p.id === 'social'))) {
+        out.push(k)
+        if (!dup) shown++
+      }
+    }
   }
   return out
 }
 
-module.exports = { PROFESSIONS, SKILLS, AGENTS, KITS, topSkills }
+module.exports = { PROFESSIONS, SKILLS, AGENTS, KITS, LINKS, DIRECTORIES, topSkills }

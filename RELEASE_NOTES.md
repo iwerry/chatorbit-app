@@ -1,4 +1,16 @@
-## Orbi 0.1.27-8
+## Orbi 0.1.27-9
+
+**Explore, reviewed and completed**
+- **131 skills from GitHub**, each checked: the repository exists, it really contains the skill, and its license allows bundling it. Every card shows the author, license, number of reference files and a GitHub link.
+- New professions: **Motion & VFX** (Remotion, HyperFrames, Lottie, animation) and **Social Media**, which has platform filters for Instagram, TikTok, YouTube, LinkedIn, Facebook, Threads and X.
+- Stronger lists in every profession, including Corey Haines' marketing skills, the jtydhr88 screenwriting set, K-Dense data and research skills, OpenAI's data-visualization skills, the Superpowers developer skills, Owl-Listener's UX skills, Raven design skills and Emil Kowalski's design engineering.
+- A **Daniel Rodrigues** filter shows all your own skills, marked **Own creation**. Official skills (Anthropic, OpenAI, Remotion, HeyGen) are marked **Official**.
+- **No duplicates:** when two skills share a name, only the better-rated one is listed.
+- Projects whose license doesn't allow bundling (OpenMontage, OpenChatCut, Video Talkcraft and others) appear as **GitHub only**, with a link.
+- A **Find more on GitHub** section links to the largest skill directories.
+- New agents for Motion & VFX and Social Media, and new toolkits.
+
+## Orbi 0.1.27-8 (previous)
 
 **Explore: the best skills per profession**
 - New professions: **Data Analysis**, **Filmmaking (Videomaker)** and **Screenwriting**, each with skills, agents and a toolkit.

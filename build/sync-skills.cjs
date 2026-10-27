@@ -1,88 +1,180 @@
-// Builds electron/library-github.json from skill repositories on GitHub.
-// Usage: node build/sync-skills.cjs <folder with the cloned repos>
+// Builds electron/library-github.json from the skill repositories listed in build/skill-sources.json.
+// Usage: node build/sync-skills.cjs <folder with the repos cloned as owner_name>
+//
 // Each skill gets a 1–5 star score from signals anyone can check in its repository:
-//   ★ purpose  — a description that says what it does and when to use it
-//   ★ method   — a structured playbook (3+ sections, or 1,500+ characters)
-//   ★ knowledge — 3+ reference files beyond the main instructions
-//   ★ checks   — scripts or tests that validate the output
-//   ★ open     — published with an open-source license
+//   ★ purpose   — a description that says what it does and when to use it
+//   ★ method    — a structured playbook (3+ sections, or 1,500+ characters)
+//   ★ knowledge — 3+ reference files in the skill folder beyond the main instructions
+//   ★ checks    — scripts or tests that validate the output
+//   ★ open      — published with an open-source license that allows bundling it
+// Only skills with such a license are bundled; the rest are listed as links to GitHub.
 const fs = require('fs')
 const path = require('path')
 const { execSync } = require('child_process')
 
 const root = path.resolve(process.argv[2] || '.')
-const DANIEL = 'Daniel Rodrigues'
+const cfg = JSON.parse(fs.readFileSync(path.join(__dirname, 'skill-sources.json'), 'utf8'))
+const OPEN = ['MIT', 'Apache-2.0', 'BSD', 'GPL-3.0', 'CC BY']
+const ACRONYMS = { seo: 'SEO', ai: 'AI', cro: 'CRO', ux: 'UX', ui: 'UI', mcp: 'MCP', d3: 'D3', x: 'X', ab: 'A/B', tiktok: 'TikTok', youtube: 'YouTube', linkedin: 'LinkedIn', ffmpeg: 'FFmpeg', moviepy: 'MoviePy', sw: '' }
 
-const SOURCES = [
-  { id: 'film:daniskills', profession: 'film', repo: 'iwerry/Daniskills', dir: 'Daniskills', author: DANIEL, name: 'Daniskills — Cinematic AI Production', description: 'Story → cinema → AI generation → continuity → QA → edit: real optics (FOV, Kelvin, 180° shutter) instead of empty adjectives.', main: 'UNIVERSAL_PROMPT.md', extract: (s) => (s.match(/```text\n([\s\S]*?)```/) || [, s])[1] },
-  { id: 'screen:master-scene', profession: 'screen', repo: 'iwerry/skill-master-scene', dir: 'skill-master-scene', author: DANIEL, name: 'Master Scene Format', description: 'Industry-standard screenplay format: page geometry, element grammar, page breaks, runtime and Fountain/FDX.', main: 'SKILL.md' },
-  { id: 'journalism:investigative', profession: 'journalism', repo: 'iwerry/jornalism.skill', dir: 'jornalism.skill', author: DANIEL, name: 'Investigative Journalism', description: 'Research, OSINT, verification and data methods routed by task, with a standard investigation loop.', main: 'SKILL.md' },
-  { id: 'marketing:linkedin-optimizer', profession: 'marketing', repo: 'iwerry/linkedin-skills-pro', dir: 'linkedin-skills-pro', author: DANIEL, name: 'LinkedIn Profile Optimizer', description: 'Headline, About, experiences and the right 50 skills from LinkedIn’s taxonomy — found by recruiters, convincing to people.', main: 'SKILL.md' },
-  { id: 'ux:designerx', profession: 'ux', repo: 'iwerry/designerx', dir: 'designerx', author: DANIEL, name: 'DesignerX', description: 'A designer’s eye for interfaces: critique, polish, bolder, quieter, typography, color, motion and anti-patterns.', main: 'skill/SKILL.src.md', extract: designerx },
-  { id: 'audiovisual:motion-director', profession: 'audiovisual', repo: 'iwerry/code2video', dir: 'code2video', author: DANIEL, name: 'AI Motion Director', description: 'Motion graphics with code (Canvas, SVG, GSAP, Remotion, Manim, FFmpeg): brief, concept, timecoded script, storyboard and render.', main: 'ai-motion-director/SKILL.md', skillDir: 'ai-motion-director' },
-  { id: 'ux:frontend-design', profession: 'ux', repo: 'anthropics/skills', dir: 'anthropic-skills', author: 'Anthropic', name: 'Frontend Design', description: 'Distinctive, intentional visual direction for interfaces that don’t look like templates.', main: 'skills/frontend-design/SKILL.md', skillDir: 'skills/frontend-design', subpath: 'tree/main/skills/frontend-design' },
-  { id: 'dev:mcp-builder', profession: 'dev', repo: 'anthropics/skills', dir: 'anthropic-skills', author: 'Anthropic', name: 'MCP Builder', description: 'Build high-quality MCP servers (Python FastMCP or TypeScript SDK) with well-designed tools.', main: 'skills/mcp-builder/SKILL.md', skillDir: 'skills/mcp-builder', subpath: 'tree/main/skills/mcp-builder' },
-]
+const NAMES = { 'emil-design-eng': 'Design Engineering', hyperframes: 'HyperFrames', 'short-form-video-script': 'Short-Form Video Script', pixel2motion: 'Pixel2Motion', 'lemo-opuscar': 'Lemo Opuscar (code films)', 'sw-truby-anatomy': 'Truby Story Anatomy', 'sw-premise-theme': 'Premise & Theme', 'sw-character-conflict': 'Character & Conflict', 'sw-format-adaptation': 'Format & Adaptation', 'sw-series-engine-bible': 'Series Engine & Bible', 'sw-writers-room': 'Writers’ Room', '': '' }
+const SMALL = new Set(['and', 'to', 'of', 'the', 'for', 'in', 'on', 'with'])
+const repoDir = (repo) => path.join(root, repo.replace('/', '_'))
 
-function designerx(s) {
-  // Orbi has no DesignerX launcher: keep the principles, how-to-design and modes; drop the CLI setup and command plumbing.
-  const body = stripFront(s)
-  const keep = body.split(/\n(?=## )/).filter((sec) => !/^## (Setup|Commands)\b/.test(sec))
-  return keep.join('\n').replace(/\{\{[a-z_]+\}\}/g, '').replace(/<!--[^>]*-->/g, '')
+function licenseOf(text) {
+  if (!text) return ''
+  if (/^https?:\/\//.test(text.trim())) return ''
+  if (/Apache/i.test(text)) return 'Apache-2.0'
+  if (/\bMIT\b|Permission is hereby granted, free of charge/i.test(text)) return 'MIT'
+  if (/GNU AFFERO|AGPL/i.test(text)) return 'AGPL-3.0'
+  if (/BSD/i.test(text)) return 'BSD'
+  if (/GNU GENERAL PUBLIC LICENSE|\bGPL/i.test(text)) return 'GPL-3.0'
+  if (/PolyForm/i.test(text)) return 'PolyForm-NC'
+  if (/Proprietary/i.test(text)) return 'Proprietary'
+  if (/Creative Commons|CC BY/i.test(text)) return 'CC BY'
+  return 'Custom'
 }
-function stripFront(s) {
-  const i = s.indexOf('\n---\n', s.indexOf('---'))
-  return /^[^\n]*\n*---\n/.test(s) || s.startsWith('---') ? s.slice(i + 5) : s
+function findLicense(dir, stop) {
+  // Closest LICENSE file or plugin manifest walking up from the skill folder to the repository root.
+  for (let d = dir; ; d = path.dirname(d)) {
+    const f = fs.existsSync(d) ? fs.readdirSync(d).find((x) => /^LICEN[CS]E/i.test(x)) : null
+    if (f) return licenseOf(fs.readFileSync(path.join(d, f), 'utf8').slice(0, 2000))
+    for (const m of ['.codex-plugin/plugin.json', '.claude-plugin/plugin.json', 'package.json']) {
+      const p = path.join(d, m)
+      if (fs.existsSync(p)) {
+        const lic = (JSON.parse(fs.readFileSync(p, 'utf8')).license || '').toString()
+        if (lic) return licenseOf(lic)
+      }
+    }
+    if (d === stop || d === path.dirname(d)) return ''
+  }
 }
-
+function front(s) {
+  const m = s.match(/^\s*(?:[^\n]*\n\s*)?---\n([\s\S]*?)\n---\n/)
+  const meta = {}
+  if (m) {
+    const y = m[1]
+    const get = (k) => {
+      const r = y.match(new RegExp(`^${k}:\\s*(>-?|\\|-?)?\\s*\\n?([\\s\\S]*?)(?=^\\S[^\\n]*:|$(?![\\s\\S]))`, 'm'))
+      return r ? r[2].replace(/\s+/g, ' ').trim().replace(/^["']|["']$/g, '') : ''
+    }
+    meta.name = get('name')
+    meta.description = get('description')
+    meta.license = get('license')
+  }
+  return { meta, body: m ? s.slice(s.indexOf(m[0]) + m[0].length) : s }
+}
+function humanize(slug) {
+  if (NAMES[slug]) return NAMES[slug]
+  return slug
+    .split(/[-_]/)
+    .filter((w) => ACRONYMS[w] !== '')
+    .map((w, i) => ACRONYMS[w] || (i && SMALL.has(w) ? w : w[0].toUpperCase() + w.slice(1)))
+    .join(' ')
+    .replace(/^A\/B Testing$/, 'A/B Testing')
+}
+function shortDesc(d) {
+  let s = d.replace(/\s*\([^)]*[　-鿿][^)]*\)/g, '').replace(/\s+/g, ' ').trim()
+  s = s.replace(/^(This skill should be used when the user asks to|Use (this skill )?(when|to)|When the user wants to)\s*/i, '')
+  s = (s.match(/^.*?[.!?](\s|$)/) || [s])[0].trim()
+  s = s.replace(/ (Also use|Use when|Run when).*$/, '').replace(/[,;:]$/, '')
+  if (s.length > 150) s = s.slice(0, 147).replace(/\s+\S*$/, '') + '…'
+  return s[0].toUpperCase() + s.slice(1).replace(/([^.!?…])$/, '$1.')
+}
 function walk(dir, out = []) {
+  if (!fs.existsSync(dir)) return out
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (e.name === '.git' || e.name === 'node_modules') continue
+    if (['.git', 'node_modules'].includes(e.name)) continue
     const p = path.join(dir, e.name)
     e.isDirectory() ? walk(p, out) : out.push(p)
   }
   return out
 }
+function designerx(s) {
+  // Orbi has no DesignerX launcher: keep principles, how-to-design and modes; drop CLI setup and command plumbing.
+  return front(s).body.split(/\n(?=## )/).filter((sec) => !/^## (Setup|Commands)\b/.test(sec)).join('\n').replace(/\{\{[a-z_]+\}\}/g, '').replace(/<!--[^>]*-->/g, '')
+}
 
-const out = []
-for (const src of SOURCES) {
-  const repoDir = path.join(root, src.dir)
-  const base = path.join(repoDir, src.skillDir || '')
-  const raw = fs.readFileSync(path.join(repoDir, src.main), 'utf8')
-  let instructions = (src.extract ? src.extract(raw) : stripFront(raw)).trim()
+const skills = []
+const seen = new Set()
+for (const src of cfg.skills) {
+  const rd = repoDir(src.repo)
+  if (src.path && !src.main && !fs.existsSync(path.join(rd, src.path, 'SKILL.md'))) {
+    const hit = walk(rd).find((f) => f.endsWith(path.join(src.path, 'SKILL.md')))
+    if (hit) src.path = path.relative(rd, path.dirname(hit))
+  }
+  const base = path.join(rd, src.path || '')
+  const mainPath = path.join(rd, src.main || path.join(src.path || '', 'SKILL.md'))
+  if (!fs.existsSync(mainPath)) {
+    console.warn('missing', src.repo, src.path)
+    continue
+  }
+  const raw = fs.readFileSync(mainPath, 'utf8')
+  const { meta, body } = front(raw)
+  let instructions = (src.extract === 'textblock' ? (raw.match(/```text\n([\s\S]*?)```/) || [, body])[1] : src.extract === 'designerx' ? designerx(raw) : body).trim()
+  const slug = path.basename(src.path || src.repo.split('/')[1])
+  const id = src.id || `${src.profession}:${src.repo.split('/')[0].toLowerCase()}-${slug.toLowerCase()}`.replace(/[^a-z0-9:-]+/g, '-')
+  if (seen.has(id)) continue
+  seen.add(id)
   const files = walk(base).map((f) => path.relative(base, f))
-  const mainRel = path.relative(base, path.join(repoDir, src.main))
-  const refs = files.filter((f) => /\.(md|ya?ml|json)$/i.test(f) && f !== mainRel && !/^(README|CHANGELOG|LICENSE|NOTICE|CREDITS|package(-lock)?)\b/i.test(path.basename(f)))
-  const checks = files.filter((f) => /(^|\/)(scripts|tests?)\//.test(f) && /\.(py|js|mjs|cjs|ts|sh)$/.test(f))
-  const license = [repoDir, base].flatMap((d) => fs.readdirSync(d).filter((f) => /^LICEN[CS]E/i.test(f)).map((f) => fs.readFileSync(path.join(d, f), 'utf8')))[0] || ''
-  const licenseName = /Apache License/i.test(license) ? 'Apache-2.0' : /MIT License/i.test(license) ? 'MIT' : /GNU GENERAL PUBLIC LICENSE/i.test(license) ? 'GPL-3.0' : /Creative Commons|CC BY/i.test(license) ? 'CC BY' : license ? 'Custom' : ''
+  const mainRel = path.relative(base, mainPath)
+  const refs = files.filter((f) => /\.(md|ya?ml|json|txt)$/i.test(f) && f !== mainRel && !/^(README|CHANGELOG|LICENSE|NOTICE|CREDITS|package(-lock)?|tsconfig)\b/i.test(path.basename(f)) && !f.startsWith('.'))
+  const checks = files.filter((f) => /(^|\/)(scripts|tests?|evals?)\//.test(f) && /\.(py|js|mjs|cjs|ts|sh)$/.test(f))
+  const license = (meta.license && !/LICENSE\.txt|complete terms/i.test(meta.license) && licenseOf(meta.license) !== 'Custom' ? licenseOf(meta.license) : '') || findLicense(base, rd)
   const sections = (instructions.match(/^#{2,3} /gm) || []).length
   const signals = {
-    purpose: !!src.description,
+    purpose: !!(src.description || meta.description),
     method: sections >= 3 || instructions.length >= 1500,
     knowledge: refs.length >= 3,
     checks: checks.length > 0,
-    open: ['Apache-2.0', 'MIT', 'GPL-3.0', 'CC BY'].includes(licenseName),
+    open: OPEN.includes(license),
+  }
+  if (!signals.open && src.kind !== 'own') {
+    console.warn('skipped (license ' + (license || 'none') + '):', src.repo, src.path)
+    continue
   }
   const rating = Object.values(signals).filter(Boolean).length
   let commit = ''
   try {
-    commit = execSync('git log -1 --format=%h·%cs', { cwd: repoDir }).toString().trim()
+    commit = execSync('git log -1 --format=%h·%cs', { cwd: rd }).toString().trim()
   } catch {}
-  const url = `https://github.com/${src.repo}${src.subpath ? '/' + src.subpath : ''}`
-  instructions = `[${src.name} — by ${src.author}. Source: ${url}${licenseName ? ` (${licenseName})` : ''}. Reference files mentioned below live in that repository.]\n\n${instructions}`
-  out.push({
-    id: src.id,
+  const url = `https://github.com/${src.repo}${src.path ? `/tree/main/${src.path}` : ''}`
+  const name = src.name || humanize(slug)
+  instructions = `[${name} — by ${src.author}. Source: ${url} (${license}). Files this skill mentions live in that repository.]\n\n${instructions}`
+  skills.push({
+    id,
     profession: src.profession,
-    name: src.name,
-    description: src.description,
+    name,
+    description: src.description || shortDesc(meta.description || name),
     instructions,
     author: src.author,
+    kind: src.kind || 'community',
     source: url,
-    license: licenseName,
+    license,
     rating,
     signals: { ...signals, references: refs.length, checkFiles: checks.length, commit },
   })
-  console.log(`${'★'.repeat(rating).padEnd(5, '☆')}  ${src.name}  (${refs.length} refs, ${checks.length} checks, ${licenseName || 'no license'}, ${instructions.length} chars)`)
 }
-fs.writeFileSync(path.join(__dirname, '..', 'electron', 'library-github.json'), JSON.stringify(out, null, 1) + '\n')
+
+const links = cfg.links.map((l) => {
+  const rd = repoDir(l.repo)
+  return { ...l, id: `link:${l.repo.toLowerCase()}`, source: `https://github.com/${l.repo}`, license: findLicense(rd, rd) || 'None', kind: 'link' }
+})
+const directories = cfg.directories.map((d) => ({ ...d, source: `https://github.com/${d.repo}` }))
+
+fs.writeFileSync(path.join(__dirname, '..', 'electron', 'library-github.json'), JSON.stringify({ skills, links, directories }, null, 1) + '\n')
+const by = {}
+for (const s of skills) (by[s.profession] ||= []).push(s)
+for (const [p, list] of Object.entries(by)) console.log(p.padEnd(12), list.length, list.map((s) => `${s.rating}★ ${s.name}`).join(' · '))
+console.log('links:', links.map((l) => `${l.name} (${l.license})`).join(', '))
+
+// License notices for every bundled repository (MIT/Apache/BSD require keeping them).
+const notice = ['# Third-party skills bundled in Orbi', '', 'Each skill keeps its author, source link and license in the library. License texts follow.', '']
+for (const repo of [...new Set(cfg.skills.map((s) => s.repo))]) {
+  if (!skills.some((s) => s.source.startsWith(`https://github.com/${repo}`))) continue
+  const rd = repoDir(repo)
+  const files = walk(rd).filter((f) => /(^|\/)(LICEN[CS]E|NOTICE)[^/]*$/i.test(f) && path.relative(rd, f).split('/').length <= 4).slice(0, 6)
+  notice.push(`## ${repo}`, '', `https://github.com/${repo}`, '')
+  for (const f of files) notice.push('```', fs.readFileSync(f, 'utf8').trim().slice(0, 12000), '```', '')
+}
+fs.writeFileSync(path.join(__dirname, '..', 'electron', 'THIRD_PARTY_SKILLS.md'), notice.join('\n') + '\n')
