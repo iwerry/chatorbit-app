@@ -11,19 +11,18 @@ export function OrbiMark(props: SVGProps<SVGSVGElement>) {
   )
 }
 
-export function SpyHatIcon(props: SVGProps<SVGSVGElement>) {
+// Temporary chat: a little ghost — the conversation leaves no trace.
+export function GhostIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
       <path
-        d="M5.3 9.2h13.4M7.7 9.2l1.15-4.1c.12-.42.53-.68.96-.6L12 4.9l2.18-.4c.43-.08.85.18.97.6l1.15 4.1"
+        d="M5.2 19.4V11a6.8 6.8 0 0 1 13.6 0v8.4c0 .5-.55.8-.97.52l-1.38-.92a.9.9 0 0 0-1 0l-1.45.97a.9.9 0 0 1-1 0l-1.5-1a.9.9 0 0 0-1 0l-1.5 1a.9.9 0 0 1-1 0l-1.45-.97a.9.9 0 0 0-1 0l-1.38.92c-.42.28-.97-.02-.97-.52Z"
         stroke="currentColor"
         strokeWidth="1.7"
-        strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <circle cx="8.3" cy="14.7" r="2.45" stroke="currentColor" strokeWidth="1.7" />
-      <circle cx="15.7" cy="14.7" r="2.45" stroke="currentColor" strokeWidth="1.7" />
-      <path d="M10.75 14.5c.7-.58 1.8-.58 2.5 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <ellipse cx="9.6" cy="11.2" rx="1.15" ry="1.55" fill="currentColor" />
+      <ellipse cx="14.4" cy="11.2" rx="1.15" ry="1.55" fill="currentColor" />
     </svg>
   )
 }

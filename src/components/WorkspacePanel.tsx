@@ -322,7 +322,7 @@ function ChatsLibrary(p: Props) {
 }
 
 function PanelIntro({ children }: { children: React.ReactNode }) {
-  return <p className="px-3 text-xs leading-relaxed text-[#859089]">{children}</p>
+  return <p className="px-3 text-xs leading-relaxed text-[color:var(--neo-faint)]">{children}</p>
 }
 
 function ScheduledPanel() {

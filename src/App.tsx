@@ -78,7 +78,7 @@ import {
 import { VoiceDialog, VoiceLibrary, defaultVoiceFor } from './components/VoiceLibrary'
 import type { StudioIntent } from './components/CreatorStudio'
 import { Markdown } from './components/Markdown'
-import { OrbiMark, SpyHatIcon } from './components/Logo'
+import { GhostIcon, OrbiMark } from './components/Logo'
 import type { SettingsTab } from './components/SettingsModal'
 import { t, t as tr, setLang as applyLang, fmtDate, fmtTime, type Lang } from './lib/i18n'
 import { isPage, navItems, WorkspacePanel, type NavKey } from './components/WorkspacePanel'
@@ -1205,7 +1205,7 @@ export default function App() {
               <div className="avatar avatar-profile-menu">{initials(userName)}</div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-white">{userName}</p>
-                <p className="mt-0.5 text-[10px] text-[#919d95]">{t('Local account')} · Orbi {info?.version}</p>
+                <p className="mt-0.5 text-[11px] text-[color:var(--neo-faint)]">{t('Local account')} · Orbi {info?.version}</p>
               </div>
             </div>
             <div className="profile-menu-separator" />
@@ -1605,7 +1605,7 @@ export default function App() {
                   aria-label={t('Toggle temporary chat')}
                   title={t('Temporary chat')}
                 >
-                  <SpyHatIcon className="h-[20px] w-[20px]" />
+                  <GhostIcon className="ghost-icon h-[20px] w-[20px]" />
                 </button>
               </div>
             </header>
@@ -1616,7 +1616,7 @@ export default function App() {
                   temporaryChat ? (
                     <div className="temporary-welcome">
                       <div className="temporary-title-icon">
-                        <SpyHatIcon className="h-7 w-7" />
+                        <GhostIcon className="ghost-icon h-7 w-7" />
                       </div>
                       <h2>{t('Temporary chat')}</h2>
                       <p>{t('This conversation will not appear in your history and will be deleted automatically.')}</p>
@@ -1624,7 +1624,6 @@ export default function App() {
                   ) : (
                     <div className="standard-welcome">
                       <div className="hero-signal-field" aria-hidden="true">
-                        <span className="hero-grid" />
                         <span className="hero-orbit hero-orbit-one">
                           <i />
                         </span>
@@ -1932,7 +1931,7 @@ export default function App() {
                     }}
                   />
                   <div className="composer-conversation-controls">
-                    <span className="hidden text-[10px] text-[#9aa19d] sm:block">{additionalModels.length ? t('{n} models', { n: additionalModels.length + 1 }) : t('Press Enter to send')}</span>
+                    <span className="hidden text-[11px] text-[color:var(--neo-faint)] sm:block">{additionalModels.length ? t('{n} models', { n: additionalModels.length + 1 }) : t('Press Enter to send')}</span>
                     <div className="response-mode-control">
                       <button type="button" className={`response-mode-trigger ${responseMenuOpen ? 'response-mode-trigger-active' : ''}`} onClick={() => setResponseMenuOpen((v) => !v)} aria-expanded={responseMenuOpen}>
                         <span>{responseType === 'Thinking' ? `${t('Thinking')} · ${t(reasoningEffort)}` : t('Instant')}</span>
@@ -2055,7 +2054,7 @@ export default function App() {
                 </div>
               )}
               {!emptyLanding && (
-                <p className="mt-2.5 text-center text-[10px] text-[#9ca39f]">
+                <p className="mt-2.5 text-center text-[11px] text-[color:var(--neo-faint)]">
                   {temporaryChat ? t('This conversation will not be saved to your history or memory.') : t('Orbi can make mistakes. Verify important information.')}
                 </p>
               )}
@@ -2121,13 +2120,13 @@ export default function App() {
                   </button>
                 </div>
                 <div className="mt-3 space-y-2">
-                  {conversationSources.length === 0 && <p className="text-[11px] text-[#8a938e]">{t('Attach files or images to use them as context.')}</p>}
+                  {conversationSources.length === 0 && <p className="text-[11px] text-[color:var(--neo-faint)]">{t('Attach files or images to use them as context.')}</p>}
                   {conversationSources.map((s, i) => (
                     <div className="source-card" key={i}>
                       <div className={`source-icon ${s.dataUrl ? 'source-icon-blue' : ''}`}>{s.dataUrl ? <ImageIcon size={17} /> : <FileText size={17} />}</div>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-semibold text-[#26322b]">{s.name}</p>
-                        <p className="mt-0.5 text-[10px] text-[#8a938e]">{s.text ? t('{n}k characters', { n: Math.round(s.text.length / 1000) }) : s.mime}</p>
+                        <p className="mt-0.5 text-[11px] text-[color:var(--neo-faint)]">{s.text ? t('{n}k characters', { n: Math.round(s.text.length / 1000) }) : s.mime}</p>
                       </div>
                       <Check size={14} className="text-[#658256]" />
                     </div>
@@ -2141,14 +2140,14 @@ export default function App() {
                   <div className="flex items-center gap-3">
                     <Clock3 size={15} className="text-[#8a948e]" />
                     <div>
-                      <p className="text-[10px] text-[#929a95]">{t('Created on')}</p>
+                      <p className="text-[11px] text-[color:var(--neo-faint)]">{t('Created on')}</p>
                       <p className="mt-0.5 text-xs font-medium text-[#465149]">{fmtDate(activeConversation?.created_at ?? Date.now(), 'long')}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Bot size={15} className="text-[#8a948e]" />
                     <div className="min-w-0">
-                      <p className="text-[10px] text-[#929a95]">{additionalModels.length ? t('Models') : t('Model')}</p>
+                      <p className="text-[11px] text-[color:var(--neo-faint)]">{additionalModels.length ? t('Models') : t('Model')}</p>
                       <p className="mt-0.5 truncate text-xs font-medium text-[#465149]">
                         {[currentModel?.name, ...additionalModels.map((k) => models.find((m) => m.key === k)?.name)].filter(Boolean).join(', ') || '—'}
                       </p>
@@ -2157,7 +2156,7 @@ export default function App() {
                   <div className="flex items-center gap-3">
                     <MessageSquareText size={15} className="text-[#8a948e]" />
                     <div>
-                      <p className="text-[10px] text-[#929a95]">{t('Messages')}</p>
+                      <p className="text-[11px] text-[color:var(--neo-faint)]">{t('Messages')}</p>
                       <p className="mt-0.5 text-xs font-medium text-[#465149]">{messages.length}</p>
                     </div>
                   </div>

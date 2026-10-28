@@ -35,7 +35,7 @@ export function McpPanel({ servers, setServers, plugins, setPlugins, onRefresh }
 
   return (
     <div className="panel-scroll mcp-panel">
-      <p className="px-1 text-xs leading-relaxed text-[#859089]">{t('Give Orbi abilities with MCP servers and plugins. Everything that needs no setup is already connected.')}</p>
+      <p className="px-1 text-xs leading-relaxed text-[color:var(--neo-faint)]">{t('Give Orbi abilities with MCP servers and plugins. Everything that needs no setup is already connected.')}</p>
 
       <button
         className="module-item module-item-rich mt-3"

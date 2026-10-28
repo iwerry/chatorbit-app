@@ -35,7 +35,7 @@ export function SkillsPanel({ skills, onRefresh, creating, setCreating }: { skil
       <button className="library-section-heading mt-3" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
         <ChevronDown size={13} className={`section-chevron ${open ? 'section-chevron-open' : ''}`} />
         <span>{t('My Skills')}</span>
-        <span className="ml-auto text-[10px] opacity-60">{skills.filter((k) => k.enabled).length} on</span>
+        <span className="ml-auto text-[11px] opacity-60">{skills.filter((k) => k.enabled).length} on</span>
       </button>
       {open && (
         <div className="mt-1 space-y-1">

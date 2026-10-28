@@ -1,4 +1,24 @@
-## Orbi 0.1.28-2
+## Orbi 0.1.28-3
+
+**Design pass with Impeccable (anti-slop)**
+- The whole app was checked with Impeccable's design detector on the real screens, in light and dark: chat, temporary chat, Creative (Launchpad, Canvas, Workflows, Gallery), Creator Studio, Explore and Media Library. Every screen now passes.
+- **Readable text everywhere:** labels and buttons are at least 11px, sentences at least 12px (73 styles were smaller, some as small as 7px).
+- **Contrast fixed:** placeholders and secondary text meet WCAG AA in light, dark and terminal themes. Accent-colored text uses a darker ink on light backgrounds.
+- **Fixed a style clash:** image and video nodes in Workflows had colored text on a colored tint. Nodes now keep their color in a tinted header instead of a 3px stripe.
+- **Fewer generic patterns:**
+  - The logo above the greeting no longer sits in an icon tile.
+  - The decorative grid behind the welcome is gone.
+  - Launchpad covers use a clean two-tone gradient.
+  - Quotes and lists use 1px guides.
+
+**Temporary chat has a ghost**
+- The spy-hat icon is now a little ghost, drawn in the same stroke as the other icons. It floats gently while temporary chat is on.
+
+**The message box ring is back and pulses**
+- The rainbow ring circles the message box again, a bit faster, and pulses softly while it waits for you, to draw attention.
+- When you click in to type, it holds steady. With "reduce motion" turned on in your system, it stays still.
+
+## Orbi 0.1.28-2 (previous)
 
 **Media Library: full-screen viewer**
 - Click any image or video to open it full screen. Move with ← → or the arrows, jump with the film strip, start a slideshow with Space, zoom to actual size with a click, close with Esc.
@@ -37,7 +57,7 @@
 - **prompt-enhancer** + **@prompt (Prompt Director)**: the magic wand for image, video, music, voice, text and code prompts.
 - Both are full Agent Skills with references, templates and trigger tests.
 
-## Orbi 0.1.28-1 (previous)
+## Orbi 0.1.28-1
 
 **Creator Studio: skills, agents, multi-agent teams and harnesses in one place**
 - The Agent Builder and Skills menus are now one page, **Creator Studio**, with four tabs: Skills, Agents, Multi-agents and Harness.
