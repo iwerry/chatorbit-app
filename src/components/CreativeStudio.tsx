@@ -30,7 +30,9 @@ import {
   Workflow,
   X,
 } from 'lucide-react'
-import { api, on, type Board, type GenInfo, type LocalStatus, type MediaItem, type ModelInfo } from '../lib/api'
+import { api, on, type Board, type LocalStatus, type MediaItem, type ModelInfo } from '../lib/api'
+import { ASPECTS, CLOUD_GEN, creativeOptions, sizeFor, snap, type CreativeOption } from '../lib/creative'
+import { creativeBus, takePendingUse, type GenRequest } from '../lib/creativeBus'
 import { activity } from '../lib/activity'
 import { fmtBytes, t } from '../lib/i18n'
 import { ThemeSwitcher, type ThemeMode } from './ThemeSwitcher'
@@ -43,7 +45,7 @@ const NodeFlow = lazy(() => import('./NodeFlow').then((m) => ({ default: m.NodeF
 type Tab = 'launchpad' | 'canvas' | 'workflows' | 'gallery'
 type Mode = 'image' | 'video'
 type Quality = 0 | 1 | 2 | 3 // fast, balanced, best, custom
-type Option = { key: string; label: string; group: string; kind: Mode; local: boolean; providerId?: string; modelId: string; gen?: GenInfo | null }
+type Option = CreativeOption
 type Job = {
   id: string
   mode: Mode
@@ -59,20 +61,27 @@ type Job = {
   media?: MediaItem
   run: (jobId: string) => Promise<MediaItem>
   local: boolean
+  /** Request id when the render was asked from the chat or the library. */
+  origin?: string
+  from?: 'chats'
 }
 
-const ASPECTS = [
-  { id: '1:1', w: 1, h: 1 },
-  { id: '4:3', w: 4, h: 3 },
-  { id: '3:4', w: 3, h: 4 },
-  { id: '16:9', w: 16, h: 9 },
-  { id: '9:16', w: 9, h: 16 },
-]
 const FPS = [8, 12, 16, 24, 30, 60]
 const QUALITY = ['Fast', 'Balanced', 'Best', 'Custom'] as const
-const CLOUD_GEN: GenInfo = { presets: [0, 0, 0], fixedSteps: true, width: 1024, height: 1024, fps: 0, image: false, ref: false, end: false }
 
-const snap = (n: number) => Math.max(256, Math.round(n / 64) * 64)
+// Scales an image to cover width × height (centered crop), as the engines expect for a start frame.
+async function coverTo(dataUrl: string, width: number, height: number) {
+  const img = new Image()
+  img.src = dataUrl
+  await img.decode()
+  const out = document.createElement('canvas')
+  out.width = width
+  out.height = height
+  const ctx = out.getContext('2d')!
+  const s = Math.max(width / img.width, height / img.height)
+  ctx.drawImage(img, (width - img.width * s) / 2, (height - img.height * s) / 2, img.width * s, img.height * s)
+  return out.toDataURL('image/png')
+}
 const cleanErr = (e: unknown) => String((e as Error)?.message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 const secs = (ms: number) => (ms < 60000 ? `${Math.round(ms / 1000)}s` : `${Math.floor(ms / 60000)}m ${Math.round((ms % 60000) / 1000)}s`)
 
@@ -197,15 +206,25 @@ export function CreativeStudio({
   // "Use prompt" from the Media Library or another screen.
   useEffect(() => {
     const onUse = (e: Event) => {
-      const d = (e as CustomEvent<{ prompt: string; negative?: string; mode?: Mode }>).detail
-      if (!d?.prompt) return
-      setPrompt(d.prompt)
+      const d = (e as CustomEvent<{ prompt: string; negative?: string; mode?: Mode; initMediaId?: string }>).detail
+      if (!d?.prompt && !d?.initMediaId) return
+      takePendingUse()
+      if (d.prompt) setPrompt(d.prompt)
       if (d.negative !== undefined) setNegative(d.negative)
       if (d.mode) setMode(d.mode)
+      if (d.initMediaId)
+        api.mediaDataUrl(d.initMediaId).then((dataUrl) => {
+          if (!dataUrl) return
+          setBase({ id: d.initMediaId, dataUrl, name: t('Start image'), kind: 'image' })
+          setBaseVisible(true)
+          setUseInit(true)
+        })
       setTab('canvas')
       api.setSetting('studioPrompt', '')
     }
     window.addEventListener('orbi:use-prompt', onUse)
+    const waiting = takePendingUse()
+    if (waiting) onUse(new CustomEvent('orbi:use-prompt', { detail: waiting }))
     return () => window.removeEventListener('orbi:use-prompt', onUse)
   }, [])
 
@@ -227,14 +246,7 @@ export function CreativeStudio({
   }, [jobs])
 
   // ---------- models ----------
-  const options: Option[] = useMemo(() => {
-    const out: Option[] = []
-    for (const m of localStatus?.models ?? []) {
-      if ((m.kind === 'image' || m.kind === 'video') && m.installed) out.push({ key: `local::${m.id}`, label: m.name, group: t('On this PC'), kind: m.kind, local: true, modelId: m.id, gen: m.gen })
-    }
-    for (const m of models.filter((x) => x.image)) out.push({ key: `cloud::${m.key}`, label: m.name, group: m.providerName, kind: 'image', local: false, providerId: m.provider, modelId: m.id, gen: CLOUD_GEN })
-    return out
-  }, [localStatus, models])
+  const options: Option[] = useMemo(() => creativeOptions(localStatus, models), [localStatus, models])
   const modeOptions = options.filter((o) => o.kind === mode)
   const current = modeOptions.find((o) => o.key === modelKeys[mode]) ?? modeOptions[0]
   const gen = current?.gen ?? CLOUD_GEN
@@ -385,7 +397,7 @@ export function CreativeStudio({
     if (!next) return
     startedIds.current.add(next.id)
     patchJob(next.id, { status: 'running', started: Date.now(), phase: 'loading' })
-    activity.start({ id: next.id, area: 'creative', kind: next.mode, label: next.label })
+    activity.start({ id: next.id, area: 'creative', kind: next.mode, label: next.label, from: next.from })
     next
       .run(next.id)
       .then(async (item) => {
@@ -448,7 +460,79 @@ export function CreativeStudio({
   }
   const hasUpscaler = !!localStatus?.models.some((m) => m.kind === 'upscale' && m.installed)
 
-  const shownMedia = media.filter((m) => (m.kind === 'image' || m.kind === 'video') && (!board || m.board === board))
+  // ---------- renders asked from the chat or the Media Library ----------
+  const serveRef = useRef<(r: GenRequest) => void>(() => {})
+  serveRef.current = async (r: GenRequest) => {
+    const fail = (error: string) => creativeBus.emit({ id: r.id, status: 'error', error })
+    try {
+      if (r.mode === 'upscale') {
+        if (!r.initMediaId) return fail(t('Pick an image first.'))
+        if (!hasUpscaler) return fail(t('Download an upscaler in Models first (Real-ESRGAN).'))
+        const id = Math.random().toString(36).slice(2, 10)
+        setJobs((cur) => [...cur, { id, origin: r.id, from: r.source === 'chat' ? 'chats' : undefined, mode: 'image', label: t('Upscale 4×'), prompt: r.prompt, status: 'queued', local: true, run: (jobId) => api.upscale({ mediaId: r.initMediaId!, jobId, board }) }])
+        return
+      }
+      const mode: Mode = r.mode
+      const list = options.filter((o) => o.kind === mode)
+      const o = list.find((x) => x.key === r.modelKey) ?? list.find((x) => x.key === modelKeys[mode]) ?? list[0]
+      if (!o) return fail(mode === 'video' ? t('No video model is installed yet — open Models to download one.') : t('No image model is installed yet — open Models to download one.'))
+      const g = o.gen ?? CLOUD_GEN
+      const short = r.res || Math.min(g.width, g.height) || 768
+      const { w, h } = sizeFor(r.aspect || '1:1', short)
+      const stepsN = g.fixedSteps ? g.presets[0] : g.presets[1]
+      const fpsN = g.fps || 16
+      const framesN = Math.max(5, Math.round(((r.duration || 2) * fpsN) / 4) * 4 + 1)
+      const src = r.initDataUrl || (r.initMediaId ? await api.mediaDataUrl(r.initMediaId) : null)
+      const init = src ? await coverTo(src, w, h) : undefined
+      const n = mode === 'video' ? 1 : Math.max(1, Math.min(4, r.count || 1))
+      const created: Job[] = []
+      for (let i = 0; i < n; i++) {
+        const label = `${mode === 'video' ? t('Video') : t('Image')}${n > 1 ? ` ${i + 1}/${n}` : ''} · ${o.label}`
+        const s = Math.floor(Math.random() * 2 ** 31)
+        const run = (jobId: string) =>
+          o.local
+            ? api.generateLocal({ jobId, modelId: o.modelId, prompt: r.prompt, negative: r.negative?.trim() || undefined, width: w, height: h, steps: stepsN || undefined, seed: s, initImage: init, strength: init && mode === 'image' ? 0.65 : undefined, frames: mode === 'video' ? framesN : undefined, fps: mode === 'video' ? fpsN : undefined, board, source: r.source })
+            : api.generateImage({ providerId: o.providerId!, model: o.modelId, prompt: r.prompt, board, width: w, height: h, source: r.source || 'creative' })
+        created.push({ id: Math.random().toString(36).slice(2, 10), origin: r.id, from: r.source === 'chat' ? 'chats' : undefined, mode, label, prompt: r.prompt, status: 'queued', run, local: o.local })
+      }
+      setJobs((cur) => [...cur, ...created])
+    } catch (e) {
+      fail(cleanErr(e))
+    }
+  }
+  useEffect(() => creativeBus.serve((r) => serveRef.current(r)), [])
+  // Report progress of those renders back to whoever asked.
+  const reported = useRef(new Map<string, string>())
+  useEffect(() => {
+    const byOrigin = new Map<string, Job[]>()
+    for (const j of jobs) if (j.origin) byOrigin.set(j.origin, [...(byOrigin.get(j.origin) ?? []), j])
+    for (const [origin, list] of byOrigin) {
+      const part = (j: Job) => (j.status === 'done' || j.status === 'error' ? 1 : j.status === 'running' && j.total ? (j.step || 0) / j.total : 0)
+      const progress = list.reduce((a, j) => a + part(j), 0) / list.length
+      const finished = list.every((j) => j.status === 'done' || j.status === 'error')
+      const ok = list.filter((j) => j.status === 'done' && j.media).map((j) => j.media!)
+      const status = finished ? (ok.length ? 'done' : 'error') : list.some((j) => j.status === 'running') ? 'running' : 'queued'
+      const sig = `${status}:${Math.round(progress * 100)}:${ok.length}`
+      if (reported.current.get(origin) === sig) continue
+      reported.current.set(origin, sig)
+      creativeBus.emit({ id: origin, status, progress, media: ok, total: list.length, error: status === 'error' ? list.find((j) => j.error)?.error : undefined })
+    }
+  }, [jobs])
+
+  const [galleryQuery, setGalleryQuery] = useState('')
+  const [galleryKind, setGalleryKind] = useState<'all' | 'image' | 'video'>('all')
+  const gq = galleryQuery.trim().toLowerCase()
+  const boardMedia = media.filter((m) => (m.kind === 'image' || m.kind === 'video') && (!board || m.board === board))
+  const shownMedia = boardMedia.filter((m) => (galleryKind === 'all' || m.kind === galleryKind) && (!gq || `${m.prompt} ${m.name} ${m.model}`.toLowerCase().includes(gq)))
+  const makeVideoFrom = (m: MediaItem) =>
+    creativeBus.request({ id: Math.random().toString(36).slice(2, 10), mode: 'video', prompt: m.prompt || t('Gentle camera move, natural motion'), negative: DEFAULT_NEGATIVE.video, initMediaId: m.id, aspect: '16:9' })
+  const editInCanvas = (m: MediaItem) => {
+    showInCanvas(m)
+    setMode('image')
+    setTool('brush')
+    setViewing(null)
+    setTab('canvas')
+  }
   const activeJobs = jobs.filter((j) => j.status === 'queued' || j.status === 'running')
   const focusJob = jobs.filter((j) => j.status === 'running').slice(-1)[0]
   const tabs: { id: Tab; label: string; icon: typeof Rocket }[] = [
@@ -1072,11 +1156,30 @@ export function CreativeStudio({
         <div className="studio-gallery-page">
           <aside className="studio-right">{BoardsPanel}</aside>
           <section className="studio-gallery-grid">
+            <div className="gallery-bar">
+              <label className="gallery-search">
+                <Search size={14} />
+                <input value={galleryQuery} onChange={(e) => setGalleryQuery(e.target.value)} placeholder={t('Search prompts, names and models')} aria-label={t('Search the gallery')} />
+                {galleryQuery && (
+                  <button onClick={() => setGalleryQuery('')} aria-label={t('Clear search')}>
+                    <X size={12} />
+                  </button>
+                )}
+              </label>
+              <div className="gallery-kinds" role="tablist">
+                {(['all', 'image', 'video'] as const).map((k) => (
+                  <button key={k} role="tab" aria-selected={galleryKind === k} className={galleryKind === k ? 'active' : ''} onClick={() => setGalleryKind(k)}>
+                    {t(k === 'all' ? 'All' : k === 'image' ? 'Images' : 'Videos')}
+                    <em className="num">{k === 'all' ? boardMedia.length : boardMedia.filter((m) => m.kind === k).length}</em>
+                  </button>
+                ))}
+              </div>
+            </div>
             {shownMedia.length === 0 ? (
               <div className="studio-empty-page">
-                <Images size={22} />
-                <p>{t('Nothing here yet')}</p>
-                <span>{t('Generate in the Canvas or move images into this board.')}</span>
+                {gq ? <Search size={22} /> : <Images size={22} />}
+                <p>{gq ? t('No match for “{q}”', { q: galleryQuery.trim() }) : t('Nothing here yet')}</p>
+                <span>{gq ? t('Try a word from the prompt or the model name.') : t('Generate in the Canvas or move images into this board.')}</span>
               </div>
             ) : (
               shownMedia.map((m) => (
@@ -1107,6 +1210,9 @@ export function CreativeStudio({
             usePromptOf(m)
             setViewing(null)
           }}
+          onUpscale={hasUpscaler ? upscale : undefined}
+          onMakeVideo={options.some((o) => o.kind === 'video') ? makeVideoFrom : undefined}
+          onEdit={editInCanvas}
         />
       )}
     </main>

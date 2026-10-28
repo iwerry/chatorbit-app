@@ -1,5 +1,6 @@
 // Read-aloud: a downloaded Piper voice (natural, offline) or one of the system voices.
 import { api, type TtsChoice } from './api'
+import { routeAudio } from './audioDevices'
 
 let current: { stop: () => void } | null = null
 
@@ -71,7 +72,8 @@ export async function speak(text: string, choice: TtsChoice | null, lang: string
         finish = resolve
         audio = new Audio(url)
         audio.onended = audio.onerror = () => resolve()
-        audio.play().catch(() => resolve())
+        const a = audio
+        routeAudio(a).then(() => a.play().catch(() => resolve()))
       })
     }
     return

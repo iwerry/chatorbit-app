@@ -314,6 +314,7 @@ export const api = {
   messages: (conversationId: string): Promise<Message[]> => bridge.invoke('messages:list', conversationId),
   addMessage: (m: Partial<Message> & { attachments?: Attachment[] }): Promise<Message> => bridge.invoke('messages:add', m),
   deleteMessage: (id: string) => bridge.invoke('messages:delete', id),
+  updateMessage: (id: string, p: { content?: string }) => bridge.invoke('messages:update', id, p),
   bookmark: (id: string, value: boolean) => bridge.invoke('messages:bookmark', id, value),
   bookmarks: (): Promise<Message[]> => bridge.invoke('bookmarks:list'),
 
@@ -401,6 +402,7 @@ export const api = {
     endImage?: string
     jobId?: string
     board?: string
+    source?: string
   }): Promise<MediaItem> => bridge.invoke('local:generate', p),
   cancelLocalGenerate: (jobId?: string) => bridge.invoke('local:cancelGenerate', jobId),
   upscale: (p: { mediaId: string; modelId?: string; jobId?: string; board?: string }): Promise<MediaItem> => bridge.invoke('local:upscale', p),

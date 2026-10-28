@@ -53,3 +53,13 @@ Let the user download everything created in Creator Studio, not only skills:
 - [x] Harness: ZIP with HARNESS.md (allowed tools, skills, agents, context budget, compaction, web/memory policy, rules) + harness.json.
 - [x] "Download" button in each editor and after "Create with AI" finishes; "Download all" for the whole tab.
 - [x] Import of the same files back into Creator Studio (round trip).
+
+## Composer and Media Library (done in 0.1.28-5)
+Requested on 2026-10-28, inspired by open-higgsfield (wide-trace/open-higgsfield):
+- [x] Typewriter placeholder that teaches `/` and `@` from the user's own skills and agents; Tab to use.
+- [x] Command guide for the chosen skill/agent (commands, starters, usage) plus ghost completion; details panel in the / @ list.
+- [x] Effort slider (Instant → High), rotating hint line, animated popovers.
+- [x] Microphone and speaker pickers (OS devices, live hot-plug), live waveform recording bar.
+- [x] Chat · Image · Video in the composer: model, aspect, duration, resolution, enhance, count; runs via the Creative queue (`src/lib/creativeBus.ts`) and renders in the chat.
+- [x] Media Library as a full page with search, filters, upscale, make-video, edit; lightbox portaled to the window.
+- [ ] Audio toggle and MP4/MOV output (needs engine support / ffmpeg).

@@ -4,7 +4,7 @@ import { useSyncExternalStore } from 'react'
 
 export type ActivityArea = 'chats' | 'creative'
 export type ActivityKind = 'chat' | 'image' | 'video' | 'workflow' | 'upscale'
-export type Activity = { id: string; area: ActivityArea; kind: ActivityKind; label: string; progress?: number; started: number }
+export type Activity = { id: string; area: ActivityArea; kind: ActivityKind; label: string; progress?: number; started: number; /** Where it was asked from, when not its own area. */ from?: ActivityArea }
 export type ActivityDone = Activity & { ok: boolean; message?: string; ended: number }
 
 let items: Activity[] = []

@@ -1,7 +1,8 @@
 // Full-screen media viewer: big image or video, previous/next with the arrow keys or the film strip,
 // zoom with a click, slideshow, and the same actions as the library tiles.
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Copy, Download, ExternalLink, FileText, FolderOpen, Info, Pause, Play, Trash2, Wand2, X, ZoomIn, ZoomOut } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Brush, ChevronLeft, ChevronRight, Clapperboard, Copy, Download, ExternalLink, FileText, FolderOpen, Info, Maximize2, Pause, Play, Trash2, Wand2, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { api, type MediaItem } from '../lib/api'
 import { fmtDate, t } from '../lib/i18n'
 
@@ -12,6 +13,11 @@ type Props = {
   onClose: () => void
   onUsePrompt?: (m: MediaItem, negative?: string) => void
   onDeleted?: (m: MediaItem) => void
+  /** Image actions; each one shows only when the screen supports it. */
+  /** Return false when nothing was queued (for example, no model yet). */
+  onUpscale?: (m: MediaItem) => void | boolean
+  onMakeVideo?: (m: MediaItem) => void | boolean
+  onEdit?: (m: MediaItem) => void
 }
 
 const paramsOf = (m: MediaItem): Record<string, unknown> => {
@@ -22,17 +28,30 @@ const paramsOf = (m: MediaItem): Record<string, unknown> => {
   }
 }
 
-export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDeleted }: Props) {
+export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDeleted, onUpscale, onMakeVideo, onEdit }: Props) {
+  const [toast, setToast] = useState('')
   const [zoom, setZoom] = useState(false)
   const [info, setInfo] = useState(true)
   const [playing, setPlaying] = useState(false)
   const [copied, setCopied] = useState(false)
   const stripRef = useRef<HTMLDivElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
+  // Take keyboard focus from the chat box (so arrows and Esc work) and give it back on close.
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null
+    rootRef.current?.focus()
+    return () => prev?.focus?.()
+  }, [])
   const count = items.length
   const i = Math.min(Math.max(index, 0), Math.max(count - 1, 0))
   const m = items[i]
   const go = (d: number) => count && onIndex((i + d + count) % count)
 
+  useEffect(() => {
+    if (!toast) return
+    const tm = setTimeout(() => setToast(''), 3200)
+    return () => clearTimeout(tm)
+  }, [toast])
   useEffect(() => {
     setZoom(false)
     setCopied(false)
@@ -42,9 +61,12 @@ export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDelete
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        return onClose()
+      }
       if (el && typeof el.closest === 'function' && el.closest('input, textarea, select')) return
-      if (e.key === 'Escape') onClose()
-      else if (e.key === 'ArrowRight' || e.key === 'PageDown') go(1)
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') go(1)
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(-1)
       else if (e.key === 'Home') onIndex(0)
       else if (e.key === 'End') onIndex(count - 1)
@@ -70,8 +92,9 @@ export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDelete
   const negative = typeof p.negative === 'string' ? p.negative : ''
   const size = p.width && p.height ? `${p.width} × ${p.height}` : ''
 
-  return (
-    <div className="lightbox" role="dialog" aria-modal="true" aria-label={t('Viewer')} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
+  // Rendered on <body> so it covers the whole window even when opened from a side panel.
+  return createPortal(
+    <div ref={rootRef} tabIndex={-1} className="lightbox" role="dialog" aria-modal="true" aria-label={t('Viewer')} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <header className="lightbox-top">
         <span className="lightbox-count num">
           {i + 1} / {count}
@@ -192,6 +215,48 @@ export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDelete
               <dt>{t('Created')}</dt>
               <dd>{fmtDate(m.created_at)}</dd>
             </dl>
+            {m.kind === 'image' && (onMakeVideo || onUpscale || onEdit) && (
+              <div className="lightbox-create">
+                <p className="lightbox-label">{t('Create from this image')}</p>
+                {onMakeVideo && (
+                  <button
+                    onClick={() => {
+                      if (onMakeVideo(m) !== false)
+                        setToast(t('Video queued in Creative — it will show up here and in the library.'))
+                    }}
+                  >
+                    <Clapperboard size={14} />
+                    <span>
+                      <strong>{t('Make a video')}</strong>
+                      <small>{t('Animate this image with a video model')}</small>
+                    </span>
+                  </button>
+                )}
+                {onUpscale && (
+                  <button
+                    onClick={() => {
+                      if (onUpscale(m) !== false)
+                        setToast(t('Upscale queued in Creative — the sharper copy lands in the library.'))
+                    }}
+                  >
+                    <Maximize2 size={14} />
+                    <span>
+                      <strong>{t('Upscale 4×')}</strong>
+                      <small>{t('Sharper, larger copy for print and zoom')}</small>
+                    </span>
+                  </button>
+                )}
+                {onEdit && (
+                  <button onClick={() => onEdit(m)}>
+                    <Brush size={14} />
+                    <span>
+                      <strong>{t('Edit in Canvas')}</strong>
+                      <small>{t('Paint a mask and change part of it')}</small>
+                    </span>
+                  </button>
+                )}
+              </div>
+            )}
             {m.prompt && (
               <div className="lightbox-actions">
                 {onUsePrompt && (
@@ -224,6 +289,8 @@ export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDelete
           ))}
         </div>
       )}
-    </div>
+      {toast && <div className="lightbox-toast">{toast}</div>}
+    </div>,
+    document.body,
   )
 }

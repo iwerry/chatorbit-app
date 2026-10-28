@@ -1879,7 +1879,7 @@ html[data-theme='terminal'] {
   margin-top: 14px;
 }
 
-.hero-capabilities span {
+.hero-capabilities button {
   display: flex;
   align-items: center;
   gap: 5px;
@@ -1896,19 +1896,19 @@ html[data-theme='terminal'] {
   backdrop-filter: blur(12px);
 }
 
-.hero-capabilities span:nth-child(1) svg {
+.hero-capabilities button:nth-child(1) svg {
   color: var(--hero-node-one);
 }
 
-.hero-capabilities span:nth-child(2) svg {
+.hero-capabilities button:nth-child(2) svg {
   color: var(--hero-node-two);
 }
 
-.hero-capabilities span:nth-child(3) svg {
+.hero-capabilities button:nth-child(3) svg {
   color: var(--hero-node-three);
 }
 
-html[data-theme='terminal'] .hero-capabilities span {
+html[data-theme='terminal'] .hero-capabilities button {
   border-color: rgba(88, 242, 139, 0.15);
   background: rgba(4, 12, 7, 0.76);
   box-shadow: 0 0 12px rgba(88, 242, 139, 0.045);

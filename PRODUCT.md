@@ -35,7 +35,8 @@ Success: a professional opens Orbi instead of juggling separate chat, image, vid
 
 ## Capabilities and Constraints
 
-- Chat: local (llama.cpp) and cloud providers, web search, attachments, projects, memory, temporary chat (not saved), slash commands (`/web`, `/skill-creator`, `/agents`, `/multi-agents`, `/harness`, …) and `@` mentions for agents and teams.
+- Chat: local (llama.cpp) and cloud providers, web search, attachments, projects, memory, temporary chat (not saved), slash commands (`/web`, `/image`, `/video`, `/skill-creator`, `/agents`, `/multi-agents`, `/harness`, …) and `@` mentions for agents and teams. The message box teaches commands (typewriter examples, command guide, Tab completion), picks the microphone and speaker, and switches Chat · Image · Video. Renders asked in chat run in the Creative queue and show in the chat.
+- Media Library: full page with search, kind, origin and board filters, full-screen viewer, and follow-ups (make a video, upscale, edit, use prompt).
 - Creative: Launchpad ideas, Canvas (prompt, negative prompt, magic wand, size, quality, seed, mask inpainting), Workflows (ComfyUI-style typed nodes, templates, ComfyUI import), Gallery with boards, full-screen viewer.
 - Local engines: stable-diffusion.cpp (image and video), llama.cpp, whisper/sherpa-onnx (dictation, voices), optional Python voices. Each model shows license, size and fit for this PC.
 - Creator Studio with the SKILLSMITH brain: create, test, audit, export and import skills, agents, teams and harnesses.

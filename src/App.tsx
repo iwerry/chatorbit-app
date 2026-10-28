@@ -87,7 +87,32 @@ import type { TerminalHandle } from './components/TerminalPanel'
 const TerminalPanel = lazy(() => import('./components/TerminalPanel').then((m) => ({ default: m.TerminalPanel })))
 import { RunCodeContext } from './components/Markdown'
 import { ThemeSwitcher, type ThemeMode } from './components/ThemeSwitcher'
-import { recordWav } from './lib/voice'
+import { startRecording, type Recording } from './lib/voice'
+import { loadAudioPrefs, routeAudio } from './lib/audioDevices'
+import { creativeBus, decodeChatMedia, encodeChatMedia, type ChatMediaMeta } from './lib/creativeBus'
+import { creativeOptions, resolutionsFor } from './lib/creative'
+import { enhancePrompt } from './lib/promptTools'
+import { DEFAULT_NEGATIVE, IDEAS } from './lib/ideas'
+import {
+  AudioMenu,
+  ChatMediaCard,
+  CommandGuide,
+  CreateControls,
+  DEFAULT_CREATE,
+  EffortControl,
+  GhostText,
+  InputOverlay,
+  ModeSwitch,
+  RecordingBar,
+  RotatingHint,
+  TypewriterHint,
+  parseSubcommands,
+  type CommandInfo,
+  type ComposeMode,
+  type CreateSettings,
+  type EffortStop,
+  type Example,
+} from './components/ComposerKit'
 import { speak as speak_, stopSpeaking } from './lib/tts'
 import { activity, useActivities, type ActivityDone } from './lib/activity'
 
@@ -98,11 +123,15 @@ const CreativeStudio = lazy(() => import('./components/CreativeStudio').then((m)
 const UpdateCenter = lazy(() => import('./components/UpdateCenter').then((m) => ({ default: m.UpdateCenter })))
 const SetupWizard = lazy(() => import('./components/SetupWizard').then((m) => ({ default: m.SetupWizard })))
 const Explore = lazy(() => import('./components/Explore').then((m) => ({ default: m.Explore })))
+const MediaLibrary = lazy(() => import('./components/MediaLibrary').then((m) => ({ default: m.MediaLibrary })))
 
 type Suggest = { kind: 'skill' | 'command' | 'agent'; id: string; label: string; hint: string; insert: string }
 const SLASH_COMMANDS = [
   { id: 'web', hint: 'Search the web before answering' },
-  { id: 'image', hint: 'Open the Creative studio with this prompt' },
+  { id: 'image', hint: 'Make an image right here in the chat' },
+  { id: 'video', hint: 'Make a video right here in the chat' },
+  { id: 'creative', hint: 'Open the Creative studio' },
+  { id: 'media', hint: 'Open the Media Library' },
   { id: 'terminal', hint: 'Open the terminal' },
   { id: 'clear', hint: 'Start a new chat' },
   { id: 'skill-creator', hint: 'Create a skill with SKILLSMITH (describe it after the command)' },
@@ -196,7 +225,7 @@ export default function App() {
   const [voiceMode, setVoiceMode] = useState<VoiceMode | null>(null)
   const [voicePicker, setVoicePicker] = useState<false | 'auto' | 'menu'>(false)
   const [voiceOutFor, setVoiceOutFor] = useState<ChatMessage | null>(null)
-  const [recording, setRecording] = useState<null | { stop: () => Promise<string>; started: number }>(null)
+  const [recording, setRecording] = useState<null | { rec: Recording; started: number }>(null)
   const [transcribing, setTranscribing] = useState(false)
   const [speaking, setSpeaking] = useState<string | null>(null)
   const [suggestIdx, setSuggestIdx] = useState(0)
@@ -242,7 +271,40 @@ export default function App() {
   useEffect(() => {
     if (prefsReady) api.setSetting('chatPrefs', { agents: activeAgents, compare: additionalModels, mode: responseType, effort: reasoningEffort })
   }, [activeAgents, additionalModels, responseType, reasoningEffort, prefsReady])
-  const [responseMenuOpen, setResponseMenuOpen] = useState(false)
+  const effortStop: EffortStop = responseType === 'Instant' ? 'Instant' : reasoningEffort
+  const setEffortStop = (v: EffortStop) => {
+    if (v === 'Instant') setResponseType('Instant')
+    else {
+      setResponseType('Thinking')
+      setReasoningEffort(v)
+    }
+  }
+  // Chat · Image · Video in the same box.
+  const [composeMode, setComposeMode] = useState<ComposeMode>('chat')
+  const [createSet, setCreateSetState] = useState<CreateSettings>(DEFAULT_CREATE)
+  const setCreateSet = (f: (s: CreateSettings) => CreateSettings) =>
+    setCreateSetState((cur) => {
+      const next = f(cur)
+      api.setSetting('composerCreate', next)
+      return next
+    })
+  const [enhancing, setEnhancing] = useState(false)
+  const [guideHidden, setGuideHidden] = useState('')
+  const exampleRef = useRef<Example | null>(null)
+  const chatGen = useRef(new Map<string, { msgId: string; convId: string | null; meta: ChatMediaMeta }>())
+  useEffect(() => {
+    loadAudioPrefs()
+    api.getSetting<Partial<CreateSettings> | null>('composerCreate', null).then((v) => {
+      if (v)
+        setCreateSetState({
+          ...DEFAULT_CREATE,
+          ...v,
+          modelKey: { ...DEFAULT_CREATE.modelKey, ...(v.modelKey || {}) },
+          aspect: { ...DEFAULT_CREATE.aspect, ...(v.aspect || {}) },
+          res: { ...DEFAULT_CREATE.res, ...(v.res || {}) },
+        })
+    })
+  }, [])
   const [memoryEnabled, setMemoryEnabled] = useState(true)
 
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -283,7 +345,8 @@ export default function App() {
     () =>
       activity.onDone((a) => {
         // Only announce when the user is somewhere else.
-        if (activeNavRef.current !== a.area) setDoneToast(a)
+        // Renders asked from the chat already show their result in the chat.
+        if (activeNavRef.current !== a.area && !(a.from && activeNavRef.current === a.from)) setDoneToast(a)
       }),
     [],
   )
@@ -593,7 +656,9 @@ export default function App() {
     const atts = parseAttachments(m.attachments)
     const texts = atts.filter((a) => a.text).map((a) => `\n\n<file name="${a.name}">\n${a.text}\n</file>`)
     const images = atts.filter((a) => a.dataUrl && a.mime.startsWith('image/')).map((a) => a.dataUrl!)
-    return { role: m.role, content: m.content + texts.join(''), images: images.length ? images : undefined }
+    const gen = m.role === 'assistant' ? decodeChatMedia(m.content) : null
+    const content = gen ? `[${gen.mode === 'video' ? 'Video' : 'Image'} made in Orbi with ${gen.model}${gen.error ? ' (failed)' : ''}: "${gen.prompt}"]` : m.content
+    return { role: m.role, content: content + texts.join(''), images: images.length ? images : undefined }
   }
 
   const streamInto = async (target: ModelInfo, history: ChatMessage[], convId: string | null, extra?: { context: string; tool: ToolEvent }) => {
@@ -673,10 +738,15 @@ export default function App() {
         setMessage('')
         return openTerminal()
       }
-      if (name === 'image') {
+      if (name === 'image' || name === 'video') {
         setMessage('')
-        if (rest.trim()) await api.setSetting('studioPrompt', rest.trim())
-        return toggleNavigation('creative')
+        setComposeMode(name)
+        if (rest.trim()) return askRender({ mode: name, prompt: rest.trim() })
+        return textareaRef.current?.focus()
+      }
+      if (name === 'creative' || name === 'media') {
+        setMessage('')
+        return toggleNavigation(name)
       }
       const studioCmd: Record<string, StudioKind> = { 'skill-creator': 'skill', 'skills-creator': 'skill', skill: 'skill', 'agent-creator': 'agent', agents: 'agent', 'multi-agents': 'team', 'multi-agent': 'team', team: 'team', harness: 'harness', hardness: 'harness' }
       if (studioCmd[name]) {
@@ -828,27 +898,34 @@ export default function App() {
   }
 
   // ---------- voice ----------
-  const startVoice = async (mode = voiceMode) => {
-    if (recording) {
-      const rec = recording
-      setRecording(null)
-      setTranscribing(true)
-      try {
-        const wav = await rec.stop()
-        const text = await api.transcribe({ wav, mode: mode!, language: lang.slice(0, 2) })
-        if (text.trim()) setMessage((m) => (m ? m.replace(/\s*$/, ' ') : '') + text.trim())
-        textareaRef.current?.focus()
-      } catch (e) {
-        setNotice(cleanError(e))
-      } finally {
-        setTranscribing(false)
-      }
-      return
+  const finishVoice = async (send: boolean) => {
+    const r = recording
+    if (!r) return
+    setRecording(null)
+    setTranscribing(true)
+    try {
+      const wav = await r.rec.stop()
+      const text = (await api.transcribe({ wav, mode: voiceMode!, language: lang.slice(0, 2) })).trim()
+      const full = (message ? message.replace(/\s*$/, ' ') : '') + text
+      if (send && full.trim()) submitComposer(full)
+      else if (text) setMessage(full)
+      textareaRef.current?.focus()
+    } catch (e) {
+      setNotice(cleanError(e))
+    } finally {
+      setTranscribing(false)
     }
+  }
+  const cancelVoice = () => {
+    recording?.rec.cancel()
+    setRecording(null)
+  }
+  const startVoice = async (mode = voiceMode) => {
+    if (recording) return finishVoice(false)
     if (!mode) return setVoicePicker('auto')
     try {
-      const stopFn = await recordWav()
-      setRecording({ stop: stopFn, started: Date.now() })
+      const rec = await startRecording()
+      setRecording({ rec, started: Date.now() })
     } catch (e) {
       setNotice(`${t('Microphone unavailable')}: ${cleanError(e)}`)
     }
@@ -889,7 +966,159 @@ export default function App() {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    sendMessage(message)
+    submitComposer(message)
+  }
+
+  // ---------- images and videos made from the chat ----------
+  const creativeOpts = useMemo(() => creativeOptions(localStatus, models), [localStatus, models])
+  const submitComposer = (text: string) => {
+    if (composeMode === 'chat' || /^\s*\//.test(text)) return sendMessage(text)
+    return askRender({ mode: composeMode, prompt: text.trim() })
+  }
+  const askRender = async (req: { mode: 'image' | 'video' | 'upscale'; prompt: string; initMediaId?: string; userText?: string }) => {
+    const img = !req.initMediaId ? attachments.find((a) => a.dataUrl && a.mime.startsWith('image/')) : undefined
+    if (!req.prompt && !img && !req.initMediaId) return textareaRef.current?.focus()
+    const kind = req.mode === 'upscale' ? 'image' : req.mode
+    const list = creativeOpts.filter((o) => o.kind === kind)
+    const o = list.find((x) => x.key === createSet.modelKey[kind]) ?? list[0]
+    if (req.mode !== 'upscale' && !o) {
+      setNotice(req.mode === 'video' ? t('No video model is installed yet — open Models to download one.') : t('No image model is installed yet — open Models to download one.'))
+      setSettingsOpen('models')
+      return
+    }
+    let convId = conversationId
+    const userContent = req.userText ?? req.prompt
+    if (!convId && !temporaryChat) {
+      const title = userContent.length > 40 ? userContent.slice(0, 40) + '…' : userContent || t('New image')
+      const conv = await api.createConversation({ title, project_id: activeProjectId, model: currentModel?.key ?? '' })
+      convId = conv.id
+      setConversationId(conv.id)
+    }
+    if (temporaryChat) convId = null
+    const reqId = uid()
+    const count = req.mode === 'image' ? createSet.count : 1
+    const aspect = req.mode === 'upscale' ? undefined : createSet.aspect[kind]
+    const meta: ChatMediaMeta = { req: reqId, mode: req.mode, model: req.mode === 'upscale' ? 'Real-ESRGAN 4×' : o!.label, prompt: req.prompt, ids: [], count, aspect }
+    const userMsg: ChatMessage = { id: uid(), conversation_id: convId ?? 'temp', role: 'user', content: userContent, model: '', attachments: img ? [img] : [], bookmarked: 0, created_at: Date.now() }
+    const botMsg: ChatMessage = { id: uid(), conversation_id: convId ?? 'temp', role: 'assistant', content: encodeChatMedia(meta), model: meta.model, attachments: [], bookmarked: 0, created_at: Date.now() + 1 }
+    setMessages((cur) => [...cur, userMsg, botMsg])
+    setMessage('')
+    setAttachments([])
+    if (convId) {
+      await api.addMessage({ ...userMsg, attachments: img ? [img] : [] })
+      await api.addMessage({ ...botMsg, attachments: [] })
+    }
+    chatGen.current.set(reqId, { msgId: botMsg.id, convId, meta })
+    setCreativeMounted(true)
+    const res = req.mode === 'upscale' ? undefined : createSet.res[kind] || resolutionsFor(o, kind)[Math.min(1, resolutionsFor(o, kind).length - 1)]
+    creativeBus.request({
+      id: reqId,
+      mode: req.mode,
+      prompt: req.prompt,
+      negative: req.mode === 'upscale' ? undefined : DEFAULT_NEGATIVE[kind],
+      modelKey: o?.key,
+      aspect,
+      res,
+      duration: createSet.duration,
+      count,
+      initMediaId: req.initMediaId,
+      initDataUrl: img?.dataUrl,
+      source: 'chat',
+    })
+    if (convId) refreshLists()
+  }
+  // When a render asked from the chat finishes, store which files it made in the message.
+  useEffect(
+    () =>
+      creativeBus.subscribe((u) => {
+        const g = chatGen.current.get(u.id)
+        if (!g || (u.status !== 'done' && u.status !== 'error')) return
+        chatGen.current.delete(u.id)
+        const meta: ChatMediaMeta = { ...g.meta, ids: (u.media ?? []).map((m) => m.id), error: u.status === 'error' ? u.error || t('The render failed.') : undefined }
+        const content = encodeChatMedia(meta)
+        setMessages((cur) => cur.map((m) => (m.id === g.msgId ? { ...m, content } : m)))
+        if (g.convId) api.updateMessage(g.msgId, { content })
+        if (u.media?.length) setMedia((cur) => [...u.media!.filter((x) => !cur.some((c) => c.id === x.id)), ...cur])
+      }),
+    [],
+  )
+  const enhanceComposer = async () => {
+    if (enhancing) return
+    const kind = composeMode === 'video' ? 'video' : 'image'
+    setEnhancing(true)
+    try {
+      const r = await enhancePrompt(models, { prompt: message.trim() || IDEAS.filter((x) => x.mode === kind)[Math.floor(Math.random() * 8)]?.prompt || '', negative: '', mode: kind })
+      if (r?.prompt) setMessage(r.prompt)
+    } catch (e) {
+      setNotice(cleanError(e))
+    } finally {
+      setEnhancing(false)
+    }
+  }
+
+  // ---------- teaching the commands ----------
+  const examples: Example[] = useMemo(() => {
+    const quote = (x: string) => `"${x}"`
+    if (composeMode !== 'chat') {
+      const ideas = IDEAS.filter((x) => x.mode === composeMode).slice(0, 4)
+      return [
+        { parts: [{ text: composeMode === 'video' ? t('Describe the shot — subject, camera move, light, pacing…') : t('Describe the image — subject, style, light, lens…') }], insert: '', note: '' },
+        ...ideas.map((x) => {
+          const short = x.prompt.length > 90 ? x.prompt.slice(0, 88).replace(/[,\s]+\S*$/, '') + '…' : x.prompt
+          return { parts: [{ text: short, kind: 'arg' as const }], insert: x.prompt, note: t('to use this idea') }
+        }),
+      ]
+    }
+    const list: Example[] = [{ parts: [{ text: t('Ask anything…') }], insert: '', note: '' }]
+    const book = t('a senior book-writing specialist')
+    list.push({ parts: [{ text: '/skill-creator ', kind: 'cmd' }, { text: quote(book), kind: 'arg' }], insert: `/skill-creator ${quote(book)}`, note: t('to try this') })
+    const ag = agents.find((a) => /design|creative/i.test(a.handle)) ?? agents[0]
+    if (ag) {
+      const st = parseJSON<string[]>(ag.starters, [])[0] || t('a launch concept for a coffee brand')
+      const sub = parseSubcommands(ag.instructions, ag.handle)[0]
+      list.push({ parts: [{ text: `${ag.handle} `, kind: 'agent' }, ...(sub ? [{ text: `${sub.cmd} `, kind: 'cmd' as const }] : []), { text: quote(st), kind: 'arg' }], insert: `${ag.handle} ${sub ? sub.cmd + ' ' : ''}${quote(st)}`, note: t('to try this') })
+    }
+    const img = t('a neon city at dawn, cinematic light')
+    list.push({ parts: [{ text: '/image ', kind: 'cmd' }, { text: img, kind: 'arg' }], insert: `/image ${img}`, note: t('to make it here') })
+    const sk = skills.find((k) => k.enabled && slug(k.name) !== 'skill-creator') ?? skills[0]
+    if (sk) {
+      const ask = sk.tests?.positive?.[0] || t('help me with this')
+      list.push({ parts: [{ text: `/${slug(sk.name)} `, kind: 'cmd' }, { text: quote(ask.length > 70 ? ask.slice(0, 68) + '…' : ask), kind: 'arg' }], insert: `/${slug(sk.name)} ${quote(ask)}`, note: t('to try this') })
+    }
+    const web = t('what changed in local AI this week?')
+    list.push({ parts: [{ text: '/web ', kind: 'cmd' }, { text: web, kind: 'arg' }], insert: `/web ${web}`, note: t('to try this') })
+    const team = teams[0]
+    if (team) list.push({ parts: [{ text: `${team.handle} `, kind: 'agent' }, { text: quote(t('review this plan from every angle')), kind: 'arg' }], insert: `${team.handle} ${quote(t('review this plan from every angle'))}`, note: t('to try this') })
+    const vid = t('slow drone shot over a misty pine forest')
+    list.push({ parts: [{ text: '/video ', kind: 'cmd' }, { text: vid, kind: 'arg' }], insert: `/video ${vid}`, note: t('to make it here') })
+    return list
+  }, [composeMode, agents, skills, teams, lang])
+
+  const infoFor = (tok: string): CommandInfo | null => {
+    const what = t('what you need')
+    if (tok.startsWith('@')) {
+      const a = agents.find((x) => x.handle.toLowerCase() === tok.toLowerCase())
+      if (a) {
+        const subs = parseSubcommands(a.instructions, a.handle)
+        const mdl = a.model ? models.find((m) => m.key === a.model)?.name : ''
+        return { kind: 'agent', token: a.handle, name: a.name, description: a.description || a.instructions.split('\n')[0].slice(0, 160), usage: `${a.handle} ${subs.length ? '<command> ' : ''}"${what}"`, meta: [a.category, mdl].filter(Boolean).join(' · '), subcommands: subs, starters: parseJSON<string[]>(a.starters, []) }
+      }
+      const tm = teams.find((x) => x.handle.toLowerCase() === tok.toLowerCase())
+      if (tm) return { kind: 'team', token: tm.handle, name: tm.name, description: tm.description, usage: `${tm.handle} "${what}"`, meta: `${t('Team')} · ${t(tm.mode)}`, subcommands: [], starters: [] }
+      return null
+    }
+    const name = tok.slice(1).toLowerCase()
+    const c = SLASH_COMMANDS.find((x) => x.id === name)
+    if (c) {
+      const usage: Record<string, string> = { image: `/image ${t('subject, style, light, lens')}`, video: `/video ${t('subject, camera move, light, pacing')}`, web: `/web ${t('your question')}`, clear: '/clear', terminal: '/terminal', creative: '/creative', media: '/media' }
+      return { kind: 'command', token: `/${c.id}`, name: t(c.hint), description: '', usage: usage[c.id] ?? `/${c.id} "${t('describe it')}"`, subcommands: [], starters: [] }
+    }
+    const k = skills.find((x) => slug(x.name) === name)
+    if (k) {
+      const subs = parseSubcommands(k.instructions, `/${slug(k.name)}`)
+      return { kind: 'skill', token: `/${slug(k.name)}`, name: k.name, description: k.description, usage: `/${slug(k.name)} ${subs.length ? '<command> ' : ''}"${what}"`, meta: [k.meta?.version && `v${k.meta.version}`, k.meta?.author, !k.enabled && t('turns on when used')].filter(Boolean).join(' · '), subcommands: subs, starters: k.tests?.positive?.slice(0, 3) ?? [] }
+    }
+    return null
   }
 
   const openConversation = async (id: string) => {
@@ -1146,6 +1375,25 @@ export default function App() {
     textareaRef.current?.focus()
   }
 
+  const tokMatch = message.match(/^\s*([/@][\w.-]+)(\s+)([\s\S]*)$/)
+  const cmdInfo = tokMatch && guideHidden !== tokMatch[1] && !suggestList.length ? infoFor(tokMatch[1]) : null
+  const ghostSub = cmdInfo?.subcommands[0]
+  const ghost =
+    cmdInfo && tokMatch && !tokMatch[3] && !message.includes('\n')
+      ? ghostSub
+        ? { show: `${ghostSub.cmd} "${t('what you need')}"`, insert: `${ghostSub.cmd} ` }
+        : cmdInfo.starters[0]
+          ? { show: `"${cmdInfo.starters[0]}"`, insert: `"${cmdInfo.starters[0]}"` }
+          : { show: cmdInfo.kind === 'command' ? cmdInfo.usage.replace(/^\S+\s*/, '') : `"${t('what you need')}"`, insert: '' }
+      : null
+  const previewInfo = suggestList.length ? infoFor(suggestList[suggestIdx % suggestList.length].label) : null
+  const hintLines =
+    composeMode !== 'chat'
+      ? [t('[Enter] to generate'), t('Saved to the Media Library'), t('[Shift]+[Enter] new line')]
+      : message
+        ? [t('[Enter] to send · [Shift]+[Enter] new line')]
+        : [t('[/] commands and skills · [@] agents'), t('[Tab] uses the example'), t('Switch to Image or Video to create here')]
+
   const lastAssistantIdx = messages.map((m) => m.role).lastIndexOf('assistant')
   const conversationSources = messages.flatMap((m) => parseAttachments(m.attachments))
 
@@ -1309,7 +1557,7 @@ export default function App() {
             models={models}
             localStatus={localStatus}
             onOpenModels={() => setSettingsOpen('models')}
-            onMediaCreated={(m) => setMedia((cur) => [m, ...cur])}
+            onMediaCreated={(m) => setMedia((cur) => (cur.some((x) => x.id === m.id) ? cur : [m, ...cur]))}
           />
         </Suspense>
       )}
@@ -1332,7 +1580,23 @@ export default function App() {
             onChatWith={chatWithAgent}
           />
         </Suspense>
-      ) : activeNav === 'creative' ? null : activeNav === 'explore' ? (
+      ) : activeNav === 'creative' ? null : activeNav === 'media' ? (
+        <Suspense fallback={<main className="view-loading" />}>
+          <MediaLibrary
+            media={media}
+            localStatus={localStatus}
+            onRefresh={refreshLists}
+            onBack={() => {
+              setActiveNav('chats')
+              setPanelOpen(false)
+            }}
+            onOpenCreative={() => toggleNavigation('creative')}
+            onOpenModels={() => setSettingsOpen('models')}
+            themeMode={themeMode}
+            setThemeMode={setThemeMode}
+          />
+        </Suspense>
+      ) : activeNav === 'explore' ? (
         <Suspense fallback={<main className="view-loading" />}>
           <Explore
             onBack={() => {
@@ -1640,18 +1904,25 @@ export default function App() {
                       <h2>{themeMode === 'terminal' ? t('System ready, {name}.', { name: userName }) : `${t(greeting())}, ${userName}.`}</h2>
                       <p>{themeMode === 'terminal' ? t('Initialize a multimodal workflow.') : t('Chat, search the web, and direct images and video — on your PC or in the cloud.')}</p>
                       <div className="hero-capabilities">
-                        <span>
+                        <button type="button" className={composeMode === 'video' ? 'on' : ''} onClick={() => (setComposeMode('video'), textareaRef.current?.focus())}>
                           <Video size={12} />
                           {t('Video')}
-                        </span>
-                        <span>
+                        </button>
+                        <button type="button" className={composeMode === 'image' ? 'on' : ''} onClick={() => (setComposeMode('image'), textareaRef.current?.focus())}>
                           <ImageIcon size={12} />
                           {t('Image')}
-                        </span>
-                        <span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setComposeMode('chat')
+                            setMessage(t('Write a short story about '))
+                            textareaRef.current?.focus()
+                          }}
+                        >
                           <FileText size={12} />
                           {t('Story')}
-                        </span>
+                        </button>
                       </div>
                     </div>
                   )
@@ -1664,6 +1935,7 @@ export default function App() {
                 <div className="mt-8 space-y-7">
                   {messages.map((item, idx) => {
                     const atts = parseAttachments(item.attachments)
+                    const gen = item.role === 'assistant' ? decodeChatMedia(item.content) : null
                     return (
                       <div key={item.id} className={`message-row ${item.role === 'user' ? 'message-row-user' : ''}`}>
                         {item.role === 'assistant' && (
@@ -1733,7 +2005,23 @@ export default function App() {
                               })}
                             </div>
                           )}
-                          {(item.content || item.role === 'user') && (
+                          {gen ? (
+                            <ChatMediaCard
+                              meta={gen}
+                              media={media}
+                              onOpenCreative={() => toggleNavigation('creative')}
+                              onRetry={() => askRender({ mode: gen.mode, prompt: gen.prompt })}
+                              onUsePrompt={(m) => {
+                                setComposeMode(m.kind === 'video' ? 'video' : 'image')
+                                setMessage(m.prompt || gen.prompt)
+                                textareaRef.current?.focus()
+                              }}
+                              onDeleted={(m) => setMedia((cur) => cur.filter((x) => x.id !== m.id))}
+                              onAsk={({ mode, item: m }) =>
+                                askRender({ mode, prompt: m.prompt || gen.prompt, initMediaId: m.id, userText: mode === 'video' ? t('Make a video from this image') : t('Upscale this image 4×') })
+                              }
+                            />
+                          ) : (item.content || item.role === 'user') && (
                             <div className={`message-bubble message-${item.role} ${item.error ? 'message-error' : ''}`}>
                               {item.role === 'assistant' && !item.error ? <Markdown text={item.content} /> : <span className="whitespace-pre-wrap">{item.content}</span>}
                               {item.streaming && <span className="stream-caret" />}
@@ -1750,7 +2038,7 @@ export default function App() {
                             <div className="message-meta">
                               <span>{timeOf(item.created_at)}</span>
                               {item.role === 'user' && <Check size={12} />}
-                              {item.role === 'assistant' && !item.error && (
+                              {item.role === 'assistant' && !item.error && !gen && (
                                 <>
                                   <button title={t('Copy')} onClick={() => navigator.clipboard.writeText(item.content)}>
                                     <Copy size={12} />
@@ -1827,13 +2115,14 @@ export default function App() {
                   ))}
                 </div>
               )}
-              <form className={`composer ${temporaryChat ? 'composer-temporary' : emptyLanding ? 'composer-welcome' : ''}`} onSubmit={handleSubmit}>
+              <form className={`composer composer-mode-${composeMode} ${temporaryChat ? 'composer-temporary' : emptyLanding ? 'composer-welcome' : ''} ${recording ? 'composer-recording' : ''}`} onSubmit={handleSubmit}>
                 {attachments.length > 0 && (
                   <div className="composer-attachments">
                     {attachments.map((a, i) => (
                       <span key={i} className="attachment-chip">
                         {a.dataUrl && a.mime.startsWith('image/') ? <img src={a.dataUrl} alt="" /> : <FileText size={13} />}
                         {a.name}
+                        {composeMode !== 'chat' && a.mime.startsWith('image/') && i === attachments.findIndex((x) => x.mime.startsWith('image/')) && <em className="attachment-role">{composeMode === 'video' ? t('start frame') : t('base image')}</em>}
                         <button type="button" onClick={() => setAttachments((cur) => cur.filter((_, j) => j !== i))} aria-label={`Remove ${a.name}`}>
                           <X size={11} />
                         </button>
@@ -1842,167 +2131,225 @@ export default function App() {
                   </div>
                 )}
                 {suggestList.length > 0 && (
-                  <div className="composer-suggest" role="listbox" aria-label={t('Suggestions')}>
-                    {suggestList.map((x, i) => (
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={i === suggestIdx % suggestList.length}
-                        key={x.kind + x.id}
-                        className={i === suggestIdx % suggestList.length ? 'active' : ''}
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                          applySuggest(x)
-                        }}
-                      >
-                        {x.kind === 'agent' ? <Bot size={13} /> : x.kind === 'skill' ? <Blocks size={13} /> : <Sparkles size={13} />}
-                        <strong>{x.label}</strong>
-                        <span>{x.hint}</span>
-                      </button>
-                    ))}
+                  <div className={`composer-suggest ${previewInfo ? 'has-preview' : ''}`} role="listbox" aria-label={t('Suggestions')}>
+                    <div className="suggest-list">
+                      {suggestList.map((x, i) => (
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={i === suggestIdx % suggestList.length}
+                          key={x.kind + x.id}
+                          className={i === suggestIdx % suggestList.length ? 'active' : ''}
+                          onMouseEnter={() => setSuggestIdx(i)}
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            applySuggest(x)
+                          }}
+                        >
+                          {x.kind === 'agent' ? <Bot size={13} /> : x.kind === 'skill' ? <Blocks size={13} /> : <Sparkles size={13} />}
+                          <strong>{x.label}</strong>
+                          <span>{x.hint}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {previewInfo && (
+                      <aside className="suggest-preview" key={previewInfo.token}>
+                        <p className="suggest-preview-kind">{t(previewInfo.kind === 'skill' ? 'Skill' : previewInfo.kind === 'agent' ? 'Agent' : previewInfo.kind === 'team' ? 'Team' : 'Command')}</p>
+                        <strong>{previewInfo.name}</strong>
+                        {previewInfo.description && <p>{previewInfo.description}</p>}
+                        <code>{previewInfo.usage}</code>
+                        {previewInfo.subcommands.length > 0 && (
+                          <ul>
+                            {previewInfo.subcommands.slice(0, 4).map((c) => (
+                              <li key={c.cmd}>
+                                <b>{c.cmd}</b> {c.desc}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {previewInfo.meta && <small>{previewInfo.meta}</small>}
+                        <span className="suggest-preview-keys">
+                          <kbd>↑</kbd>
+                          <kbd>↓</kbd> {t('choose')} · <kbd>Tab</kbd> {t('insert')}
+                        </span>
+                      </aside>
+                    )}
                   </div>
                 )}
-                <textarea
-                  ref={textareaRef}
-                  rows={1}
-                  value={message}
-                  onChange={(e) => {
-                    setMessage(e.target.value)
-                    setSuggestClosed(false)
-                    setSuggestIdx(0)
-                  }}
-                  onPaste={(e) => {
-                    const files = Array.from(e.clipboardData.files)
-                    if (files.length) {
-                      e.preventDefault()
-                      addFiles(files)
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (suggestList.length) {
-                      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                        e.preventDefault()
-                        setSuggestIdx((i) => (i + (e.key === 'ArrowDown' ? 1 : suggestList.length - 1)) % suggestList.length)
-                        return
-                      }
-                      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
-                        e.preventDefault()
-                        applySuggest(suggestList[suggestIdx % suggestList.length])
-                        return
-                      }
-                      if (e.key === 'Escape') {
-                        e.preventDefault()
-                        setSuggestClosed(true)
-                        return
-                      }
-                    }
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      sendMessage(message)
-                    }
-                  }}
-                  placeholder={recording ? t('Listening… click the mic again to stop') : transcribing ? t('Transcribing…') : temporaryChat ? t('Type a temporary message...') : themeMode === 'terminal' ? '> ' + t('Enter a prompt...') : t('Ask anything — / for skills, @ for agents')}
-                  aria-label={t('Message')}
-                />
-                <div className="mt-2 flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <button type="button" className="composer-tool" aria-label={t('Attach file')} title={t('Attach files or images')} onClick={() => fileInput.current?.click()}>
-                      <Paperclip size={18} />
-                    </button>
-                    <button
-                      type="button"
-                      className={`composer-tool composer-web ${webOn ? 'composer-tool-on' : ''}`}
-                      aria-pressed={webOn}
-                      title={webOn ? t('Web search on — every message searches the web first') : t('Search the web (works with any model)')}
-                      onClick={toggleWeb}
-                    >
-                      <Globe size={17} />
-                      {webOn && <span>{t('Web')}</span>}
-                    </button>
-                  </div>
-                  <input
-                    ref={fileInput}
-                    type="file"
-                    multiple
-                    hidden
-                    onChange={(e) => {
-                      if (e.target.files) addFiles(e.target.files)
-                      e.target.value = ''
+                {cmdInfo && !recording && (
+                  <CommandGuide
+                    info={cmdInfo}
+                    onClose={() => setGuideHidden(cmdInfo.token)}
+                    onInsert={(text) => {
+                      setMessage((cur) => cur.replace(/\s*$/, ' ') + text)
+                      textareaRef.current?.focus()
                     }}
                   />
-                  <div className="composer-conversation-controls">
-                    <span className="hidden text-[11px] text-[color:var(--neo-faint)] sm:block">{additionalModels.length ? t('{n} models', { n: additionalModels.length + 1 }) : t('Press Enter to send')}</span>
-                    <div className="response-mode-control">
-                      <button type="button" className={`response-mode-trigger ${responseMenuOpen ? 'response-mode-trigger-active' : ''}`} onClick={() => setResponseMenuOpen((v) => !v)} aria-expanded={responseMenuOpen}>
-                        <span>{responseType === 'Thinking' ? `${t('Thinking')} · ${t(reasoningEffort)}` : t('Instant')}</span>
-                        <ChevronDown size={12} />
-                      </button>
-                      {responseMenuOpen && (
-                        <>
-                          <button type="button" className="response-menu-backdrop" onClick={() => setResponseMenuOpen(false)} aria-label={t('Close')} />
-                          <div className="response-mode-menu">
-                            <div className="response-menu-heading">
-                              <div>
-                                <strong>{t('Response behavior')}</strong>
-                                <small>{t('Configured for {model}', { model: currentModel?.name ?? t('your model') })}</small>
-                              </div>
-                              <CircleHelp size={14} />
-                            </div>
-                            <p className="response-control-label">{t('Mode')}</p>
-                            <div className="response-type-options">
-                              {(['Instant', 'Thinking'] as ResponseType[]).map((mode) => (
-                                <button type="button" key={mode} className={`response-type-option ${responseType === mode ? 'response-type-option-active' : ''}`} onClick={() => setResponseType(mode)}>
-                                  {t(mode)}
-                                </button>
-                              ))}
-                            </div>
-                            {responseType === 'Thinking' && (
-                              <div className="effort-control">
-                                <div className="effort-heading">
-                                  <span>{t('Thinking effort')}</span>
-                                  <strong>{t(reasoningEffort)}</strong>
-                                </div>
-                                <div className="effort-scale">
-                                  {(['Fast', 'Medium', 'High'] as ReasoningEffort[]).map((effort) => (
-                                    <button type="button" key={effort} className={reasoningEffort === effort ? 'effort-option-active' : ''} onClick={() => setReasoningEffort(effort)}>
-                                      <span />
-                                      {t(effort)}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            <p className="response-model-note">{t('Thinking uses extended reasoning on models that support it.')}</p>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    {!recording && !transcribing && (
-                      <button type="button" className="microphone-menu" onClick={() => setVoicePicker('menu')} aria-label={t('Voice input settings')} title={t('Voice input settings')}>
-                        <ChevronDown size={12} />
-                      </button>
+                )}
+                {recording ? (
+                  <RecordingBar rec={recording.rec} started={recording.started} onCancel={cancelVoice} onStop={() => finishVoice(false)} onSend={() => finishVoice(true)} />
+                ) : (
+                  <div className="composer-input">
+                    <textarea
+                      ref={textareaRef}
+                      rows={1}
+                      value={message}
+                      onChange={(e) => {
+                        setMessage(e.target.value)
+                        setSuggestClosed(false)
+                        setSuggestIdx(0)
+                      }}
+                      onPaste={(e) => {
+                        const files = Array.from(e.clipboardData.files)
+                        if (files.length) {
+                          e.preventDefault()
+                          addFiles(files)
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (suggestList.length) {
+                          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                            e.preventDefault()
+                            setSuggestIdx((i) => (i + (e.key === 'ArrowDown' ? 1 : suggestList.length - 1)) % suggestList.length)
+                            return
+                          }
+                          if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+                            e.preventDefault()
+                            applySuggest(suggestList[suggestIdx % suggestList.length])
+                            return
+                          }
+                          if (e.key === 'Escape') {
+                            e.preventDefault()
+                            setSuggestClosed(true)
+                            return
+                          }
+                        }
+                        if (e.key === 'Tab' && !e.shiftKey) {
+                          if (!message && exampleRef.current?.insert) {
+                            e.preventDefault()
+                            setMessage(exampleRef.current.insert)
+                            return
+                          }
+                          if (ghost?.insert) {
+                            e.preventDefault()
+                            setMessage((cur) => cur + ghost.insert)
+                            return
+                          }
+                        }
+                        if (e.key === 'Escape' && cmdInfo) {
+                          setGuideHidden(cmdInfo.token)
+                          return
+                        }
+                        if (e.key === 'Enter' && (!e.shiftKey || e.ctrlKey || e.metaKey)) {
+                          e.preventDefault()
+                          submitComposer(message)
+                        }
+                      }}
+                      placeholder={transcribing ? t('Transcribing…') : ''}
+                      aria-label={composeMode === 'chat' ? t('Message') : composeMode === 'video' ? t('Describe the video') : t('Describe the image')}
+                    />
+                    {!message && !transcribing && (
+                      <InputOverlay area={textareaRef} className={themeMode === 'terminal' ? 'overlay-terminal' : ''}>
+                        <TypewriterHint key={`${composeMode}-${lang}`} examples={temporaryChat && composeMode === 'chat' ? [{ parts: [{ text: t('Type a temporary message...') }], insert: '', note: '' }, ...examples.slice(1)] : examples} onCurrent={(x) => (exampleRef.current = x)} />
+                      </InputOverlay>
                     )}
-                    <button
-                      type="button"
-                      className={`microphone-button ${recording ? 'microphone-recording' : ''}`}
-                      onClick={() => startVoice()}
-                      disabled={transcribing}
-                      aria-label={recording ? t('Stop recording') : t('Start voice input')}
-                      title={recording ? t('Stop recording') : voiceMode ? t('Voice input') : t('Set up voice input')}
-                    >
-                      {transcribing ? <Loader2 size={17} className="animate-spin" /> : recording ? <Square size={13} fill="currentColor" /> : <Mic size={18} />}
-                    </button>
-                    {isStreaming ? (
-                      <button className="send-button send-button-stop" type="button" onClick={stop} aria-label={t('Stop generating')} title={t('Stop')}>
-                        <Square size={14} fill="currentColor" />
-                      </button>
-                    ) : (
-                      <button className="send-button" type="submit" disabled={!message.trim() && !attachments.length} aria-label={t('Send message')}>
-                        <ArrowUp size={18} strokeWidth={2.4} />
-                      </button>
+                    {ghost && (
+                      <InputOverlay area={textareaRef}>
+                        <GhostText value={message} ghost={ghost.show} />
+                        {ghost.insert && <kbd className="ghost-tab">Tab</kbd>}
+                      </InputOverlay>
                     )}
                   </div>
-                </div>
+                )}
+                {!recording && composeMode !== 'chat' && (
+                  <CreateControls
+                    mode={composeMode}
+                    options={creativeOpts}
+                    settings={createSet}
+                    setSettings={setCreateSet}
+                    resolutions={resolutionsFor(creativeOpts.find((o) => o.kind === composeMode && o.key === createSet.modelKey[composeMode]) ?? creativeOpts.find((o) => o.kind === composeMode), composeMode)}
+                    onOpenModels={() => setSettingsOpen('models')}
+                    enhancing={enhancing}
+                    onEnhance={enhanceComposer}
+                  />
+                )}
+                {!recording && (
+                  <div className="composer-row">
+                    <div className="flex items-center gap-1">
+                      <button type="button" className="composer-tool" aria-label={t('Attach file')} title={composeMode === 'chat' ? t('Attach files or images') : composeMode === 'video' ? t('Add a start image') : t('Add a base image')} onClick={() => fileInput.current?.click()}>
+                        {composeMode === 'chat' ? <Paperclip size={18} /> : <Plus size={18} />}
+                      </button>
+                      <ModeSwitch
+                        mode={composeMode}
+                        onMode={(m) => {
+                          setComposeMode(m)
+                          textareaRef.current?.focus()
+                        }}
+                      />
+                      {composeMode === 'chat' && (
+                        <button
+                          type="button"
+                          className={`composer-tool composer-web ${webOn ? 'composer-tool-on' : ''}`}
+                          aria-pressed={webOn}
+                          title={webOn ? t('Web search on — every message searches the web first') : t('Search the web (works with any model)')}
+                          onClick={toggleWeb}
+                        >
+                          <Globe size={17} />
+                          {webOn && <span>{t('Web')}</span>}
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      ref={fileInput}
+                      type="file"
+                      multiple={composeMode === 'chat'}
+                      accept={composeMode === 'chat' ? undefined : 'image/*'}
+                      hidden
+                      onChange={(e) => {
+                        if (e.target.files) addFiles(e.target.files)
+                        e.target.value = ''
+                      }}
+                    />
+                    <div className="composer-conversation-controls">
+                      <span className="composer-hint hidden sm:block">{additionalModels.length && composeMode === 'chat' ? t('{n} models', { n: additionalModels.length + 1 }) : <RotatingHint lines={hintLines} />}</span>
+                      {composeMode === 'chat' && <EffortControl value={effortStop} onChange={setEffortStop} model={currentModel?.name} />}
+                      {!transcribing && (
+                        <AudioMenu
+                          onVoiceSettings={() => setVoicePicker('menu')}
+                          onTest={async () => {
+                            const choice = await api.getSetting<TtsChoice | null>('ttsVoice', null)
+                            speak_(t('This is how Orbi sounds on this speaker.'), choice, lang).catch((e) => setNotice(cleanError(e)))
+                          }}
+                        />
+                      )}
+                      <button
+                        type="button"
+                        className="microphone-button"
+                        onClick={() => startVoice()}
+                        disabled={transcribing}
+                        aria-label={t('Start voice input')}
+                        title={voiceMode ? t('Voice input') : t('Set up voice input')}
+                      >
+                        {transcribing ? <Loader2 size={17} className="animate-spin" /> : <Mic size={18} />}
+                      </button>
+                      {composeMode !== 'chat' ? (
+                        <button className="send-button generate-button" type="submit" disabled={!message.trim() && !attachments.some((a) => a.mime.startsWith('image/'))} aria-label={t('Generate')}>
+                          <ArrowUp size={16} strokeWidth={2.4} />
+                          <span>{t('Generate')}</span>
+                          <kbd>↵</kbd>
+                        </button>
+                      ) : isStreaming ? (
+                        <button className="send-button send-button-stop" type="button" onClick={stop} aria-label={t('Stop generating')} title={t('Stop')}>
+                          <Square size={14} fill="currentColor" />
+                        </button>
+                      ) : (
+                        <button className="send-button" type="submit" disabled={!message.trim() && !attachments.length} aria-label={t('Send message')}>
+                          <ArrowUp size={18} strokeWidth={2.4} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </form>
               {emptyLanding && !temporaryChat && !modelsLoading && models.length === 0 && (
                 <div className="connect-options connect-banner-below">

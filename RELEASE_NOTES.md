@@ -1,4 +1,29 @@
-## Orbi 0.1.28-4
+## Orbi 0.1.28-5
+
+**A message box that teaches itself**
+- While the box is empty, an animated placeholder types real examples one character at a time: `Ask anything…`, `/skill-creator "…"`, `@agent init "…"`, `/image …`, `/web …`, `/video …`. Press **Tab** to use the example on screen. The examples come from your own skills and agents.
+- Typing `/` or `@` opens the list with a **details panel** for the highlighted item: what it does, how to call it, its commands and its author.
+- Once a skill or agent is chosen, a **command guide** appears above the box with its commands and starter prompts as chips. A faint suggestion completes the line (`@designerx init "…"`); press **Tab** to accept it.
+- The hint under the box changes with what you are doing (send, new line, generate).
+- **Thinking effort** is now a slider: Instant → Fast → Medium → High.
+
+**Microphone and speaker of your choice**
+- The arrow next to the mic lists every input and output the system has: the laptop mic, a USB audio interface, a headset… Plug a device in and it shows up right away. Read-aloud plays on the speaker you pick.
+- Recording shows a live waveform with **Cancel**, **Stop and edit** and **Stop and send**.
+
+**Make images and videos from the chat**
+- New **Chat · Image · Video** switch in the box (also `/image` and `/video`, and the Video and Image chips on the home screen).
+- Image and Video have their own controls: model picker with search, aspect ratio, duration, resolution, **Enhance prompt** (magic wand) and how many results (1–4). Attach an image to use it as the start frame.
+- The render runs in the Creative queue and lands in the Media Library. The chat shows it live, with progress, then the result. From the result you can open it full screen, **make a video**, **upscale 4×**, use the prompt again or save it.
+
+**Media Library, full page**
+- Clicking Media Library in the side bar now opens a full page, like Creative > Gallery. The full-screen viewer is no longer stuck inside the side panel.
+- **Search** prompts, names and models (`/` or Ctrl+F). Filter by kind (images, videos, audio, files), by origin (made in chat, made in Creative, imported) and by board.
+- The viewer gains **Create from this image**: make a video, upscale 4×, or edit in the Canvas. Creative > Gallery gets the same search and actions.
+
+**Not included yet:** the Audio and MP4/MOV options from your references. Local video is saved as WebM. Audio depends on the model, so it will come when the engine supports it.
+
+## Orbi 0.1.28-4 (previous)
 
 **Orbi now has a written design system**
 - **PRODUCT.md** records who Orbi is for (professionals in general), what makes it different (everything in one app) and the brand commitments (Draft Creative Studio · Daniel Rodrigues).

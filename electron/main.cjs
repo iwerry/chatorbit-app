@@ -277,6 +277,10 @@ const api = {
     return row
   },
   'messages:delete': (id) => db.run('DELETE FROM messages WHERE id = ?', [id]),
+  'messages:update': (id, p = {}) => {
+    if (typeof p.content === 'string') db.run('UPDATE messages SET content = ? WHERE id = ?', [p.content, id])
+    return true
+  },
   'messages:bookmark': (id, value) => db.run('UPDATE messages SET bookmarked = ? WHERE id = ?', [value ? 1 : 0, id]),
   'bookmarks:list': () =>
     db.all('SELECT m.*, c.title AS conversation_title FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.bookmarked = 1 ORDER BY m.created_at DESC'),
@@ -368,7 +372,7 @@ const api = {
       )
       const kind = mime.startsWith('video') ? 'video' : 'image'
       const short = payload.prompt.slice(0, 40).replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || kind
-      return saveMedia({ buffer, mime, kind, name: `${short}.${kind === 'video' ? 'webm' : 'png'}`, prompt: payload.prompt, model, source: 'creative', board: payload.board, params: { width: payload.width, height: payload.height, steps: payload.steps, seed: payload.seed, negative: payload.negative || undefined } })
+      return saveMedia({ buffer, mime, kind, name: `${short}.${kind === 'video' ? 'webm' : 'png'}`, prompt: payload.prompt, model, source: payload.source || 'creative', board: payload.board, params: { width: payload.width, height: payload.height, steps: payload.steps, seed: payload.seed, negative: payload.negative || undefined } })
     } finally {
       for (const f of tmp) fs.rmSync(f, { force: true })
     }
