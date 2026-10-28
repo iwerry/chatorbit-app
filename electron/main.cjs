@@ -9,6 +9,7 @@ const terminal = require('./terminal.cjs')
 const websearch = require('./websearch.cjs')
 const library = require('./library.cjs')
 const systemVoices = require('./system-voices.cjs')
+const studio = require('./studio.cjs')
 const mcp = require('./mcp.cjs')
 const localAI = require('./local-ai.cjs')
 const updater = require('./updater.cjs')
@@ -82,6 +83,34 @@ function saveMedia({ buffer, mime, kind, name, prompt, model, source, board, par
   return mediaRow(row)
 }
 
+async function complete({ providerId, model, system, prompt, maxTokens, timeout = 180000 }) {
+  let text = ''
+  await ai.streamChat(
+    { providerId, model, thinking: false, maxTokens, system: system || 'You are a helpful creative assistant.', messages: [{ role: 'user', content: String(prompt || '') }] },
+    await configFor(providerId, model),
+    (d) => (text += d.text || ''),
+    AbortSignal.timeout(timeout),
+  )
+  return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
+}
+
+// Skills rows carry their support files, tests and metadata as JSON.
+function skillRow(r) {
+  if (!r) return r
+  const j = (v, d) => {
+    try {
+      return v ? JSON.parse(v) : d
+    } catch {
+      return d
+    }
+  }
+  return { ...r, files: j(r.files, []), tests: j(r.tests, {}), meta: j(r.meta, {}) }
+}
+function skillDoc(r) {
+  const k = skillRow(r)
+  return { name: k.name, description: k.description || '', body: k.instructions, files: k.files, tests: k.tests, license: k.meta.license, version: k.meta.version, compatibility: k.meta.compatibility, author: k.meta.author, audit: k.meta.audit }
+}
+
 // ---------- IPC API ----------
 const api = {
   'app:info': () => ({
@@ -144,7 +173,29 @@ const api = {
       const cfg = await configFor(payload.providerId, payload.model)
       const useTools = payload.useTools !== false && payload.providerId !== 'orbi' && getSetting('toolsEnabled', true)
       const tools = useTools ? mcp.toolsForChat(payload.toolServers && payload.toolServers.length ? payload.toolServers : null) : []
-      const toolkit = tools.length ? { tools, call: (name, args) => mcp.callTool(name, args, sender) } : null
+      // Progressive disclosure: the model sees only skill names + descriptions and loads a skill's body
+      // (level 2) or one of its support files (level 3) when it decides the skill applies.
+      const catalog = useTools && Array.isArray(payload.skillCatalog) ? payload.skillCatalog : []
+      if (catalog.length)
+        tools.push(
+          { name: 'orbi-skills__load_skill', description: 'Load the full instructions of one of the available skills before using it. Call it as soon as a skill matches the request.', parameters: { type: 'object', properties: { name: { type: 'string', description: 'Skill name exactly as listed' } }, required: ['name'] } },
+          { name: 'orbi-skills__read_skill_file', description: 'Read a support file of a loaded skill (references/, scripts/, assets/) when its instructions say so.', parameters: { type: 'object', properties: { name: { type: 'string' }, path: { type: 'string', description: 'Relative path such as references/style.md' } }, required: ['name', 'path'] } },
+        )
+      const limit = Number(payload.compactToolOutput) || 0
+      const compact = (r) => {
+        if (!limit) return r
+        const text = typeof r === 'string' ? r : JSON.stringify(r)
+        return text.length > limit ? text.slice(0, limit) + `\n[… ${text.length - limit} more characters cut by the harness]` : r
+      }
+      const callSkillTool = (name, args) => {
+        const row = db.all('SELECT * FROM skills').find((k) => catalog.includes(k.id) && (k.name === args.name || k.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') === String(args.name || '').toLowerCase()))
+        if (!row) return { error: `Unknown skill: ${args.name}. Available: ${db.all('SELECT name FROM skills').filter((k) => k).map((k) => k.name).join(', ')}` }
+        const k = skillRow(row)
+        if (name.endsWith('load_skill')) return { name: k.name, instructions: k.instructions, files: k.files.map((f) => f.path) }
+        const f = k.files.find((x) => x.path === args.path)
+        return f ? { path: f.path, content: f.content } : { error: `No file ${args.path} in ${k.name}. Files: ${k.files.map((x) => x.path).join(', ') || 'none'}` }
+      }
+      const toolkit = tools.length ? { tools, call: async (name, args) => compact(name.startsWith('orbi-skills__') ? callSkillTool(name, args || {}) : await mcp.callTool(name, args, sender)) } : null
       await ai.streamChat(payload, cfg, (delta) => !sender.isDestroyed() && sender.send('chat:delta', reqId, delta), controller.signal, toolkit)
       return done({ ok: true })
     } catch (e) {
@@ -156,16 +207,7 @@ const api = {
   },
   'chat:abort': (reqId) => controllers.get(reqId)?.abort(),
   // One-shot completion used by workflow nodes.
-  'ai:complete': async ({ providerId, model, system, prompt }) => {
-    let text = ''
-    await ai.streamChat(
-      { providerId, model, thinking: false, system: system || 'You are a helpful creative assistant.', messages: [{ role: 'user', content: String(prompt || '') }] },
-      await configFor(providerId, model),
-      (d) => (text += d.text || ''),
-      AbortSignal.timeout(180000),
-    )
-    return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
-  },
+  'ai:complete': (p) => complete(p),
   // Text to speech for workflow voiceover nodes (OpenAI key required).
   'ai:speech': async ({ text, voice }) => {
     const cfg = providerConfig('openai')
@@ -441,10 +483,76 @@ const api = {
   },
 
   // ---------- skills ----------
-  'skills:list': () => db.all('SELECT * FROM skills ORDER BY created_at ASC'),
+  'skills:list': () => db.all('SELECT * FROM skills ORDER BY created_at ASC').map(skillRow),
   'skills:save': (k) => {
-    if (k.id) db.run('UPDATE skills SET name = ?, description = ?, instructions = ? WHERE id = ?', [k.name, k.description || '', k.instructions, k.id])
-    else db.run('INSERT INTO skills (id, name, description, instructions, enabled, created_at) VALUES (?,?,?,?,?,?)', [db.uid(), k.name, k.description || '', k.instructions, 1, Date.now()])
+    const extra = [JSON.stringify(k.files || []), JSON.stringify(k.tests || {}), JSON.stringify(k.meta || {})]
+    if (k.id) {
+      db.run('UPDATE skills SET name = ?, description = ?, instructions = ?, files = ?, tests = ?, meta = ? WHERE id = ?', [k.name, k.description || '', k.instructions, ...extra, k.id])
+      return k.id
+    }
+    const id = db.uid()
+    db.run('INSERT INTO skills (id, name, description, instructions, enabled, created_at, files, tests, meta) VALUES (?,?,?,?,?,?,?,?,?)', [id, k.name, k.description || '', k.instructions, 1, Date.now(), ...extra])
+    return id
+  },
+
+  // ---------- Creator Studio (SKILLSMITH brain) ----------
+  'studio:ask': async ({ kind, brief, providerId, model }) => studio.parseJson(await complete({ providerId, model, ...studio.questionsPrompt(kind, brief), maxTokens: 2000 })),
+  'studio:build': async ({ kind, brief, answers, current, providerId, model }) => {
+    const out = studio.parseJson(await complete({ providerId, model, ...studio.buildPrompt(kind, brief, answers, current), maxTokens: 16000, timeout: 420000 }))
+    if (kind === 'skill') {
+      out.name = String(out.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 64)
+      out.files = Array.isArray(out.files) ? out.files.filter((f) => f && f.path && typeof f.content === 'string') : []
+      return { item: out, validation: studio.validate(out), audit: studio.audit(out) }
+    }
+    return { item: out }
+  },
+  'studio:check': (doc) => ({ validation: studio.validate(doc), audit: studio.audit(doc) }),
+  'studio:exportSkill': async (doc) => {
+    const r = await dialog.showSaveDialog(BrowserWindow.getFocusedWindow(), { defaultPath: `${doc.name || 'skill'}.zip`, filters: [{ name: 'Agent Skill', extensions: ['zip'] }] })
+    if (r.canceled || !r.filePath) return null
+    fs.writeFileSync(r.filePath, studio.exportZip(doc, getSetting('userName') || os.userInfo().username))
+    shell.showItemInFolder(r.filePath)
+    return r.filePath
+  },
+  'studio:skillMd': (doc) => studio.toSkillMd(doc, getSetting('userName') || 'Orbi user'),
+  'studio:importSkill': async () => {
+    const r = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), { properties: ['openFile'], filters: [{ name: 'Agent Skill', extensions: ['zip', 'md', 'skill'] }] })
+    if (r.canceled || !r.filePaths[0]) return null
+    const file = r.filePaths[0]
+    if (/\.md$/i.test(file)) {
+      const { meta, body } = studio.fromSkillMd(fs.readFileSync(file, 'utf8'))
+      return { name: String(meta.name || path.basename(path.dirname(file))), description: String(meta.description || ''), license: String(meta.license || ''), version: String(meta.metadata?.version || '1.0.0'), author: String(meta.metadata?.author || ''), body, files: [] }
+    }
+    return studio.importZip(fs.readFileSync(file))
+  },
+
+  // ---------- multi-agent teams and harnesses ----------
+  'teams:list': () => db.all('SELECT * FROM teams ORDER BY created_at ASC'),
+  'teams:save': (t) => {
+    const handle = '@' + String(t.handle || t.name || 'team').toLowerCase().replace(/^@/, '').replace(/[^a-z0-9_]+/g, '_').replace(/^_|_$/g, '')
+    const vals = [handle, t.name || handle.slice(1), t.description || '', t.mode || 'sequential', JSON.stringify(t.members || []), t.synthesizer || '']
+    if (t.id) {
+      db.run('UPDATE teams SET handle = ?, name = ?, description = ?, mode = ?, members = ?, synthesizer = ? WHERE id = ?', [...vals, t.id])
+      return t.id
+    }
+    const id = db.uid()
+    db.run('INSERT INTO teams (id, handle, name, description, mode, members, synthesizer, created_at) VALUES (?,?,?,?,?,?,?,?)', [id, ...vals, Date.now()])
+    return id
+  },
+  'teams:delete': (id) => db.run('DELETE FROM teams WHERE id = ?', [id]),
+  'harness:list': () => db.all('SELECT * FROM harnesses ORDER BY created_at ASC'),
+  'harness:save': (h) => {
+    if (h.id) {
+      db.run('UPDATE harnesses SET name = ?, description = ?, config = ? WHERE id = ?', [h.name, h.description || '', JSON.stringify(h.config || {}), h.id])
+      return h.id
+    }
+    const id = db.uid()
+    db.run('INSERT INTO harnesses (id, name, description, config, created_at) VALUES (?,?,?,?,?)', [id, h.name, h.description || '', JSON.stringify(h.config || {}), Date.now()])
+    return id
+  },
+  'harness:delete': (id) => {
+    if (getSetting('activeHarness') === id) setSetting('activeHarness', null)
+    db.run('DELETE FROM harnesses WHERE id = ?', [id])
   },
   'skills:toggle': (id, enabled) => db.run('UPDATE skills SET enabled = ? WHERE id = ?', [enabled ? 1 : 0, id]),
   'skills:delete': (id) => db.run('DELETE FROM skills WHERE id = ?', [id]),

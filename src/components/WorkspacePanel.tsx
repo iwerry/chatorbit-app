@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import {
   Bookmark,
+  Hammer,
   Bot,
   Blocks,
   Brain,
@@ -28,18 +29,17 @@ import {
 } from 'lucide-react'
 import { api, type Agent, type Conversation, type McpServer, type MediaItem, type Memory, type Message, type ModelInfo, type Plugin, type Project, type Skill } from '../lib/api'
 import { t } from '../lib/i18n'
-import { AgentsPanel } from './panels/AgentsPanel'
-import { SkillsPanel } from './panels/SkillsPanel'
 import { McpPanel } from './panels/McpPanel'
 
-export type NavKey = 'chats' | 'creative' | 'explore' | 'agents' | 'skills' | 'mcp' | 'scheduled' | 'memory' | 'bookmarks' | 'media'
+export type NavKey = 'chats' | 'creative' | 'explore' | 'studio' | 'agents' | 'skills' | 'mcp' | 'scheduled' | 'memory' | 'bookmarks' | 'media'
+// Full-page sections (no side panel).
+export const isPage = (s: string) => s === 'creative' || s === 'explore' || s === 'studio'
 
 export const navItems = [
   { id: 'chats' as const, label: 'Chats', icon: MessageSquareText },
   { id: 'creative' as const, label: 'Creative', icon: WandSparkles },
   { id: 'explore' as const, label: 'Explore', icon: Compass },
-  { id: 'agents' as const, label: 'Agent Builder', icon: Bot },
-  { id: 'skills' as const, label: 'Skills', icon: Blocks },
+  { id: 'studio' as const, label: 'Creator Studio', icon: Hammer },
   { id: 'mcp' as const, label: 'MCP & Plugins', icon: Plug },
   { id: 'scheduled' as const, label: 'Scheduled Chats', icon: CalendarClock },
   { id: 'memory' as const, label: 'Memory', icon: Brain },
@@ -91,7 +91,6 @@ type Props = {
 export function WorkspacePanel(props: Props) {
   const current = navItems.find((i) => i.id === props.active) ?? navItems[0]
   const Icon = current.icon
-  const [creatingSkill, setCreatingSkill] = useState(false)
   return (
     <aside className="workspace-panel">
       <div className="panel-heading">
@@ -100,21 +99,12 @@ export function WorkspacePanel(props: Props) {
           <span className="truncate font-display text-sm font-semibold">{t(current.label)}</span>
         </div>
         <div className="flex items-center gap-1">
-          {current.id === 'skills' && (
-            <button className="panel-collapse" onClick={() => setCreatingSkill(true)} aria-label={t('New skill')} title={t('New skill')}>
-              <Plus size={17} />
-            </button>
-          )}
           <button className="panel-collapse" onClick={props.onCollapse} aria-label={t('Collapse panel')}>
             <ChevronLeft size={17} />
           </button>
         </div>
       </div>
       {current.id === 'chats' && <ChatsLibrary {...props} />}
-      {current.id === 'agents' && (
-        <AgentsPanel agents={props.agents} models={props.models} skills={props.skills} servers={props.servers} onRefresh={props.onRefresh} onChatWithAgent={props.onChatWithAgent} />
-      )}
-      {current.id === 'skills' && <SkillsPanel skills={props.skills} onRefresh={props.onRefresh} creating={creatingSkill} setCreating={setCreatingSkill} />}
       {current.id === 'mcp' && <McpPanel servers={props.servers} setServers={props.setServers} plugins={props.plugins} setPlugins={props.setPlugins} onRefresh={props.onRefresh} />}
       {current.id === 'scheduled' && <ScheduledPanel />}
       {current.id === 'memory' && <MemoryPanel memories={props.memories} enabled={props.memoryEnabled} setEnabled={props.setMemoryEnabled} onRefresh={props.onRefresh} />}

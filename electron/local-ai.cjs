@@ -67,6 +67,16 @@ const ENGINES = {
       return a && `https://github.com/k2-fsa/sherpa-onnx/releases/download/${t}/sherpa-onnx-${t}-${a}.tar.bz2`
     },
   },
+  // uv: installs a private Python and per-model environments for Hugging Face voices (no system Python needed).
+  python: {
+    name: 'Python voices (uv)',
+    tag: '0.13.6',
+    exe: { uv: 'uv' },
+    asset() {
+      const a = { 'win32-x64': 'uv-x86_64-pc-windows-msvc.zip', 'linux-x64': 'uv-x86_64-unknown-linux-gnu.tar.gz', 'darwin-arm64': 'uv-aarch64-apple-darwin.tar.gz', 'darwin-x64': 'uv-x86_64-apple-darwin.tar.gz' }[`${process.platform}-${process.arch}`]
+      return a && `https://github.com/astral-sh/uv/releases/download/${this.tag}/${a}`
+    },
+  },
   whisper: {
     name: 'whisper.cpp',
     tag: 'v1.9.2',
@@ -274,6 +284,33 @@ const CATALOG = [
     files: [{ role: 'pack', url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/sherpa-onnx-pocket-tts-int8-2026-01-26.tar.bz2', file: 'sherpa-onnx-pocket-tts-int8-2026-01-26' }],
     voices: [{ id: 'ref:bria', name: 'Bria', lang: 'en-US', gender: 'f' }, { id: 'ref:loona', name: 'Loona', lang: 'en-US', gender: 'f' }] },
 
+  // HUGGING FACE VOICES (Python, installed privately with uv). Sizes include PyTorch and the model weights.
+  { id: 'tts-py-chatterbox', kind: 'tts', engine: 'python', family: 'chatterbox', tier: 'heavy', name: 'Chatterbox Multilingual', lang: 'multi', license: 'MIT', size: 5.5, req: { ram: 8, vram: 0 },
+    langs: ['pt', 'en', 'es', 'fr', 'it', 'de', 'nl', 'pl', 'ru', 'tr', 'ar', 'zh', 'ja', 'ko', 'hi', 'sv', 'da', 'fi', 'no', 'el', 'he', 'ms', 'sw'], clone: true,
+    pip: ['chatterbox-tts==0.1.7'],
+    description: 'Resemble AI. Among the most realistic open voices: 23 languages including Portuguese, emotion control and voice cloning from a few seconds. Best with an NVIDIA GPU.',
+    files: [], voices: [{ id: 'default', name: 'Default voice', lang: 'multi', gender: 'f', top: true }] },
+  { id: 'tts-py-xtts', kind: 'tts', engine: 'python', family: 'xtts', tier: 'heavy', name: 'XTTS v2', lang: 'multi', license: 'Coqui Public Model License', nonCommercial: true, size: 5, req: { ram: 8, vram: 0 },
+    langs: ['pt', 'en', 'es', 'fr', 'de', 'it', 'pl', 'tr', 'ru', 'nl', 'cs', 'ar', 'zh', 'ja', 'hu', 'ko', 'hi'], clone: true,
+    pip: ['coqui-tts==0.28.0'],
+    licenseNotice: 'XTTS v2 uses the Coqui Public Model License: personal and non-commercial use only. Audio you create may not be used commercially.',
+    description: 'Coqui. Clones a voice from 6 seconds in 17 languages including Portuguese, plus 14 studio voices. Non-commercial license.',
+    files: [], voices: [{ id: 'Ana Florence', name: 'Ana Florence', lang: 'multi', gender: 'f', top: true }, { id: 'Claribel Dervla', name: 'Claribel Dervla', lang: 'multi', gender: 'f' }, { id: 'Daisy Studious', name: 'Daisy Studious', lang: 'multi', gender: 'f' }, { id: 'Gracie Wise', name: 'Gracie Wise', lang: 'multi', gender: 'f' }, { id: 'Tammie Ema', name: 'Tammie Ema', lang: 'multi', gender: 'f' }, { id: 'Alison Dietlinde', name: 'Alison Dietlinde', lang: 'multi', gender: 'f' }, { id: 'Sofia Hellen', name: 'Sofia Hellen', lang: 'multi', gender: 'f' }, { id: 'Andrew Chipper', name: 'Andrew Chipper', lang: 'multi', gender: 'm', top: true }, { id: 'Badr Odhiambo', name: 'Badr Odhiambo', lang: 'multi', gender: 'm' }, { id: 'Craig Gutsy', name: 'Craig Gutsy', lang: 'multi', gender: 'm' }, { id: 'Damien Black', name: 'Damien Black', lang: 'multi', gender: 'm' }, { id: 'Viktor Eka', name: 'Viktor Eka', lang: 'multi', gender: 'm' }, { id: 'Dionisio Schuyler', name: 'Dionisio Schuyler', lang: 'multi', gender: 'm' }, { id: 'Luis Moray', name: 'Luis Moray', lang: 'multi', gender: 'm' }] },
+  { id: 'tts-py-bark', kind: 'tts', engine: 'python', family: 'bark', tier: 'heavy', name: 'Bark (small)', lang: 'multi', license: 'MIT', size: 4.5, req: { ram: 8, vram: 0 },
+    langs: ['pt', 'en', 'es', 'fr', 'it', 'de'],
+    pip: ['suno-bark==0.1.5', 'soundfile'],
+    description: 'Suno. Very expressive: laughs, sighs and hesitations ([laughs], [sighs], …). Short clips work best; slow without a GPU.',
+    files: [], voices: [{ id: 'v2/pt_speaker_0', name: 'Speaker 0', lang: 'pt', gender: '' }, { id: 'v2/pt_speaker_1', name: 'Speaker 1', lang: 'pt', gender: '' }, { id: 'v2/pt_speaker_2', name: 'Speaker 2', lang: 'pt', gender: '' }, { id: 'v2/pt_speaker_3', name: 'Speaker 3', lang: 'pt', gender: '' }, { id: 'v2/pt_speaker_4', name: 'Speaker 4', lang: 'pt', gender: '' }, { id: 'v2/pt_speaker_5', name: 'Speaker 5', lang: 'pt', gender: '' }, { id: 'v2/pt_speaker_6', name: 'Speaker 6', lang: 'pt', gender: '' }, { id: 'v2/pt_speaker_7', name: 'Speaker 7', lang: 'pt', gender: '' }, { id: 'v2/pt_speaker_8', name: 'Speaker 8', lang: 'pt', gender: '' }, { id: 'v2/pt_speaker_9', name: 'Speaker 9', lang: 'pt', gender: '' }, { id: 'v2/en_speaker_0', name: 'Speaker 0', lang: 'en-US', gender: '' }, { id: 'v2/en_speaker_1', name: 'Speaker 1', lang: 'en-US', gender: '' }, { id: 'v2/en_speaker_2', name: 'Speaker 2', lang: 'en-US', gender: '' }, { id: 'v2/en_speaker_3', name: 'Speaker 3', lang: 'en-US', gender: '' }, { id: 'v2/en_speaker_4', name: 'Speaker 4', lang: 'en-US', gender: '' }, { id: 'v2/en_speaker_5', name: 'Speaker 5', lang: 'en-US', gender: '' }, { id: 'v2/en_speaker_6', name: 'Speaker 6', lang: 'en-US', gender: '' }, { id: 'v2/en_speaker_7', name: 'Speaker 7', lang: 'en-US', gender: '' }, { id: 'v2/en_speaker_8', name: 'Speaker 8', lang: 'en-US', gender: '' }, { id: 'v2/en_speaker_9', name: 'Speaker 9', lang: 'en-US', gender: '' }, { id: 'v2/es_speaker_0', name: 'Speaker 0', lang: 'es', gender: '' }, { id: 'v2/es_speaker_1', name: 'Speaker 1', lang: 'es', gender: '' }, { id: 'v2/es_speaker_2', name: 'Speaker 2', lang: 'es', gender: '' }, { id: 'v2/es_speaker_3', name: 'Speaker 3', lang: 'es', gender: '' }, { id: 'v2/es_speaker_4', name: 'Speaker 4', lang: 'es', gender: '' }, { id: 'v2/es_speaker_5', name: 'Speaker 5', lang: 'es', gender: '' }, { id: 'v2/es_speaker_6', name: 'Speaker 6', lang: 'es', gender: '' }, { id: 'v2/es_speaker_7', name: 'Speaker 7', lang: 'es', gender: '' }, { id: 'v2/es_speaker_8', name: 'Speaker 8', lang: 'es', gender: '' }, { id: 'v2/es_speaker_9', name: 'Speaker 9', lang: 'es', gender: '' }, { id: 'v2/fr_speaker_0', name: 'Speaker 0', lang: 'fr', gender: '' }, { id: 'v2/fr_speaker_1', name: 'Speaker 1', lang: 'fr', gender: '' }, { id: 'v2/fr_speaker_2', name: 'Speaker 2', lang: 'fr', gender: '' }, { id: 'v2/fr_speaker_3', name: 'Speaker 3', lang: 'fr', gender: '' }, { id: 'v2/fr_speaker_4', name: 'Speaker 4', lang: 'fr', gender: '' }, { id: 'v2/fr_speaker_5', name: 'Speaker 5', lang: 'fr', gender: '' }, { id: 'v2/fr_speaker_6', name: 'Speaker 6', lang: 'fr', gender: '' }, { id: 'v2/fr_speaker_7', name: 'Speaker 7', lang: 'fr', gender: '' }, { id: 'v2/fr_speaker_8', name: 'Speaker 8', lang: 'fr', gender: '' }, { id: 'v2/fr_speaker_9', name: 'Speaker 9', lang: 'fr', gender: '' }, { id: 'v2/it_speaker_0', name: 'Speaker 0', lang: 'it', gender: '' }, { id: 'v2/it_speaker_1', name: 'Speaker 1', lang: 'it', gender: '' }, { id: 'v2/it_speaker_2', name: 'Speaker 2', lang: 'it', gender: '' }, { id: 'v2/it_speaker_3', name: 'Speaker 3', lang: 'it', gender: '' }, { id: 'v2/it_speaker_4', name: 'Speaker 4', lang: 'it', gender: '' }, { id: 'v2/it_speaker_5', name: 'Speaker 5', lang: 'it', gender: '' }, { id: 'v2/it_speaker_6', name: 'Speaker 6', lang: 'it', gender: '' }, { id: 'v2/it_speaker_7', name: 'Speaker 7', lang: 'it', gender: '' }, { id: 'v2/it_speaker_8', name: 'Speaker 8', lang: 'it', gender: '' }, { id: 'v2/it_speaker_9', name: 'Speaker 9', lang: 'it', gender: '' }, { id: 'v2/de_speaker_0', name: 'Speaker 0', lang: 'de', gender: '' }, { id: 'v2/de_speaker_1', name: 'Speaker 1', lang: 'de', gender: '' }, { id: 'v2/de_speaker_2', name: 'Speaker 2', lang: 'de', gender: '' }, { id: 'v2/de_speaker_3', name: 'Speaker 3', lang: 'de', gender: '' }, { id: 'v2/de_speaker_4', name: 'Speaker 4', lang: 'de', gender: '' }, { id: 'v2/de_speaker_5', name: 'Speaker 5', lang: 'de', gender: '' }, { id: 'v2/de_speaker_6', name: 'Speaker 6', lang: 'de', gender: '' }, { id: 'v2/de_speaker_7', name: 'Speaker 7', lang: 'de', gender: '' }, { id: 'v2/de_speaker_8', name: 'Speaker 8', lang: 'de', gender: '' }, { id: 'v2/de_speaker_9', name: 'Speaker 9', lang: 'de', gender: '' }] },
+  { id: 'tts-py-parler', kind: 'tts', engine: 'python', family: 'parler', tier: 'heavy', name: 'Parler-TTS Mini Multilingual', lang: 'multi', license: 'Apache-2.0', size: 5.5, req: { ram: 8, vram: 0 },
+    langs: ['pt', 'en', 'es', 'fr', 'de', 'it', 'pl', 'nl'],
+    pip: ['parler-tts==0.2.3', 'soundfile'],
+    description: 'Hugging Face. Voices described in words (warm, calm, radio host…), 8 languages including Portuguese.',
+    files: [], voices: [
+      { id: 'warm-female', name: 'Warm female', lang: 'multi', gender: 'f', top: true }, { id: 'calm-male', name: 'Calm male', lang: 'multi', gender: 'm', top: true },
+      { id: 'news-female', name: 'News anchor', lang: 'multi', gender: 'f' }, { id: 'storyteller-male', name: 'Storyteller', lang: 'multi', gender: 'm' },
+      { id: 'energetic-female', name: 'Energetic', lang: 'multi', gender: 'f' }, { id: 'radio-male', name: 'Radio host', lang: 'multi', gender: 'm' },
+    ] },
+
   // UPSCALE (stable-diffusion.cpp ESRGAN)
   { id: 'realesrgan-x4', kind: 'upscale', tier: 'light', name: 'Real-ESRGAN 4×', license: 'BSD-3-Clause', size: 0.067, req: { ram: 2, vram: 0 },
     description: 'Makes images 4× bigger and sharper. Small and fast.', files: [{ role: 'model', url: 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth', file: 'RealESRGAN_x4plus.pth' }] },
@@ -356,6 +393,7 @@ function hasVision(m) {
   return !!(m.vision && fileOf(m, 'mmproj'))
 }
 function isInstalled(m) {
+  if (engineOf(m) === 'python') return !!root && fs.existsSync(path.join(pyEnv(m.family), '.orbi-ok'))
   return m.files.every((f) => f.optional || (isPack(f) ? fs.existsSync(path.join(modelsDir(), localName(f), '.orbi-ok')) : f.file && fs.existsSync(path.join(modelsDir(), localName(f)))))
 }
 
@@ -398,7 +436,7 @@ function status() {
       id: m.id, kind: m.kind, tier: m.tier, name: m.name, description: m.description, license: m.license,
       size: Math.round((m.size || 0) * GB), req: m.req, ram: m.req?.ram ? `${m.req.ram} GB RAM` : '',
       badge: m.tier === 'light' ? 'Light' : m.tier === 'medium' ? 'Medium' : m.tier === 'heavy' ? 'Heavy' : 'Custom',
-      fit: fitFor(m), installed: isInstalled(m), engineSupported: engineSupported(m), engine: engineOf(m), family: m.family, voices: m.voices, langs: m.langs, clone: !!m.clone, nonCommercial: !!m.nonCommercial, vision: !!m.vision, visionReady: hasVision(m),
+      fit: fitFor(m), installed: isInstalled(m), engineSupported: engineSupported(m), engine: engineOf(m), family: m.family, voices: m.voices, langs: m.langs, clone: !!m.clone, nonCommercial: !!m.nonCommercial, licenseNotice: m.licenseNotice, vision: !!m.vision, visionReady: hasVision(m),
       lang: m.lang,
       partial: partialBytes(m),
       gen: m.args ? { presets: m.args.presets || [20, 28, 40], fixedSteps: !!m.args.fixedSteps, width: m.args.width, height: m.args.height, fps: m.args.fps || 0, image: m.kind === 'image' || !!m.args.image, ref: !!m.args.ref, end: !!m.args.end } : null,
@@ -545,6 +583,7 @@ async function installModel(id) {
   const m = CATALOG.find((x) => x.id === id) || allModels().find((x) => x.id === id)
   if (!m) throw new Error('Unknown model')
   await installEngine(engineOf(m))
+  if (engineOf(m) === 'python') return installPython(m)
   const total = Math.round((m.size || 0) * GB)
   let done = 0
   try {
@@ -688,7 +727,8 @@ function removeAll() {
   cancelMedia()
   for (const j of jobs.values()) j.controller.abort()
   queue.length = 0
-  for (const sub of ['models', 'engine', 'custom-models.json', 'resolved.json']) fs.rmSync(path.join(root, sub), { recursive: true, force: true })
+  for (const f of [...workers.keys()]) stopWorker(f)
+  for (const sub of ['models', 'engine', 'python', 'custom-models.json', 'resolved.json']) fs.rmSync(path.join(root, sub), { recursive: true, force: true })
   resolvedCache = null
   emit()
   return status()
@@ -757,6 +797,12 @@ function cancel(id) {
 function removeModel(id) {
   const m = allModels().find((x) => x.id === id)
   if (!m) return status()
+  if (engineOf(m) === 'python') {
+    stopWorker(m.family)
+    fs.rmSync(pyEnv(m.family), { recursive: true, force: true })
+    emit()
+    return status()
+  }
   if (server?.modelId === id) stop()
   const shared = new Set(allModels().filter((x) => x.id !== id && isInstalled(x)).flatMap((x) => x.files.map(localName)))
   const resolved = loadResolved()[id] || []
@@ -1128,13 +1174,174 @@ async function speak({ modelId, text, rate = 1, voice, lang }) {
   if (!m || !isInstalled(m)) throw new Error('This voice is not downloaded yet.')
   const out = path.join(os.tmpdir(), `orbi-tts-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.wav`)
   try {
-    if (engineOf(m) === 'sherpa') await speakSherpa(m, { text, rate, voice, lang }, out)
+    if (engineOf(m) === 'python') await pyRequest(m.family, { op: 'speak', text: cleanForSpeech(text), voice: voice && !String(voice).startsWith('clone-') ? voice : undefined, ref: String(voice || '').startsWith('clone-') ? path.join(voicesDir(), `${voice}.wav`) : undefined, lang: lang || 'en', rate, out }, 600000)
+    else if (engineOf(m) === 'sherpa') await speakSherpa(m, { text, rate, voice, lang }, out)
     else await speakPiper(m, text, rate, out)
     return fs.readFileSync(out)
   } finally {
     fs.rmSync(out, { force: true })
   }
 }
+
+// ---------- Python voices (uv) ----------
+function pyRoot() {
+  return path.join(root, 'python')
+}
+function pyEnv(family) {
+  return path.join(pyRoot(), 'envs', family)
+}
+function pyEnvVars(family) {
+  const models = path.join(pyEnv(family), 'models')
+  return {
+    UV_PYTHON_INSTALL_DIR: path.join(pyRoot(), 'runtime'),
+    UV_CACHE_DIR: path.join(pyRoot(), 'cache'),
+    UV_PYTHON_PREFERENCE: 'only-managed',
+    HF_HOME: path.join(models, 'hf'),
+    XDG_CACHE_HOME: path.join(models, 'cache'),
+    TTS_HOME: path.join(models, 'tts'),
+    PYTHONIOENCODING: 'utf-8',
+    PYTHONUTF8: '1',
+  }
+}
+function pyExe(family) {
+  return process.platform === 'win32' ? path.join(pyEnv(family), 'Scripts', 'python.exe') : path.join(pyEnv(family), 'bin', 'python')
+}
+function workerScript() {
+  const dest = path.join(pyRoot(), 'orbi_voice.py')
+  const src = fs.readFileSync(path.join(__dirname, 'orbi_voice.py'), 'utf8')
+  if (!fs.existsSync(dest) || fs.readFileSync(dest, 'utf8') !== src) {
+    fs.mkdirSync(pyRoot(), { recursive: true })
+    fs.writeFileSync(dest, src)
+  }
+  return dest
+}
+// PyTorch build: CUDA for NVIDIA GPUs, the small CPU build otherwise.
+function torchIndex() {
+  const nvidia = (hw?.gpus || []).some((g) => /nvidia/i.test(g.vendor || g.name || ''))
+  if (nvidia && process.platform !== 'darwin') return 'https://download.pytorch.org/whl/cu124'
+  if (process.platform === 'linux') return 'https://download.pytorch.org/whl/cpu'
+  return null
+}
+
+function runLogged(cmd, args, { env, signal, onLine }) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(cmd, args, { env: { ...process.env, ...env }, windowsHide: true })
+    let tail = ''
+    const onData = (d) => {
+      tail = (tail + d).slice(-4000)
+      const lines = String(d).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+      if (lines.length) onLine?.(lines[lines.length - 1])
+    }
+    proc.stdout.on('data', onData)
+    proc.stderr.on('data', onData)
+    const abort = () => proc.kill()
+    signal?.addEventListener('abort', abort)
+    proc.on('error', reject)
+    proc.on('exit', (code) => {
+      signal?.removeEventListener('abort', abort)
+      if (signal?.aborted) reject(new Error('Cancelled'))
+      else if (code === 0) resolve(tail)
+      else reject(new Error(tail.trim().split('\n').slice(-4).join(' ').slice(0, 600) || `${path.basename(cmd)} exited with ${code}`))
+    })
+  })
+}
+
+async function installPython(m) {
+  const uv = engineBinary('python')
+  if (!uv) throw new Error('The Python installer (uv) is missing.')
+  const job = { received: 0, total: 100, controller: new AbortController(), label: `${m.name} · preparing Python` }
+  jobs.set(m.id, job)
+  const env = pyEnvVars(m.family)
+  const step = (pct, label) => {
+    job.received = pct
+    job.label = `${m.name} · ${label}`
+    emit()
+  }
+  const opts = (pct, label) => ({ env, signal: job.controller.signal, onLine: (l) => ((job.label = `${m.name} · ${label} · ${l.slice(0, 80)}`), emit()) })
+  try {
+    stopWorker(m.family)
+    const dir = pyEnv(m.family)
+    fs.rmSync(path.join(dir, '.orbi-ok'), { force: true })
+    step(3, 'preparing Python 3.11')
+    await runLogged(uv, ['python', 'install', '3.11'], opts(3, 'Python 3.11'))
+    step(10, 'creating the environment')
+    if (!fs.existsSync(pyExe(m.family))) await runLogged(uv, ['venv', dir, '--python', '3.11', '--seed'], opts(10, 'environment'))
+    step(15, 'installing PyTorch (large download)')
+    const index = m.torch === false ? null : torchIndex()
+    if (m.torch !== false) await runLogged(uv, ['pip', 'install', '--python', pyExe(m.family), 'torch==2.6.0', 'torchaudio==2.6.0', ...(index ? ['--index-url', index] : [])], opts(15, 'PyTorch'))
+    step(50, `installing ${m.name}`)
+    await runLogged(uv, ['pip', 'install', '--python', pyExe(m.family), ...(m.pip || []), 'soundfile', ...(index ? ['--extra-index-url', index, '--index-strategy', 'unsafe-best-match'] : [])], opts(50, m.name))
+    step(70, 'downloading the voice model')
+    await pyRequest(m.family, { op: 'warmup' }, 3600000, job.controller.signal)
+    fs.writeFileSync(path.join(dir, '.orbi-ok'), new Date().toISOString())
+    step(100, 'ready')
+  } finally {
+    jobs.delete(m.id)
+    emit()
+  }
+  return status()
+}
+
+const workers = new Map() // family -> { proc, pending: Map<id, {resolve, reject, timer}>, buf, idle }
+function stopWorker(family) {
+  const w = workers.get(family)
+  if (!w) return
+  workers.delete(family)
+  for (const p of w.pending.values()) p.reject(new Error('The voice engine stopped.'))
+  try {
+    w.proc.kill()
+  } catch {}
+}
+function worker(family) {
+  let w = workers.get(family)
+  if (w && w.proc.exitCode === null) return w
+  if (!fs.existsSync(pyExe(family))) throw new Error('This voice is not installed yet.')
+  const proc = spawn(pyExe(family), ['-u', workerScript(), family], { env: { ...process.env, ...pyEnvVars(family) }, windowsHide: true })
+  w = { proc, pending: new Map(), buf: '', err: '', seq: 0 }
+  workers.set(family, w)
+  proc.stdout.on('data', (d) => {
+    w.buf += d
+    let i
+    while ((i = w.buf.indexOf('\n')) >= 0) {
+      const line = w.buf.slice(0, i).trim()
+      w.buf = w.buf.slice(i + 1)
+      if (!line.startsWith('{')) continue
+      try {
+        const r = JSON.parse(line)
+        const p = w.pending.get(String(r.id))
+        if (!p) continue
+        w.pending.delete(String(r.id))
+        clearTimeout(p.timer)
+        r.ok ? p.resolve(r) : p.reject(new Error(r.error || 'Voice error'))
+      } catch {}
+    }
+  })
+  proc.stderr.on('data', (d) => (w.err = (w.err + d).slice(-3000)))
+  proc.on('exit', () => {
+    workers.delete(family)
+    for (const p of w.pending.values()) p.reject(new Error(w.err.trim().split('\n').slice(-3).join(' ') || 'The voice engine stopped.'))
+  })
+  return w
+}
+function pyRequest(family, payload, timeout = 600000, signal) {
+  const w = worker(family)
+  const id = String(++w.seq)
+  clearTimeout(w.idle)
+  // Free the memory when the voice has not been used for 10 minutes.
+  w.idle = setTimeout(() => stopWorker(family), 10 * 60000)
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      w.pending.delete(id)
+      reject(new Error('The voice took too long.'))
+    }, timeout)
+    w.pending.set(id, { resolve, reject, timer })
+    signal?.addEventListener('abort', () => stopWorker(family))
+    w.proc.stdin.write(JSON.stringify({ id, ...payload }) + '\n')
+  })
+}
+process.on('exit', () => {
+  for (const f of [...workers.keys()]) stopWorker(f)
+})
 
 async function init(dir, sender, app) {
   root = dir

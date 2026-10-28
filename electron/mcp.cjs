@@ -15,7 +15,38 @@ const DEFAULT_SERVERS = [
   { id: 'orbi-terminal', name: 'Terminal Commands', type: 'builtin', enabled: true, description: 'Run shell commands on this computer — always asks first.' },
   { id: 'deepwiki', name: 'DeepWiki', type: 'http', url: 'https://mcp.deepwiki.com/mcp', enabled: true, description: 'Ask questions about any public GitHub repository.' },
   { id: 'context7', name: 'Context7', type: 'http', url: 'https://mcp.context7.com/mcp', enabled: true, description: 'Up-to-date docs and code examples for libraries.' },
+  // Bundled with Orbi (no Node.js needed). Changes to files and browser actions ask first.
+  { id: 'filesystem', name: 'Filesystem (official)', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '{home}'], enabled: true, description: 'Read and edit files in your home folder. Changes ask first.' },
+  { id: 'memory-graph', name: 'Knowledge Graph Memory', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-memory'], enabled: true, description: 'Persistent knowledge graph memory.' },
+  { id: 'sequential-thinking', name: 'Sequential Thinking', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-sequential-thinking'], enabled: true, description: 'Structured step-by-step problem solving.' },
+  { id: 'playwright', name: 'Playwright Browser', type: 'stdio', command: 'npx', args: ['-y', '@playwright/mcp@latest'], enabled: true, description: 'Lets the AI drive a real browser (Edge or Chrome). Actions ask first.' },
 ]
+
+// MCP servers that ship inside Orbi and run on Electron's own Node.js, so they work without installing Node.
+const BUNDLED = ['@modelcontextprotocol/server-filesystem', '@modelcontextprotocol/server-memory', '@modelcontextprotocol/server-sequential-thinking', '@playwright/mcp']
+function bundledLaunch(server) {
+  if (server.type !== 'stdio' || !/^npx(\.cmd)?$/i.test(server.command || '')) return null
+  const args = expandArgs(server.args).filter((a) => a !== '-y' && a !== '--yes')
+  const name = (args[0] || '').replace(/^(@[^/]+\/[^@]+|[^@]+)@.*$/, '$1')
+  if (!BUNDLED.includes(name)) return null
+  try {
+    const dir = path.join(__dirname, '..', 'node_modules', ...name.split('/'))
+    const pj = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'))
+    const bin = typeof pj.bin === 'string' ? pj.bin : Object.values(pj.bin || {})[0]
+    // Node modules are unpacked from app.asar so the child process can load them (ESM included).
+    const file = path.join(dir, bin).replace(`app.asar${path.sep}`, `app.asar.unpacked${path.sep}`)
+    let rest = args.slice(1)
+    if (name === '@playwright/mcp' && !rest.some((a) => a.startsWith('--browser'))) {
+      const chrome = process.platform === 'darwin' ? fs.existsSync('/Applications/Google Chrome.app') : process.platform === 'linux' ? fs.existsSync('/opt/google/chrome/chrome') : false
+      rest = [...rest, '--browser', process.platform === 'win32' ? 'msedge' : chrome ? 'chrome' : 'msedge']
+    }
+    return { command: process.execPath, args: [file, ...rest], env: { ELECTRON_RUN_AS_NODE: '1' } }
+  } catch {
+    return null
+  }
+}
+// Actions that change things outside the chat ask for approval, even on external servers.
+const RISKY = /(^|_)(write|edit|move|delete|remove|rename|create|update|upload|click|type|fill|navigate|drag|press|select_option|file_upload|evaluate|run|exec)/i
 
 const CATALOG = [
   { id: 'filesystem', name: 'Filesystem (official)', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '{home}'], description: 'Full file access to a folder you choose. Needs Node.js.' },
@@ -208,9 +239,11 @@ async function connect(server) {
     const client = new Client({ name: "Orbi", version: require("../package.json").version })
     let transport
     if (server.type === 'stdio') {
-      let command = server.command
-      let args = expandArgs(server.args)
-      if (process.platform === 'win32' && /^(npx|npm|node|uvx|pnpm|yarn)$/i.test(command)) {
+      const bundled = bundledLaunch(server)
+      let command = bundled ? bundled.command : server.command
+      let args = bundled ? bundled.args : expandArgs(server.args)
+      if (bundled) server = { ...server, env: { ...(server.env || {}), ...bundled.env } }
+      if (!bundled && process.platform === 'win32' && /^(npx|npm|node|uvx|pnpm|yarn)$/i.test(command)) {
         args = ['/c', command, ...args]
         command = 'cmd.exe'
       }
@@ -313,6 +346,10 @@ async function callTool(qname, args, origin) {
         if (!ok) return { error: 'The user declined this action.' }
       }
       return t.run(args || {})
+    }
+    if (RISKY.test(t.name) && !ctx.getSetting('autoApproveTools', false)) {
+      const ok = await ctx.approve({ server: s.name, tool: t.name, message: `${s.name} wants to run ${t.name}:\n\n${JSON.stringify(args || {}, null, 2).slice(0, 800)}`, args }, origin)
+      if (!ok) return { error: 'The user declined this action.' }
     }
     const r = await c.client.callTool({ name: t.name, arguments: args || {} })
     const text = (r.content || []).map((p) => (p.type === 'text' ? p.text : `[${p.type}]`)).join('\n')

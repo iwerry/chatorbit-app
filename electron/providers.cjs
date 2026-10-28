@@ -140,7 +140,7 @@ function resultText(r) {
 }
 
 // Streams a reply. When `toolkit` has tools, runs the tool-calling loop (max 8 rounds).
-async function streamChat({ providerId, model, messages, system, thinking, effort }, cfg, onDelta, signal, toolkit) {
+async function streamChat({ providerId, model, messages, system, thinking, effort, maxTokens }, cfg, onDelta, signal, toolkit) {
   const p = def(providerId)
   if (p.needsKey && !cfg.apiKey) throw new Error(`Add your ${p.name} API key in Settings → Providers.`)
   let tools = toolkit?.tools?.length ? toolkit.tools : null
@@ -174,7 +174,7 @@ async function streamChat({ providerId, model, messages, system, thinking, effor
     if (thinking) tools = null
     const msgs = toAnthropicMessages(messages)
     for (let round = 0; round < 8; round++) {
-      const body = { model, max_tokens: 8192, stream: true, messages: msgs }
+      const body = { model, max_tokens: maxTokens || 8192, stream: true, messages: msgs }
       if (system) body.system = system
       if (tools) body.tools = tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters }))
       if (thinking) {

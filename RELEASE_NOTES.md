@@ -1,4 +1,30 @@
-## Orbi 0.1.27-12
+## Orbi 0.1.28-1
+
+**Creator Studio: skills, agents, multi-agent teams and harnesses in one place**
+- The Agent Builder and Skills menus are now one page, **Creator Studio**, with four tabs: Skills, Agents, Multi-agents and Harness.
+- **Create with AI:** describe what you need and the SKILLSMITH brain builds it in seven phases (discover, design, build, test, audit, package, iterate). Choose "Ask me questions first" for up to seven questions, or "Create now".
+- **Also from the chat:** type `/skill-creator`, `/agents`, `/multi-agents` or `/harness`. Text after the command starts the build right away.
+- **Skills follow the Agent Skills format:** SKILL.md, support files (references/, scripts/, assets/), trigger tests and a 12-point quality audit with evidence. Export a portable ZIP for Claude, ChatGPT, Gemini and other hosts, or import a .zip or SKILL.md.
+- **Skills use less context:** for models that use tools, the chat only keeps each skill's name and description and loads the full skill when it is needed.
+- **Multi-agent teams:** sequential, parallel, router or debate, with a synthesizer that writes the final answer. Call a team in any chat with @its-name.
+- **Harness:** choose which tools the model may use (hidden tools cannot be called), which skills and agents are on, a context budget, cutting of long tool outputs, web and memory settings, and rules for every answer.
+
+**MCP servers work without installing Node.js**
+- Filesystem, Knowledge Graph Memory, Sequential Thinking and Playwright now come with Orbi and are on by default.
+- Tools that change files or act in the browser ask before running.
+
+**More realistic Hugging Face voices (Python engine)**
+- Orbi can now install a private copy of Python and PyTorch for these voices. One click; it can take 10–30 minutes.
+  - **Chatterbox Multilingual** (MIT, about 5.5 GB): 23 languages including Portuguese, emotion and voice cloning.
+  - **XTTS v2** (about 5 GB): 17 languages, 14 studio voices and cloning. Personal, non-commercial use only; Orbi asks you to accept the license first.
+  - **Bark small** (MIT, about 4.5 GB): very expressive, with laughs and sighs.
+  - **Parler-TTS Mini Multilingual** (Apache-2.0, about 5.5 GB): voices described in words.
+- An NVIDIA GPU makes them much faster. Without one they still run on the processor, but slower.
+- Fish Speech, ChatTTS, CosyVoice, MetaVoice, OpenVoice and MeloTTS are listed with the reason they are not installed yet.
+
+**Translations:** Creator Studio and the new voice screens are translated into Portuguese, Spanish and French.
+
+## Orbi 0.1.27-12 (previous)
 
 **Voices on every operating system**
 - **System voices are now read natively** on each system, so they also work in Workflows and on Linux:

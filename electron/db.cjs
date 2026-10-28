@@ -27,6 +27,11 @@ CREATE TABLE IF NOT EXISTS media (
 CREATE TABLE IF NOT EXISTS agents (id TEXT PRIMARY KEY, handle TEXT NOT NULL, instructions TEXT NOT NULL, created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS workflows (id TEXT PRIMARY KEY, name TEXT NOT NULL, data TEXT NOT NULL, updated_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS boards (id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS teams (
+  id TEXT PRIMARY KEY, handle TEXT NOT NULL, name TEXT, description TEXT, mode TEXT DEFAULT 'sequential',
+  members TEXT DEFAULT '[]', synthesizer TEXT DEFAULT '', created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS harnesses (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, config TEXT DEFAULT '{}', created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS skills (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, instructions TEXT NOT NULL,
   enabled INTEGER DEFAULT 0, created_at INTEGER NOT NULL
@@ -41,7 +46,7 @@ const MIGRATIONS = {
   },
   messages: { tools: "TEXT DEFAULT '[]'" },
   media: { board: "TEXT DEFAULT ''", params: "TEXT DEFAULT ''" },
-  skills: { library_id: 'TEXT' },
+  skills: { library_id: 'TEXT', files: "TEXT DEFAULT '[]'", tests: "TEXT DEFAULT '{}'", meta: "TEXT DEFAULT '{}'" },
 }
 
 const DEFAULT_SKILLS = [

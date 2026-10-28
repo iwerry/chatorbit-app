@@ -74,7 +74,19 @@ export type Agent = {
   created_at: number
 }
 
-export type Skill = { id: string; name: string; description: string; instructions: string; enabled: number; created_at: number }
+export type SkillFile = { path: string; content: string }
+export type SkillTests = { positive?: string[]; negative?: { prompt: string; reason?: string }[]; cases?: { id?: string; input: string; criteria: string[] }[] }
+export type SkillMeta = { license?: string; version?: string; compatibility?: string; author?: string; audit?: Record<string, number | string> }
+export type Skill = { id: string; name: string; description: string; instructions: string; enabled: number; created_at: number; library_id?: string; files?: SkillFile[]; tests?: SkillTests; meta?: SkillMeta }
+// A skill as a portable document (SKILL.md + support files + tests).
+export type SkillDoc = { name: string; description: string; body: string; files: SkillFile[]; tests?: SkillTests; license?: string; version?: string; compatibility?: string; author?: string; audit?: Record<string, number | string> }
+export type AuditRow = { key: string; label: string; score: number; evidence: string }
+export type SkillCheck = { validation: { ok: boolean; issues: string[]; warnings: string[] }; audit: { rows: AuditRow[]; average: number; passed: boolean; notes: string } }
+export type TeamMember = { handle?: string; name: string; role?: string; instructions: string; agent?: string }
+export type Team = { id: string; handle: string; name: string; description: string; mode: 'sequential' | 'parallel' | 'router' | 'debate'; members: string; synthesizer: string; created_at: number }
+export type HarnessConfig = { agents?: string[]; skills?: string[]; servers?: string[]; policies?: { context_budget?: number; compact_tool_output?: number; approval?: 'always' | 'risky' | 'never'; web?: 'auto' | 'on' | 'off'; memory?: boolean; rules?: string } }
+export type Harness = { id: string; name: string; description: string; config: string; created_at: number }
+export type StudioKind = 'skill' | 'agent' | 'team' | 'harness'
 
 export type ToolEvent = { id: string; name: string; status: 'running' | 'done' | 'error'; args?: unknown; result?: string; sources?: WebResult[] }
 
@@ -126,6 +138,7 @@ export type LocalModel = {
   langs?: string[]
   clone?: boolean
   nonCommercial?: boolean
+  licenseNotice?: string
 }
 export type GenInfo = { presets: [number, number, number]; fixedSteps: boolean; width: number; height: number; fps: number; image: boolean; ref: boolean; end: boolean }
 export type Hardware = {
@@ -309,7 +322,19 @@ export const api = {
   agents: (): Promise<Agent[]> => bridge.invoke('agents:list'),
   saveAgent: (a: Partial<Agent> & { tools?: string[]; skills?: string[]; starters?: string[] }): Promise<string> => bridge.invoke('agents:save', a),
   skills: (): Promise<Skill[]> => bridge.invoke('skills:list'),
-  saveSkill: (k: Partial<Skill>) => bridge.invoke('skills:save', k),
+  saveSkill: (k: Partial<Skill>): Promise<string> => bridge.invoke('skills:save', k),
+  studioAsk: (p: { kind: StudioKind; brief: string; providerId: string; model: string }): Promise<{ questions: string[]; summary?: string }> => bridge.invoke('studio:ask', p),
+  studioBuild: (p: { kind: StudioKind; brief: string; answers?: { q: string; a: string }[]; current?: unknown; providerId: string; model: string }): Promise<{ item: any; validation?: SkillCheck['validation']; audit?: SkillCheck['audit'] }> => bridge.invoke('studio:build', p),
+  studioCheck: (doc: SkillDoc): Promise<SkillCheck> => bridge.invoke('studio:check', doc),
+  exportSkill: (doc: SkillDoc): Promise<string | null> => bridge.invoke('studio:exportSkill', doc),
+  importSkill: (): Promise<SkillDoc | null> => bridge.invoke('studio:importSkill'),
+  skillMd: (doc: SkillDoc): Promise<string> => bridge.invoke('studio:skillMd', doc),
+  teams: (): Promise<Team[]> => bridge.invoke('teams:list'),
+  saveTeam: (t: Partial<Omit<Team, 'members'>> & { members: TeamMember[] }): Promise<string> => bridge.invoke('teams:save', t),
+  deleteTeam: (id: string) => bridge.invoke('teams:delete', id),
+  harnesses: (): Promise<Harness[]> => bridge.invoke('harness:list'),
+  saveHarness: (h: { id?: string; name: string; description?: string; config: HarnessConfig }): Promise<string> => bridge.invoke('harness:save', h),
+  deleteHarness: (id: string) => bridge.invoke('harness:delete', id),
   toggleSkill: (id: string, enabled: boolean) => bridge.invoke('skills:toggle', id, enabled),
   deleteSkill: (id: string) => bridge.invoke('skills:delete', id),
 
@@ -343,7 +368,7 @@ export const api = {
   saveVoiceClone: (p: { name: string; wav: string }): Promise<VoiceClone[]> => bridge.invoke('voice:saveClone', p),
   deleteVoiceClone: (id: string): Promise<VoiceClone[]> => bridge.invoke('voice:deleteClone', id),
   openModelsFolder: () => bridge.invoke('local:openFolder'),
-  complete: (p: { providerId: string; model: string; system?: string; prompt: string }): Promise<string> => bridge.invoke('ai:complete', p),
+  complete: (p: { providerId: string; model: string; system?: string; prompt: string; maxTokens?: number }): Promise<string> => bridge.invoke('ai:complete', p),
   speech: (p: { text: string; voice?: string }): Promise<MediaItem> => bridge.invoke('ai:speech', p),
   updateState: (): Promise<UpdateInfo> => bridge.invoke('update:state'),
   checkUpdate: (): Promise<UpdateInfo> => bridge.invoke('update:check'),

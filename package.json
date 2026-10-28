@@ -1,7 +1,7 @@
 {
   "name": "orbi",
   "productName": "Orbi",
-  "version": "0.1.27-12",
+  "version": "0.1.28-1",
   "description": "Orbi — AI chat and creative studio",
   "author": "Draft Creative Studio Ltda",
   "private": true,
@@ -42,11 +42,17 @@
         ]
       }
     ],
-    "asarUnpack": []
+    "asarUnpack": [
+      "node_modules/**"
+    ]
   },
   "dependencies": {
     "@lydell/node-pty": "1.2.0-beta.18",
     "@modelcontextprotocol/sdk": "^1.32.2",
+    "@modelcontextprotocol/server-filesystem": "^2.0.1",
+    "@modelcontextprotocol/server-memory": "^2.0.0",
+    "@modelcontextprotocol/server-sequential-thinking": "^2.0.0",
+    "@playwright/mcp": "^0.0.83",
     "fflate": "^0.8.3",
     "sql.js": "^1.15.1",
     "tar": "^7.5.22",

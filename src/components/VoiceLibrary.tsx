@@ -10,17 +10,14 @@ import { recordWav } from '../lib/voice'
 const cleanErr = (e: unknown) => String((e as Error)?.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
 // The voices people ask for most on Hugging Face that still need a Python engine (not bundled yet).
+// Voices from the Hugging Face top list that Orbi cannot install automatically yet, and why.
 export const ADVANCED_VOICES: { name: string; by: string; repo: string; license: string; nc?: boolean; note: string }[] = [
-  { name: 'Fish Speech / OpenAudio S1', by: 'Fish Audio', repo: 'fishaudio/openaudio-s1-mini', license: 'CC-BY-NC-SA-4.0', nc: true, note: 'Near-human prosody, laughs and pauses, voice cloning.' },
-  { name: 'XTTS v2', by: 'Coqui', repo: 'coqui/XTTS-v2', license: 'Coqui Public Model License', nc: true, note: 'Clones a voice from 6 seconds, 17 languages including Portuguese.' },
-  { name: 'Chatterbox', by: 'Resemble AI', repo: 'ResembleAI/chatterbox', license: 'MIT', note: 'Very realistic cloning with emotion control.' },
-  { name: 'Bark', by: 'Suno', repo: 'suno/bark', license: 'MIT', note: 'Laughs, sighs and hesitations; heavy to run.' },
-  { name: 'ChatTTS', by: '2Noise', repo: '2Noise/ChatTTS', license: 'CC-BY-NC-4.0', nc: true, note: 'Made for natural conversation and podcasts.' },
-  { name: 'CosyVoice 2', by: 'Alibaba', repo: 'FunAudioLLM/CosyVoice2-0.5B', license: 'Apache-2.0', note: 'Emotion and style control, zero-shot cloning.' },
-  { name: 'Parler-TTS', by: 'Hugging Face', repo: 'parler-tts/parler-tts-mini-v1', license: 'Apache-2.0', note: 'Describe the voice in words: “warm mature male radio voice”.' },
-  { name: 'MetaVoice-1B', by: 'MetaVoice', repo: 'metavoiceio/metavoice-1B-v0.1', license: 'Apache-2.0', note: 'Expressive English with rhythmic prosody.' },
-  { name: 'OpenVoice V2', by: 'MyShell', repo: 'myshell-ai/OpenVoiceV2', license: 'MIT', note: 'Instant cloning with separate emotion control.' },
-  { name: 'MeloTTS', by: 'MyShell', repo: 'myshell-ai/MeloTTS-English', license: 'MIT', note: 'Fast multilingual voices for modest PCs.' },
+  { name: 'Fish Speech / OpenAudio S1', by: 'Fish Audio', repo: 'fishaudio/openaudio-s1-mini', license: 'CC-BY-NC-SA-4.0', nc: true, note: 'Gated model (you must accept terms on Hugging Face) and a heavy custom install.' },
+  { name: 'ChatTTS', by: '2Noise', repo: '2Noise/ChatTTS', license: 'CC-BY-NC-4.0', nc: true, note: 'Chinese and English only.' },
+  { name: 'CosyVoice 2', by: 'Alibaba', repo: 'FunAudioLLM/CosyVoice2-0.5B', license: 'Apache-2.0', note: 'Needs its source repository and many native dependencies.' },
+  { name: 'MetaVoice-1B', by: 'MetaVoice', repo: 'metavoiceio/metavoice-1B-v0.1', license: 'Apache-2.0', note: 'English only and no longer maintained.' },
+  { name: 'OpenVoice V2', by: 'MyShell', repo: 'myshell-ai/OpenVoiceV2', license: 'MIT', note: 'Needs its source repository and MeloTTS; cloning is covered by Chatterbox and XTTS.' },
+  { name: 'MeloTTS', by: 'MyShell', repo: 'myshell-ai/MeloTTS-English', license: 'MIT', note: 'Needs extra dictionaries; Kokoro and Supertonic cover the same ground.' },
 ]
 
 const LANG_NAME: Record<string, string> = { 'pt-BR': 'Português (BR)', 'en-US': 'English (US)', 'en-GB': 'English (UK)', en: 'English', es: 'Español', fr: 'Français', it: 'Italiano', hi: 'हिन्दी', multi: '31 languages' }
@@ -29,7 +26,7 @@ type Mode = 'default' | 'pick'
 type Row = { model: LocalModel; voice: VoiceInfo }
 
 function voicesOf(m: LocalModel, clones: { id: string; name: string }[]): VoiceInfo[] {
-  if (m.voices?.length) return m.family === 'pocket' ? [...m.voices, ...clones.map((c) => ({ id: c.id, name: c.name, lang: 'en-US', gender: 'f' as const }))] : m.voices
+  if (m.voices?.length) return m.clone ? [...m.voices, ...clones.map((c) => ({ id: c.id, name: c.name, lang: 'en-US', gender: 'f' as const }))] : m.voices
   return [{ id: 0, name: m.name.split(' · ')[0], lang: m.lang || 'en', gender: 'm' }]
 }
 const sameVoice = (c: TtsChoice | null, m: LocalModel, v: VoiceInfo, first: VoiceInfo) =>
@@ -123,6 +120,8 @@ export function VoiceLibrary({
     }
   }
   const install = async (m: LocalModel) => {
+    if (m.licenseNotice && !confirm(t(m.licenseNotice) + '\n\n' + t('Accept and install?'))) return
+    if (m.engine === 'python' && !confirm(t('{name} installs a private copy of Python and PyTorch (about {size}). It can take 10–30 minutes. Continue?', { name: m.name, size: fmtBytes(m.size) }))) return
     setBusy(m.id)
     setErr(null)
     try {
@@ -151,7 +150,7 @@ export function VoiceLibrary({
   // Packs first (most natural), then single Piper voices in the user's language.
   const models = useMemo(() => {
     const all = status?.models.filter((m) => m.kind === 'tts' && m.engineSupported) ?? []
-    const rank = (m: LocalModel) => (status?.recommended.tts === m.id ? 0 : m.voices?.length ? 1 : 2)
+    const rank = (m: LocalModel) => (status?.recommended.tts === m.id ? 0 : m.engine === 'python' ? 2 : m.voices?.length ? 1 : 3)
     return all
       .filter((m) => allLangs || m.voices?.length || (m.lang || '').toLowerCase().startsWith(short) || m.installed)
       .sort((a, b) => rank(a) - rank(b) || Number(b.installed) - Number(a.installed))
@@ -217,6 +216,8 @@ export function VoiceLibrary({
                   <strong>{m.name}</strong>
                   {status?.recommended.tts === m.id && <span className="hub-badge hub-badge-rec">{t('Recommended')}</span>}
                   {m.nonCommercial && <span className="hub-badge hub-badge-warn">{t('Non-commercial')}</span>}
+                  {m.engine === 'python' && <span className="hub-badge">Python · Hugging Face</span>}
+                  {m.clone && <span className="hub-badge">{t('Voice cloning')}</span>}
                   <small>
                     {t(m.description)} · <span className="num">{fmtBytes(m.size)}</span> · {m.license}
                     {multi ? ` · ${t('{n} voices', { n: voices.length })}` : ''}
@@ -369,8 +370,8 @@ export function VoiceLibrary({
           <summary className="voice-option-head">
             <Sparkles size={16} />
             <div>
-              <strong>{t('More realistic voices from Hugging Face')}</strong>
-              <small>{t('The most used open voices. They need the optional advanced engine (Python), which is not bundled yet.')}</small>
+              <strong>{t('Other Hugging Face voices')}</strong>
+              <small>{t('Popular open voices Orbi does not install automatically yet, and why.')}</small>
             </div>
           </summary>
           {ADVANCED_VOICES.map((v) => (

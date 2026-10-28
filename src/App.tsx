@@ -14,6 +14,7 @@ import {
   Wrench,
   Check,
   ChevronDown,
+  Layers,
   ChevronRight,
   CircleHelp,
   Clock3,
@@ -60,6 +61,11 @@ import {
   type ModelInfo,
   type Project,
   type Skill,
+  type Team,
+  type TeamMember,
+  type Harness,
+  type HarnessConfig,
+  type StudioKind,
   type McpServer,
   type Plugin,
   type LocalStatus,
@@ -70,11 +76,12 @@ import {
   parseJSON,
 } from './lib/api'
 import { VoiceDialog, VoiceLibrary, defaultVoiceFor } from './components/VoiceLibrary'
+import type { StudioIntent } from './components/CreatorStudio'
 import { Markdown } from './components/Markdown'
 import { OrbiMark, SpyHatIcon } from './components/Logo'
 import type { SettingsTab } from './components/SettingsModal'
 import { t, t as tr, setLang as applyLang, fmtDate, fmtTime, type Lang } from './lib/i18n'
-import { navItems, WorkspacePanel, type NavKey } from './components/WorkspacePanel'
+import { isPage, navItems, WorkspacePanel, type NavKey } from './components/WorkspacePanel'
 import { CommandPalette, FindBar, TitleBar, type Command, type MenuDef } from './components/TitleBar'
 import type { TerminalHandle } from './components/TerminalPanel'
 const TerminalPanel = lazy(() => import('./components/TerminalPanel').then((m) => ({ default: m.TerminalPanel })))
@@ -85,6 +92,7 @@ import { speak as speak_, stopSpeaking } from './lib/tts'
 import { activity, useActivities, type ActivityDone } from './lib/activity'
 
 const SettingsModal = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal })))
+const CreatorStudio = lazy(() => import('./components/CreatorStudio').then((m) => ({ default: m.CreatorStudio })))
 const VoiceSettings = lazy(() => import('./components/VoiceInput').then((m) => ({ default: m.VoiceSettings })))
 const CreativeStudio = lazy(() => import('./components/CreativeStudio').then((m) => ({ default: m.CreativeStudio })))
 const UpdateCenter = lazy(() => import('./components/UpdateCenter').then((m) => ({ default: m.UpdateCenter })))
@@ -97,6 +105,10 @@ const SLASH_COMMANDS = [
   { id: 'image', hint: 'Open the Creative studio with this prompt' },
   { id: 'terminal', hint: 'Open the terminal' },
   { id: 'clear', hint: 'Start a new chat' },
+  { id: 'skill-creator', hint: 'Create a skill with SKILLSMITH (describe it after the command)' },
+  { id: 'agent-creator', hint: 'Create an agent' },
+  { id: 'multi-agents', hint: 'Create a team of agents that work together' },
+  { id: 'harness', hint: 'Create a harness: allowed tools, skills, agents and rules' },
 ]
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
@@ -198,6 +210,10 @@ export default function App() {
   const [selectedModel, setSelectedModel] = useState('')
   const [additionalModels, setAdditionalModels] = useState<string[]>([])
   const [skills, setSkills] = useState<Skill[]>([])
+  const [teams, setTeams] = useState<Team[]>([])
+  const [harnesses, setHarnesses] = useState<Harness[]>([])
+  const [activeHarness, setActiveHarnessState] = useState<string | null>(null)
+  const [studioIntent, setStudioIntent] = useState<StudioIntent | null>(null)
   const [servers, setServers] = useState<McpServer[]>([])
   const [plugins, setPlugins] = useState<Plugin[]>([])
   const [localStatus, setLocalStatus] = useState<LocalStatus | null>(null)
@@ -212,6 +228,11 @@ export default function App() {
   const [alwaysAllow, setAlwaysAllow] = useState(false)
   const terminalRef = useRef<TerminalHandle>(null)
   const activeOverride = useRef<string[]>([])
+  const invokedSkill = useRef<string | null>(null)
+  const [toolsOn, setToolsOn] = useState(true)
+  useEffect(() => {
+    api.getSetting<boolean>('toolsEnabled', true).then((v) => setToolsOn(v !== false))
+  }, [])
   const installedSig = useRef<string | null>(null)
   const activeSkills = useMemo(() => skills.filter((k) => k.enabled).map((k) => k.name), [skills])
   const [activeAgents, setActiveAgents] = useState<string[]>([])
@@ -295,6 +316,8 @@ export default function App() {
   }, [])
 
   const refreshLists = useCallback(async () => {
+    api.teams().then(setTeams).catch(() => {})
+    api.harnesses().then(setHarnesses).catch(() => {})
     const [c, p, a, mem, b, med, sk, srv, pl] = await Promise.all([
       api.conversations(),
       api.projects(),
@@ -316,6 +339,29 @@ export default function App() {
     setBookmarks(b)
     setMedia(med)
   }, [])
+
+  useEffect(() => {
+    api.getSetting<string | null>('activeHarness', null).then(setActiveHarnessState)
+  }, [])
+  const harness = useMemo(() => {
+    const h = harnesses.find((x) => x.id === activeHarness)
+    return h ? { ...h, cfg: parseJSON<HarnessConfig>(h.config, {}) } : null
+  }, [harnesses, activeHarness])
+  // Turning a harness on switches its skills and agents on; tool limits apply on every message.
+  const setActiveHarness = async (id: string | null) => {
+    setActiveHarnessState(id)
+    await api.setSetting('activeHarness', id)
+    const h = (await api.harnesses()).find((x) => x.id === id)
+    if (h) {
+      const cfg = parseJSON<HarnessConfig>(h.config, {})
+      const all = await api.skills()
+      if (cfg.skills?.length) for (const k of all) if (!!k.enabled !== cfg.skills.includes(k.name)) await api.toggleSkill(k.id, cfg.skills.includes(k.name))
+      if (cfg.agents?.length) setActiveAgents(cfg.agents)
+      if (cfg.policies?.web === 'on') setWebOn(true)
+      if (cfg.policies?.web === 'off') setWebOn(false)
+    }
+    refreshLists()
+  }
 
   useEffect(() => {
     ;(async () => {
@@ -503,18 +549,40 @@ export default function App() {
       if (a.skills_mode === 'all') skills.forEach((k) => skillNames.add(k.name))
       if (a.skills_mode === 'selected') parseJSON<string[]>(a.skills, []).forEach((n) => skillNames.add(n))
     }
-    for (const k of skills.filter((k) => skillNames.has(k.name))) parts.push(`Skill — ${k.name}: ${k.instructions}`)
+    // Progressive disclosure: models with tools see only names + descriptions and load a skill when it applies.
+    const on = skills.filter((k) => skillNames.has(k.name))
+    const invoked = invokedSkill.current
+    const progressive = target?.provider !== 'orbi' && toolsOn
+    if (progressive) {
+      const listed = on.filter((k) => k.name !== invoked)
+      if (listed.length) parts.push('Available skills — call load_skill with the exact name before following one; ignore the ones that do not apply:\n' + listed.map((k) => `- ${k.name}: ${k.description || k.instructions.slice(0, 160)}`).join('\n'))
+      const inv = on.find((k) => k.name === invoked)
+      if (inv) parts.push(`The user invoked the skill ${inv.name}. Follow it:\n${inv.instructions}${inv.files?.length ? `\n(Support files you can read with read_skill_file: ${inv.files.map((f) => f.path).join(', ')})` : ''}`)
+    } else for (const k of on) parts.push(`Skill — ${k.name}: ${k.instructions}`)
     if (chosen.length === 1) parts.push(`You are acting as the agent ${chosen[0].handle}${chosen[0].description ? ` (${chosen[0].description})` : ''}:\n${chosen[0].instructions}`)
     else if (chosen.length) parts.push('Active agents (combine their perspectives, label each when they differ):\n' + chosen.map((a) => `${a.handle}: ${a.instructions}`).join('\n'))
     parts.push(`The user's computer runs ${info?.platform === 'win32' ? 'Windows (PowerShell)' : info?.platform === 'darwin' ? 'macOS (zsh)' : 'Linux (bash)'}. Orbi has a built-in terminal: shell commands you put in fenced code blocks get a "Run in terminal" button.`)
-    if (memoryEnabled && memories.length && !temporaryChat) parts.push('What you remember about the user:\n' + memories.map((m) => `- ${m.content}`).join('\n'))
+    if (harness?.cfg.policies?.rules) parts.push(`Operating rules (${harness.name}):\n${harness.cfg.policies.rules}`)
+    if (memoryEnabled && harness?.cfg.policies?.memory !== false && memories.length && !temporaryChat) parts.push('What you remember about the user:\n' + memories.map((m) => `- ${m.content}`).join('\n'))
     return parts.join('\n\n')
   }
 
   const activeAgentList = () => agents.filter((a) => activeAgents.includes(a.handle) || activeOverride.current.includes(a.handle))
   const agentToolServers = () => {
     const list = activeAgentList().flatMap((a) => parseJSON<string[]>(a.tools, []))
+    const allowed = harness?.cfg.servers?.length ? harness.cfg.servers : null
+    // The harness is an allow-list enforced by Orbi: tools outside it are never sent to the model.
+    if (allowed) return list.length ? [...new Set(list)].filter((x) => allowed.includes(x)) : allowed
     return list.length ? [...new Set(list)] : null
+  }
+  const skillCatalog = () => {
+    const names = new Set(activeSkills)
+    for (const a of activeAgentList()) {
+      if (a.skills_mode === 'all') skills.forEach((k) => names.add(k.name))
+      if (a.skills_mode === 'selected') parseJSON<string[]>(a.skills, []).forEach((n) => names.add(n))
+    }
+    if (invokedSkill.current) names.add(invokedSkill.current)
+    return skills.filter((k) => names.has(k.name)).map((k) => k.id)
   }
   const primaryModel = () => {
     const withModel = activeAgentList().find((a) => a.model)
@@ -567,8 +635,10 @@ export default function App() {
       system: local ? sys.slice(0, LOCAL_BUDGET / 3) : sys,
       thinking: responseType === 'Thinking',
       effort: reasoningEffort,
-      messages: local ? fitToBudget(payloadMsgs, LOCAL_BUDGET - Math.min(sys.length, LOCAL_BUDGET / 3)) : payloadMsgs,
+      messages: local ? fitToBudget(payloadMsgs, LOCAL_BUDGET - Math.min(sys.length, LOCAL_BUDGET / 3)) : harness?.cfg.policies?.context_budget ? fitToBudget(payloadMsgs, harness.cfg.policies.context_budget * 3 - sys.length) : payloadMsgs,
       toolServers: agentToolServers(),
+      skillCatalog: local ? [] : skillCatalog(),
+      compactToolOutput: harness?.cfg.policies?.compact_tool_output || 0,
     })
     // Wait for the in-band "done" event; fall back to the invoke reply if it never comes (browser preview).
     const res = await Promise.race([finished, invoked.then((r) => new Promise<typeof r>((ok) => setTimeout(() => ok(r), isDesktop ? 15000 : 0)))])
@@ -608,6 +678,12 @@ export default function App() {
         if (rest.trim()) await api.setSetting('studioPrompt', rest.trim())
         return toggleNavigation('creative')
       }
+      const studioCmd: Record<string, StudioKind> = { 'skill-creator': 'skill', 'skills-creator': 'skill', skill: 'skill', 'agent-creator': 'agent', agents: 'agent', 'multi-agents': 'team', 'multi-agent': 'team', team: 'team', harness: 'harness', hardness: 'harness' }
+      if (studioCmd[name]) {
+        setMessage('')
+        setStudioIntent({ kind: studioCmd[name], brief: rest.trim(), auto: !!rest.trim(), nonce: Date.now() })
+        return toggleNavigation('studio')
+      }
       if (name === 'web') {
         forceWeb = true
         text = rest
@@ -615,6 +691,7 @@ export default function App() {
       const sk = skills.find((k) => slug(k.name) === name.toLowerCase())
       if (sk) {
         if (!sk.enabled) await api.toggleSkill(sk.id, true).then(refreshLists)
+        invokedSkill.current = sk.name
         text = rest
         if (!rest.trim()) return setMessage('')
       }
@@ -664,6 +741,13 @@ export default function App() {
     }
     if (!temporaryChat) setContextOpen(true)
 
+    const team = !regenerate ? teams.find((x) => content.split(/\s+/).includes(x.handle) || activeAgents.includes(x.handle)) : undefined
+    if (team) {
+      await runTeam(team, currentModel, history, convId, content)
+      invokedSkill.current = null
+      if (convId) refreshLists()
+      return
+    }
     const targets = [currentModel, ...additionalModels.map((k) => models.find((m) => m.key === k)).filter((m): m is ModelInfo => !!m && m.key !== currentModel.key)]
     const extra = (webOn || forceWeb) && content ? await webContext(content) : undefined
     const results = await Promise.all(targets.map((m) => streamInto(m, history, convId, extra)))
@@ -672,7 +756,44 @@ export default function App() {
       const title = await api.titleFor({ providerId: currentModel.provider, model: currentModel.id, messages: [{ role: 'user', content: content.slice(0, 1500) }] })
       if (title) await api.updateConversation(convId, { title })
     }
+    invokedSkill.current = null
     if (convId) refreshLists()
+  }
+
+  // Multi-agent team: members run with the chat model (sequential, parallel, router or debate),
+  // their work shows as steps under the answer, and the synthesizer streams the final reply.
+  const runTeam = async (team: Team, model: ModelInfo, history: ChatMessage[], convId: string | null, task: string) => {
+    const members = parseJSON<TeamMember[]>(team.members, [])
+    const ask = (system: string, prompt: string) => api.complete({ providerId: model.provider, model: model.id, system, prompt, maxTokens: 4000 })
+    const recent = history.slice(-6, -1).map((m) => `${m.role}: ${m.content.slice(0, 1500)}`).join('\n')
+    const brief = `${recent ? `Conversation so far:\n${recent}\n\n` : ''}Task:\n${task}`
+    const steps: { name: string; output: string }[] = []
+    const say = (n: string) => setNotice(t('{team}: {member} is working…', { team: team.handle, member: n }))
+    try {
+      if (team.mode === 'router') {
+        const pick = await ask('You route requests to the best specialist. Reply with the number only.', `${brief}\n\nSpecialists:\n${members.map((m, i) => `${i + 1}. ${m.name} — ${m.role || m.instructions.slice(0, 120)}`).join('\n')}`)
+        const m = members[Math.max(0, Math.min(members.length - 1, (parseInt(pick, 10) || 1) - 1))]
+        say(m.name)
+        steps.push({ name: m.name, output: await ask(m.instructions, brief) })
+      } else if (team.mode === 'parallel') {
+        members.forEach((m) => say(m.name))
+        const outs = await Promise.all(members.map((m) => ask(m.instructions, brief)))
+        members.forEach((m, i) => steps.push({ name: m.name, output: outs[i] }))
+      } else {
+        for (const m of members) {
+          say(m.name)
+          const prev = steps.length ? `\n\nWork so far:\n${steps.map((s) => `## ${s.name}\n${s.output}`).join('\n\n')}` : ''
+          const instr = team.mode === 'debate' && steps.length ? `${m.instructions}\n\nCritique the previous work honestly, then give your improved position.` : m.instructions
+          steps.push({ name: m.name, output: await ask(instr, brief + prev) })
+        }
+      }
+    } catch (e) {
+      setNotice(cleanError(e))
+    }
+    setNotice(null)
+    const work = steps.map((s) => `## ${s.name}\n${s.output}`).join('\n\n')
+    const tool: ToolEvent = { id: uid(), name: `${team.handle} · ${team.mode}`, status: 'done', result: steps.map((s) => `${s.name}: ${s.output.slice(0, 300)}`).join('\n\n') }
+    await streamInto(model, history, convId, { context: `You are the synthesizer of the team ${team.name}. ${team.synthesizer || 'Merge the members’ work into one excellent answer.'}\nDo not mention the internal process unless useful.\n\nTeam work:\n${work}`, tool })
   }
 
   const stop = () => {
@@ -794,7 +915,7 @@ export default function App() {
   }
 
   const toggleNavigation = (section: NavKey) => {
-    if (section === 'creative' || section === 'explore') {
+    if (isPage(section)) {
       setActiveNav(section)
       setPanelOpen(false)
       setContextOpen(false)
@@ -837,7 +958,7 @@ export default function App() {
   }
 
   const goNav = (section: NavKey) => {
-    if (section === 'creative' || section === 'explore') return toggleNavigation(section)
+    if (isPage(section)) return toggleNavigation(section)
     setActiveNav(section)
     setPanelOpen(true)
   }
@@ -890,7 +1011,7 @@ export default function App() {
     { id: 'sel.clear', category: 'Selection', label: 'Clear Selection', run: () => window.getSelection()?.removeAllRanges() },
     // View
     { id: 'view.palette', category: 'View', label: 'Command Palette…', shortcut: 'Ctrl+Shift+P', run: () => setPalette('commands') },
-    { id: 'view.sidebar', category: 'View', label: 'Toggle Sidebar', shortcut: 'Ctrl+B', run: () => (activeNav === 'creative' || activeNav === 'explore' ? goNav('chats') : setPanelOpen((v) => !v)) },
+    { id: 'view.sidebar', category: 'View', label: 'Toggle Sidebar', shortcut: 'Ctrl+B', run: () => (isPage(activeNav) ? goNav('chats') : setPanelOpen((v) => !v)) },
     { id: 'view.workspace', category: 'View', label: 'Toggle Workspace Panel', shortcut: 'Ctrl+Alt+B', run: () => setContextOpen((v) => !v) },
     { id: 'view.terminal', category: 'View', label: 'Terminal', shortcut: 'Ctrl+`', checked: termOpen, run: () => (termOpen ? setTermOpen(false) : openTerminal()) },
     { id: 'view.light', category: 'View', label: 'Light Theme', checked: themeMode === 'light', run: () => setThemeMode('light') },
@@ -901,7 +1022,7 @@ export default function App() {
     { id: 'view.zoomReset', category: 'View', label: 'Reset Zoom', shortcut: 'Ctrl+0', run: () => api.win.zoom(0) },
     { id: 'view.fullscreen', category: 'View', label: 'Full Screen', shortcut: 'F11', run: () => api.win.fullscreen() },
     // Go
-    ...navItems.map((n, i) => ({ id: `go.${n.id}`, category: 'Go', label: n.label, shortcut: i < 9 ? `Alt+${i + 1}` : undefined, checked: activeNav === n.id && (n.id === 'creative' || n.id === 'explore' || panelOpen), run: () => goNav(n.id) })),
+    ...navItems.map((n, i) => ({ id: `go.${n.id}`, category: 'Go', label: n.label, shortcut: i < 9 ? `Alt+${i + 1}` : undefined, checked: activeNav === n.id && (isPage(n.id) || panelOpen), run: () => goNav(n.id) })),
     { id: 'go.nextChat', category: 'Go', label: 'Next Chat', shortcut: 'Alt+Down', run: () => stepChat(1) },
     { id: 'go.prevChat', category: 'Go', label: 'Previous Chat', shortcut: 'Alt+Up', run: () => stepChat(-1) },
     { id: 'go.chat', category: 'Go', label: 'Go to Chat…', shortcut: 'Ctrl+P', run: () => setPalette('chats') },
@@ -1011,11 +1132,13 @@ export default function App() {
         .filter((x) => x.label.slice(1).includes(q))
         .slice(0, 8)
     }
-    return agents
-      .filter((a) => `${a.handle} ${a.description}`.toLowerCase().includes(q))
+    return [
+      ...teams.map((x) => ({ kind: 'agent' as const, id: x.id, label: x.handle, hint: `${t('Team')} · ${x.description || x.mode}`, insert: `${x.handle} ` })),
+      ...agents.map((a) => ({ kind: 'agent' as const, id: a.id, label: a.handle, hint: a.description || a.instructions.slice(0, 80), insert: `${a.handle} ` })),
+    ]
+      .filter((x) => `${x.label} ${x.hint}`.toLowerCase().includes(q))
       .slice(0, 8)
-      .map((a) => ({ kind: 'agent' as const, id: a.id, label: a.handle, hint: a.description || a.instructions.slice(0, 80), insert: `${a.handle} ` }))
-  }, [message, skills, agents, suggestClosed])
+  }, [message, skills, agents, teams, suggestClosed])
   const applySuggest = (x: Suggest) => {
     setMessage((cur) => cur.replace(/(^|\s)[/@][\w.-]*$/, (_, pre) => `${pre}${x.insert}`))
     if (x.kind === 'agent') setActiveAgents((cur) => (cur.includes(x.label) ? cur : [...cur, x.label]))
@@ -1041,7 +1164,7 @@ export default function App() {
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault()
-        if (activeNav !== 'creative' && activeNav !== 'explore' && e.dataTransfer.files.length) addFiles(e.dataTransfer.files)
+        if (!isPage(activeNav) && e.dataTransfer.files.length) addFiles(e.dataTransfer.files)
       }}
     >
       <nav className="tool-rail" aria-label="Main navigation">
@@ -1051,7 +1174,7 @@ export default function App() {
         <div className="rail-navigation">
           {navItems.map((item) => {
             const Icon = item.icon
-            const selected = activeNav === item.id && (item.id === 'creative' || item.id === 'explore' || panelOpen)
+            const selected = activeNav === item.id && (isPage(item.id) || panelOpen)
             return (
               <button
                 key={item.id}
@@ -1139,7 +1262,7 @@ export default function App() {
         </>
       )}
 
-      {panelOpen && activeNav !== 'creative' && activeNav !== 'explore' && (
+      {panelOpen && !isPage(activeNav) && (
         <>
           <button className="panel-backdrop" onClick={() => setPanelOpen(false)} aria-label="Close navigation" />
           <WorkspacePanel
@@ -1190,7 +1313,26 @@ export default function App() {
           />
         </Suspense>
       )}
-      {activeNav === 'creative' ? null : activeNav === 'explore' ? (
+      {activeNav === 'studio' ? (
+        <Suspense fallback={<main className="view-loading" />}>
+          <CreatorStudio
+            skills={skills}
+            agents={agents}
+            servers={servers}
+            models={models}
+            model={primaryModel() || null}
+            intent={studioIntent}
+            activeHarness={activeHarness}
+            setActiveHarness={setActiveHarness}
+            onRefresh={refreshLists}
+            onBack={() => {
+              setActiveNav('chats')
+              setPanelOpen(false)
+            }}
+            onChatWith={chatWithAgent}
+          />
+        </Suspense>
+      ) : activeNav === 'creative' ? null : activeNav === 'explore' ? (
         <Suspense fallback={<main className="view-loading" />}>
           <Explore
             onBack={() => {
@@ -1666,8 +1808,16 @@ export default function App() {
             </section>
 
             <div className={`composer-area ${temporaryChat ? 'temporary-composer-area' : ''} ${emptyLanding ? 'composer-area-centered' : ''}`}>
-              {activeAgents.length > 0 && (
+              {(activeAgents.length > 0 || harness) && (
                 <div className="agent-chips">
+                  {harness && (
+                    <span className="attachment-chip agent-chip harness-chip" title={t('Harness on: only its tools, skills and rules are used')}>
+                      <Layers size={12} /> {harness.name}
+                      <button type="button" onClick={() => setActiveHarness(null)} aria-label={t('Turn off')}>
+                        <X size={11} />
+                      </button>
+                    </span>
+                  )}
                   {activeAgents.map((h) => (
                     <span key={h} className="attachment-chip agent-chip">
                       <Bot size={12} /> {h}

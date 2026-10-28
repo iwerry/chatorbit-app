@@ -6,7 +6,7 @@ import { api, parseJSON, type Agent, type McpServer, type ModelInfo, type Skill 
 const CATEGORIES = ['General', 'Development', 'Creative', 'Research', 'Marketing', 'Data', 'Support']
 const COLORS = ['#c8f04a', '#75bdc8', '#b99ad0', '#f0a35e', '#ef7d7d', '#7fd3a1']
 
-type Draft = {
+export type Draft = {
   id?: string
   name: string
   description: string
@@ -63,6 +63,8 @@ export function AgentsPanel({
   servers,
   onRefresh,
   onChatWithAgent,
+  preset,
+  selectId,
 }: {
   agents: Agent[]
   models: ModelInfo[]
@@ -70,6 +72,9 @@ export function AgentsPanel({
   servers: McpServer[]
   onRefresh: () => void
   onChatWithAgent: (handle: string) => void
+  // A draft made by the Creator Studio brain, shown for review before saving.
+  preset?: { nonce: number; draft: Partial<Draft> } | null
+  selectId?: string | null
 }) {
   const [selectedId, setSelectedId] = useState<string>('new')
   const [draft, setDraft] = useState<Draft>(empty)
@@ -83,6 +88,15 @@ export function AgentsPanel({
     setDraft(a ? fromAgent(a) : empty())
     setToolPicker(false)
   }, [selectedId])
+
+  useEffect(() => {
+    if (!preset) return
+    setSelectedId('new')
+    setTimeout(() => setDraft({ ...empty(), ...preset.draft, starters: preset.draft.starters?.length ? preset.draft.starters : [''] }), 0)
+  }, [preset?.nonce])
+  useEffect(() => {
+    if (selectId) setSelectedId(selectId)
+  }, [selectId])
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => ({ ...d, [k]: v }))
   const chatModels = useMemo(() => models.filter((m) => !m.image), [models])
