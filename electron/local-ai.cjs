@@ -119,6 +119,16 @@ const CATALOG = [
     ] },
   { id: 'qwen3-4b', kind: 'text', tier: 'medium', name: 'Qwen3 4B Instruct', license: 'Apache-2.0', size: 2.5, req: { ram: 6, vram: 0 },
     description: 'The best small all-rounder: reasoning, code, tools and Portuguese. Fast with any GPU.', files: [{ role: 'model', repo: 'unsloth/Qwen3-4B-Instruct-2507-GGUF', file: 'Qwen3-4B-Instruct-2507-Q4_K_M.gguf' }] },
+  { id: 'qwen3.5-4b', kind: 'text', tier: 'medium', isNew: true, name: 'Qwen3.5 4B', license: 'Apache-2.0', size: 2.74, req: { ram: 6, vram: 0 }, vision: true,
+    description: 'Newest small Qwen: strong reasoning and Portuguese, and it sees images.', files: [
+      { role: 'model', repo: 'unsloth/Qwen3.5-4B-GGUF', pattern: 'Q4_K_M\\.gguf$' },
+      { role: 'mmproj', repo: 'unsloth/Qwen3.5-4B-GGUF', pattern: '^mmproj[^/]*F16[^/]*\\.gguf$|^mmproj[^/]*\\.gguf$', optional: true },
+    ] },
+  { id: 'gemma4-e4b', kind: 'text', tier: 'medium', isNew: true, name: 'Gemma 4 E4B', license: 'Gemma', size: 5.0, req: { ram: 8, vram: 0 }, vision: true,
+    description: 'Google’s Gemma 4 for laptops: natural writing in many languages, and it sees images.', files: [
+      { role: 'model', repo: 'unsloth/gemma-4-e4b-it-GGUF', pattern: 'Q4_K_M\\.gguf$' },
+      { role: 'mmproj', repo: 'unsloth/gemma-4-e4b-it-GGUF', pattern: '^mmproj[^/]*F16[^/]*\\.gguf$|^mmproj[^/]*\\.gguf$', optional: true },
+    ] },
   { id: 'qwen2.5-7b', kind: 'text', tier: 'heavy', name: 'Qwen2.5 7B', license: 'Apache-2.0', size: 4.68, req: { ram: 10, vram: 6 },
     description: 'Strong local model. Best with a GPU (6 GB+) or 16 GB RAM.', files: [{ role: 'model', repo: 'bartowski/Qwen2.5-7B-Instruct-GGUF', file: 'Qwen2.5-7B-Instruct-Q4_K_M.gguf' }] },
   { id: 'qwen3-8b', kind: 'text', tier: 'heavy', name: 'Qwen3 8B', license: 'Apache-2.0', size: 5.03, req: { ram: 10, vram: 6 },
@@ -180,6 +190,46 @@ const CATALOG = [
       { role: 't5xxl', repo: 'Green-Sky/flux.1-schnell-GGUF', file: 't5xxl_q4_k.gguf' },
     ], args: { diffusion: '--diffusion-model', vae: '--vae', clip_l: '--clip_l', t5xxl: '--t5xxl', extra: ['--cfg-scale', '1', '--steps', '4', '--sampling-method', 'euler', '--offload-to-cpu', '--vae-tiling'], width: 1024, height: 1024, presets: [4, 6, 8] } },
 
+  // New in 0.1.28-2 (stable-diffusion.cpp master-1015 supports them; first runs on real hardware may need tuning).
+  { id: 'flux3-klein', kind: 'image', tier: 'medium', isNew: true, name: 'FLUX.3 Image Klein', license: 'FLUX Kommunity (free under $5M revenue)', size: 6.0, req: { ram: 12, vram: 8 },
+    description: 'Black Forest Labs’ newest open model (5.6B): sharp photos, readable text and editing with up to 10 reference images. 16 steps.', files: [
+      { role: 'diffusion', repo: 'leejet/flux-3-image-klein-GGUF', pattern: '(q4_0|q4_k)[^/]*\\.gguf$' },
+      { role: 'llm', repo: 'Qwen/Qwen3-VL-4B-Instruct-GGUF', pattern: 'Q4_K_M\\.gguf$' },
+      { role: 'vae', repo: 'Comfy-Org/flux2-dev', file: 'split_files/vae/flux2-vae.safetensors' },
+    ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '16', '--sampling-method', 'euler', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 1024, height: 1024, presets: [12, 16, 24], ref: true } },
+  { id: 'flux2-klein-9b', kind: 'image', tier: 'heavy', isNew: true, name: 'FLUX.2 klein 9B', license: 'FLUX Non-Commercial', nonCommercial: true, size: 10.6, req: { ram: 16, vram: 10 },
+    description: 'The bigger klein: more detail and better hands than 4B, image editing in 4 steps. Personal, non-commercial use.', files: [
+      { role: 'diffusion', repo: 'leejet/FLUX.2-klein-9B-GGUF', pattern: 'q4_0[^/]*\\.gguf$' },
+      { role: 'llm', repo: 'unsloth/Qwen3-8B-GGUF', file: 'Qwen3-8B-Q4_K_M.gguf' },
+      { role: 'vae', repo: 'Comfy-Org/flux2-dev', file: 'split_files/vae/flux2-vae.safetensors' },
+    ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '4', '--sampling-method', 'euler', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 1024, height: 1024, presets: [4, 6, 8], ref: true } },
+  { id: 'krea2-turbo', kind: 'image', tier: 'heavy', isNew: true, name: 'Krea 2 Turbo', license: 'Krea 2 Community', size: 10.3, req: { ram: 16, vram: 10 },
+    description: 'Krea’s 12B model, distilled to 8 steps: rich color, strong aesthetics and natural photos.', files: [
+      { role: 'diffusion', repo: 'Abiray/Krea-2-Turbo-GGUF', file: 'Krea-2-Turbo-Q4_K_M.gguf' },
+      { role: 'llm', repo: 'Qwen/Qwen3-VL-4B-Instruct-GGUF', pattern: 'Q4_K_M\\.gguf$' },
+      { role: 'vae', repo: 'Comfy-Org/Wan_2.1_ComfyUI_repackaged', file: 'split_files/vae/wan_2.1_vae.safetensors' },
+    ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '8', '--sampling-method', 'euler', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 1024, height: 1024, presets: [6, 8, 12] } },
+  { id: 'mage-flow-turbo', kind: 'image', tier: 'heavy', isNew: true, name: 'Mage-Flow Turbo', license: 'see model card', size: 10.8, req: { ram: 16, vram: 8 },
+    description: 'Microsoft’s 4B native-resolution model in 4 steps, from 512 to 2048 px.', files: [
+      { role: 'diffusion', repo: 'Comfy-Org/Mage-Flow', pattern: 'diffusion_models/(?![^/]*edit)[^/]*turbo[^/]*\\.safetensors$' },
+      { role: 'llm', repo: 'Qwen/Qwen3-VL-4B-Instruct-GGUF', pattern: 'Q4_K_M\\.gguf$' },
+      { role: 'vae', repo: 'Comfy-Org/Mage-Flow', pattern: '^vae/[^/]*\\.safetensors$' },
+    ], args: { diffusion: '--diffusion-model', llm: '--llm', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '4', '--sampling-method', 'euler', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 1024, height: 1024, presets: [4, 6, 8] } },
+  { id: 'mage-flow-edit-turbo', kind: 'image', tier: 'heavy', isNew: true, name: 'Mage-Flow Edit Turbo', license: 'see model card', size: 11.6, req: { ram: 16, vram: 8 },
+    description: 'Edit images with words in 4 steps (Edit image node). Keeps the parts you do not mention.', files: [
+      { role: 'diffusion', repo: 'Comfy-Org/Mage-Flow', pattern: 'diffusion_models/[^/]*edit[^/]*turbo[^/]*\\.safetensors$' },
+      { role: 'llm', repo: 'Qwen/Qwen3-VL-4B-Instruct-GGUF', pattern: 'Q4_K_M\\.gguf$' },
+      { role: 'llm_vision', repo: 'Qwen/Qwen3-VL-4B-Instruct-GGUF', pattern: '^mmproj[^/]*\\.gguf$' },
+      { role: 'vae', repo: 'Comfy-Org/Mage-Flow', pattern: '^vae/[^/]*\\.safetensors$' },
+    ], args: { diffusion: '--diffusion-model', llm: '--llm', llm_vision: '--llm_vision', vae: '--vae', extra: ['--cfg-scale', '1', '--steps', '4', '--sampling-method', 'euler', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 1024, height: 1024, presets: [4, 6, 8], ref: true } },
+  { id: 'qwen-image-edit-2511', kind: 'image', tier: 'heavy', isNew: true, name: 'Qwen Image Edit 2511', license: 'Apache-2.0', size: 19, req: { ram: 24, vram: 12 },
+    description: 'Precise edits with words: change text, swap objects, keep faces consistent. Big and slow — for strong GPUs.', files: [
+      { role: 'diffusion', repo: 'unsloth/Qwen-Image-Edit-2511-GGUF', pattern: 'Q4_K_M\\.gguf$' },
+      { role: 'llm', repo: 'mradermacher/Qwen2.5-VL-7B-Instruct-GGUF', pattern: 'Q4_K_M\\.gguf$' },
+      { role: 'llm_vision', repo: 'mradermacher/Qwen2.5-VL-7B-Instruct-GGUF', pattern: 'mmproj[^/]*\\.gguf$' },
+      { role: 'vae', repo: 'Comfy-Org/Qwen-Image_ComfyUI', file: 'split_files/vae/qwen_image_vae.safetensors' },
+    ], args: { diffusion: '--diffusion-model', llm: '--llm', llm_vision: '--llm_vision', vae: '--vae', extra: ['--cfg-scale', '2.5', '--steps', '20', '--sampling-method', 'euler', '--flow-shift', '3', '--model-args', 'qwen_image_zero_cond_t=true', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 1024, height: 1024, presets: [12, 20, 30], ref: true } },
+
   // VIDEO (stable-diffusion.cpp, Wan)
   { id: 'wan2.1-1.3b', kind: 'video', tier: 'light', name: 'Wan 2.1 1.3B', license: 'Apache-2.0', size: 6.2, req: { ram: 8, vram: 4 },
     description: '480p text-to-video clips of ~2 s. Made for 4 GB GPUs — on CPU it takes many minutes.', files: [
@@ -199,6 +249,15 @@ const CATALOG = [
       { role: 'vae', repo: 'Comfy-Org/Wan_2.2_ComfyUI_Repackaged', file: 'split_files/vae/wan2.2_vae.safetensors' },
       { role: 't5xxl', repo: 'city96/umt5-xxl-encoder-gguf', file: 'umt5-xxl-encoder-Q4_K_M.gguf' },
     ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', vae: '--vae', t5xxl: '--t5xxl', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--diffusion-fa', '--video-frames', '49', '--flow-shift', '3.0', '--offload-to-cpu', '--vae-tiling'], width: 1280, height: 704, presets: [12, 20, 30], fps: 24, image: true, end: true } },
+
+  { id: 'ltx2.3', kind: 'video', tier: 'heavy', isNew: true, name: 'LTX-2.3 (video + sound)', license: 'LTX-2 Community', size: 22, req: { ram: 32, vram: 16 },
+    description: 'Lightricks’ 22B model: video with synchronized sound from text or a first frame. Needs a strong GPU.', files: [
+      { role: 'diffusion', repo: 'unsloth/LTX-2.3-GGUF', pattern: 'dev[^/]*Q4_K_M\\.gguf$' },
+      { role: 'llm', repo: 'unsloth/gemma-3-12b-it-GGUF', file: 'gemma-3-12b-it-Q4_K_M.gguf' },
+      { role: 'connectors', repo: 'unsloth/LTX-2.3-GGUF', pattern: 'text_encoders/[^/]*connectors[^/]*\\.safetensors$' },
+      { role: 'vae', repo: 'unsloth/LTX-2.3-GGUF', pattern: 'vae/[^/]*video_vae[^/]*\\.safetensors$' },
+      { role: 'audio_vae', repo: 'unsloth/LTX-2.3-GGUF', pattern: 'vae/[^/]*audio_vae[^/]*\\.safetensors$' },
+    ], args: { mode: 'vid_gen', diffusion: '--diffusion-model', llm: '--llm', connectors: '--embeddings-connectors', vae: '--vae', audio_vae: '--audio-vae', extra: ['--cfg-scale', '6.0', '--sampling-method', 'euler', '--video-frames', '33', '--offload-to-cpu', '--diffusion-fa', '--vae-tiling'], width: 768, height: 512, presets: [20, 30, 40], fps: 24, image: true, frameStep: 8 } },
 
   // VOICES (Piper text-to-speech, offline)
   { id: 'tts-pt_BR-faber-medium', kind: 'tts', tier: 'light', name: 'Faber · Português (BR)', lang: 'pt-BR', license: 'see voice card', size: 0.063, req: { ram: 1, vram: 0 },
@@ -436,7 +495,7 @@ function status() {
       id: m.id, kind: m.kind, tier: m.tier, name: m.name, description: m.description, license: m.license,
       size: Math.round((m.size || 0) * GB), req: m.req, ram: m.req?.ram ? `${m.req.ram} GB RAM` : '',
       badge: m.tier === 'light' ? 'Light' : m.tier === 'medium' ? 'Medium' : m.tier === 'heavy' ? 'Heavy' : 'Custom',
-      fit: fitFor(m), installed: isInstalled(m), engineSupported: engineSupported(m), engine: engineOf(m), family: m.family, voices: m.voices, langs: m.langs, clone: !!m.clone, nonCommercial: !!m.nonCommercial, licenseNotice: m.licenseNotice, vision: !!m.vision, visionReady: hasVision(m),
+      fit: fitFor(m), installed: isInstalled(m), engineSupported: engineSupported(m), engine: engineOf(m), family: m.family, voices: m.voices, langs: m.langs, clone: !!m.clone, nonCommercial: !!m.nonCommercial, licenseNotice: m.licenseNotice, vision: !!m.vision, visionReady: hasVision(m), isNew: !!m.isNew,
       lang: m.lang,
       partial: partialBytes(m),
       gen: m.args ? { presets: m.args.presets || [20, 28, 40], fixedSteps: !!m.args.fixedSteps, width: m.args.width, height: m.args.height, fps: m.args.fps || 0, image: m.kind === 'image' || !!m.args.image, ref: !!m.args.ref, end: !!m.args.end } : null,
@@ -487,7 +546,7 @@ async function resolveFile(f) {
   const re = new RegExp(f.pattern, 'i')
   const names = (json.siblings || []).map((s) => s.rfilename)
   // Exact pattern first; otherwise the first model file at the root of the repo (repos rename quantizations over time).
-  const hit = names.find((n) => re.test(n) && (f.role === 'mmproj' || !/mmproj/i.test(n))) || (['model', 'diffusion'].includes(f.role) ? names.find((n) => /^[^/]+\.(gguf|safetensors)$/i.test(n) && !/vae|clip|t5|encoder|mmproj/i.test(n)) : null)
+  const hit = names.find((n) => re.test(n) && (/mmproj|vision/.test(f.role) || !/mmproj/i.test(n))) || (['model', 'diffusion'].includes(f.role) ? names.find((n) => /^[^/]+\.(gguf|safetensors)$/i.test(n) && !/vae|clip|t5|encoder|mmproj/i.test(n)) : null)
   if (!hit) throw new Error(`${f.repo} has no compatible model file anymore. Pick another model or search Hugging Face.`)
   f.file = hit
   return { url: `${HF}/${f.repo}/resolve/main/${hit.split('/').map(encodeURIComponent).join('/')}`, file: path.basename(hit) }
@@ -932,7 +991,7 @@ async function generateMedia({ modelId, prompt, negative, width, height, steps, 
   const a = m.args
   const args = []
   if (a.mode) args.push('-M', a.mode)
-  for (const role of ['model', 'diffusion', 'llm', 'vae', 'clip_l', 't5xxl']) if (a[role]) args.push(a[role], fileFor(role))
+  for (const role of ['model', 'diffusion', 'llm', 'llm_vision', 'connectors', 'vae', 'audio_vae', 'clip_l', 't5xxl']) if (a[role]) args.push(a[role], fileFor(role))
   args.push('-p', prompt)
   if (negative) args.push('-n', negative)
   const extra = [...a.extra]
@@ -942,8 +1001,9 @@ async function generateMedia({ modelId, prompt, negative, width, height, steps, 
     else extra.push('--steps', String(steps))
   }
   if (frames && a.mode === 'vid_gen') {
-    // Wan needs 4n+1 frames.
-    const f = Math.max(5, Math.round((frames - 1) / 4) * 4 + 1)
+    // Wan needs 4n+1 frames, LTX 8n+1.
+    const st = a.frameStep || 4
+    const f = Math.max(st + 1, Math.round((frames - 1) / st) * st + 1)
     const i = extra.indexOf('--video-frames')
     if (i >= 0) extra[i + 1] = String(f)
   }

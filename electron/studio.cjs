@@ -227,4 +227,87 @@ function importZip(buffer) {
   }
 }
 
-module.exports = { questionsPrompt, buildPrompt, parseJson, toSkillMd, fromSkillMd, validate, audit, exportZip, importZip, RUBRIC }
+// ---------- bundles: agents, multi-agent teams and harnesses ----------
+// A bundle ZIP holds readable Markdown for people and other hosts (AGENT.md, TEAM.md, HARNESS.md,
+// skills/<name>/SKILL.md) plus orbi-bundle.json, which Orbi imports back exactly.
+const arr = (v) => {
+  if (Array.isArray(v)) return v
+  try {
+    const j = JSON.parse(v || '[]')
+    return Array.isArray(j) ? j : []
+  } catch {
+    return []
+  }
+}
+const obj = (v) => {
+  if (v && typeof v === 'object') return v
+  try {
+    return JSON.parse(v || '{}') || {}
+  } catch {
+    return {}
+  }
+}
+const slug = (v, d = 'item') => String(v || d).toLowerCase().replace(/^@/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || d
+const fm = (o) => '---\n' + Object.entries(o).filter(([, v]) => v !== undefined && v !== '' && !(Array.isArray(v) && !v.length)).map(([k, v]) => `${k}: ${Array.isArray(v) ? `[${v.map((x) => JSON.stringify(String(x))).join(', ')}]` : JSON.stringify(String(v))}`).join('\n') + '\n---\n'
+
+function agentMd(a) {
+  const starters = arr(a.starters)
+  const skills = a.skills_mode === 'all' ? ['(all enabled skills)'] : a.skills_mode === 'selected' ? arr(a.skills) : []
+  return (
+    fm({ name: a.name, handle: a.handle, description: a.description, category: a.category, model: a.model, tools: arr(a.tools), skills }) +
+    `\n# ${a.name || a.handle}\n\n${a.description ? a.description + '\n\n' : ''}## Instructions\n\n${a.instructions || ''}\n` +
+    (starters.length ? `\n## Conversation starters\n\n${starters.map((x) => `- ${x}`).join('\n')}\n` : '') +
+    `\n---\nUse: paste the Instructions as the system prompt of any assistant, or import this ZIP in Orbi → Creator Studio.\n`
+  )
+}
+const MODE_TEXT = { sequential: 'Sequential — each member improves the previous result.', parallel: 'Parallel — members answer independently; the synthesizer merges.', router: 'Router — a lead picks the best member for each request.', debate: 'Debate — members critique each other; the synthesizer decides.' }
+function teamMd(t) {
+  const members = arr(t.members)
+  return (
+    fm({ name: t.name, handle: t.handle, mode: t.mode, members: members.length }) +
+    `\n# ${t.name || t.handle}\n\n${t.description ? t.description + '\n\n' : ''}**How they work together:** ${MODE_TEXT[t.mode] || t.mode}\n\n## Members\n\n` +
+    members.map((m, i) => `### ${i + 1}. ${m.name || m.agent || 'Member'}${m.agent ? ` (${m.agent})` : ''}\n\n${m.role ? `*${m.role}*\n\n` : ''}${m.instructions || (m.agent ? `Uses the agent ${m.agent} — see agents/.` : '')}\n`).join('\n') +
+    `\n## Synthesizer\n\n${t.synthesizer || 'Merge the members’ work into one clear final answer.'}\n`
+  )
+}
+function harnessMd(h) {
+  const c = obj(h.config)
+  const p = c.policies || {}
+  const list = (x) => (x && x.length ? x.map((v) => `- ${v}`).join('\n') : '- (none)')
+  return (
+    fm({ name: h.name, description: h.description }) +
+    `\n# ${h.name}\n\n${h.description ? h.description + '\n\n' : ''}## Allowed tools (MCP servers)\n\n${list(c.servers)}\n\nTools not listed are hidden from the model, so it cannot call them. Enforce this in the host, not in the prompt.\n\n## Skills switched on\n\n${list(c.skills)}\n\n## Agents\n\n${list(c.agents)}\n\n## Policies\n\n` +
+    `- Context budget: ${p.context_budget ? `${p.context_budget} tokens` : 'model default'}\n- Cut long tool outputs: ${p.compact_tool_output ? `${p.compact_tool_output} characters` : 'off'}\n- Web search: ${p.web || 'auto'}\n- Memories: ${p.memory === false ? 'off' : 'on'}\n- Approval for risky tools: ${p.approval || 'risky'}\n\n## Operating rules\n\n${p.rules || '(none)'}\n`
+  )
+}
+function exportBundle({ agents = [], teams = [], harnesses = [], skills = [], title = 'orbi-bundle', author = '' }) {
+  const root = slug(title, 'orbi-bundle')
+  const files = {}
+  const put = (p, text) => (files[`${root}/${p}`] = strToU8(text))
+  for (const a of agents) put(`agents/${slug(a.handle || a.name, 'agent')}/AGENT.md`, agentMd(a))
+  for (const t of teams) put(`teams/${slug(t.handle || t.name, 'team')}/TEAM.md`, teamMd(t))
+  for (const h of harnesses) put(`harnesses/${slug(h.name, 'harness')}/HARNESS.md`, harnessMd(h))
+  for (const k of skills) {
+    const name = slug(k.name, 'skill')
+    put(`skills/${name}/SKILL.md`, toSkillMd({ ...k, name }, author))
+    for (const f of k.files || []) if (/^[\w./-]+$/.test(f.path) && !f.path.includes('..')) put(`skills/${name}/${f.path}`, String(f.content))
+    if (k.tests && ((k.tests.positive || []).length || (k.tests.cases || []).length)) put(`skills/${name}/evals/tests.yaml`, testsYaml({ ...k, name }))
+  }
+  const count = (n, w) => (n ? `${n} ${w}${n > 1 ? 's' : ''}` : '')
+  put(
+    'README.md',
+    `# ${title}\n\nExported from Orbi Creator Studio${author ? ` by ${author}` : ''} on ${new Date().toISOString().slice(0, 10)}.\n\nContains ${[count(agents.length, 'agent'), count(teams.length, 'team'), count(harnesses.length, 'harness'), count(skills.length, 'skill')].filter(Boolean).join(', ') || 'nothing'}.\n\n- **agents/** — AGENT.md per agent (instructions you can paste into any assistant)\n- **teams/** — TEAM.md per multi-agent team\n- **harnesses/** — HARNESS.md per harness (allowed tools, skills, agents, policies)\n- **skills/** — portable Agent Skills (SKILL.md + support files)\n- **orbi-bundle.json** — import this ZIP in Orbi → Creator Studio → Import to restore everything\n`,
+  )
+  put('orbi-bundle.json', JSON.stringify({ orbi: 'bundle', version: 1, agents, teams, harnesses, skills }, null, 2))
+  return Buffer.from(zipSync(files, { level: 6 }))
+}
+function importBundle(buffer) {
+  const entries = unzipSync(new Uint8Array(buffer))
+  const name = Object.keys(entries).find((n) => /(^|\/)orbi-bundle\.json$/.test(n))
+  if (!name) return null
+  const j = JSON.parse(strFromU8(entries[name]))
+  if (j.orbi !== 'bundle') return null
+  return { agents: j.agents || [], teams: j.teams || [], harnesses: j.harnesses || [], skills: j.skills || [] }
+}
+
+module.exports = { questionsPrompt, buildPrompt, parseJson, toSkillMd, fromSkillMd, validate, audit, exportZip, importZip, exportBundle, importBundle, RUBRIC }

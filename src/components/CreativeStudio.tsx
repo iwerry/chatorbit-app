@@ -21,6 +21,7 @@ import {
   Maximize2,
   Plus,
   Rocket,
+  Search,
   Sparkles,
   Square,
   Trash2,
@@ -33,6 +34,9 @@ import { api, on, type Board, type GenInfo, type LocalStatus, type MediaItem, ty
 import { activity } from '../lib/activity'
 import { fmtBytes, t } from '../lib/i18n'
 import { ThemeSwitcher, type ThemeMode } from './ThemeSwitcher'
+import { Lightbox } from './Lightbox'
+import { PromptTools } from './PromptTools'
+import { DEFAULT_NEGATIVE, IDEAS, IDEA_CATS, type Idea, type IdeaCat } from '../lib/ideas'
 
 const NodeFlow = lazy(() => import('./NodeFlow').then((m) => ({ default: m.NodeFlow })))
 
@@ -125,6 +129,10 @@ export function CreativeStudio({
   const [boards, setBoards] = useState<Board[]>([])
   const [board, setBoard] = useState<string>('')
   const [newBoard, setNewBoard] = useState<string | null>(null)
+  const [viewing, setViewing] = useState<{ list: MediaItem[]; index: number } | null>(null)
+  const [ideaCat, setIdeaCat] = useState<IdeaCat | 'all'>('all')
+  const [ideaQuery, setIdeaQuery] = useState('')
+  const [flowTemplate, setFlowTemplate] = useState<{ id: string; prompt: string; negative: string } | null>(null)
 
   // what to make
   const [mode, setMode] = useState<Mode>('image')
@@ -184,6 +192,21 @@ export function CreativeStudio({
       if (typeof s.fps === 'number') setFps(s.fps)
       if (typeof s.duration === 'number') setDuration(s.duration)
     })
+  }, [])
+
+  // "Use prompt" from the Media Library or another screen.
+  useEffect(() => {
+    const onUse = (e: Event) => {
+      const d = (e as CustomEvent<{ prompt: string; negative?: string; mode?: Mode }>).detail
+      if (!d?.prompt) return
+      setPrompt(d.prompt)
+      if (d.negative !== undefined) setNegative(d.negative)
+      if (d.mode) setMode(d.mode)
+      setTab('canvas')
+      api.setSetting('studioPrompt', '')
+    }
+    window.addEventListener('orbi:use-prompt', onUse)
+    return () => window.removeEventListener('orbi:use-prompt', onUse)
   }, [])
 
   // live progress for each job
@@ -495,12 +518,46 @@ export function CreativeStudio({
     </div>
   )
 
+  const negativeOf = (m: MediaItem) => {
+    try {
+      return String((m.params && JSON.parse(m.params).negative) || '')
+    } catch {
+      return ''
+    }
+  }
+  const usePromptOf = (m: MediaItem) => {
+    setPrompt(m.prompt)
+    const neg = negativeOf(m)
+    if (neg) setNegative(neg)
+    if (m.kind === 'video' || m.kind === 'image') setMode(m.kind)
+    setTab('canvas')
+  }
+  const openViewer = (m: MediaItem) => {
+    const i = shownMedia.findIndex((x) => x.id === m.id)
+    setViewing({ list: shownMedia, index: Math.max(0, i) })
+  }
+  const useIdea = (idea: Idea) => {
+    if (idea.mode === 'workflow') {
+      setFlowTemplate({ id: idea.template || 'text-image', prompt: idea.prompt, negative: idea.negative || '' })
+      setTab('workflows')
+      return
+    }
+    setMode(idea.mode)
+    setPrompt(idea.prompt)
+    setNegative(idea.negative || DEFAULT_NEGATIVE[idea.mode])
+    setUseInit(false)
+    if (idea.aspect) applyAspect(idea.aspect)
+    setTab('canvas')
+  }
+  // The newest render made from an idea becomes its cover.
+  const coverOf = (idea: Idea) => media.find((m) => m.prompt === idea.prompt && (m.kind === 'image' || m.kind === 'video'))
+
   const Thumb = ({ m, big = false }: { m: MediaItem; big?: boolean }) => (
     <div className={`studio-thumb ${base?.id === m.id ? 'active' : ''} ${big ? 'big' : ''}`} title={m.prompt || m.name}>
       {m.kind === 'video' ? (
-        <video src={m.url} muted loop onMouseEnter={(e) => e.currentTarget.play()} onMouseLeave={(e) => e.currentTarget.pause()} onClick={() => (showInCanvas(m), setTab('canvas'))} />
+        <video src={m.url} muted loop onMouseEnter={(e) => e.currentTarget.play()} onMouseLeave={(e) => e.currentTarget.pause()} onClick={() => (big ? openViewer(m) : (showInCanvas(m), setTab('canvas')))} onDoubleClick={() => openViewer(m)} />
       ) : (
-        <img src={m.url} alt={m.name} loading="lazy" onClick={() => (showInCanvas(m), setTab('canvas'))} />
+        <img src={m.url} alt={m.name} loading="lazy" onClick={() => (big ? openViewer(m) : (showInCanvas(m), setTab('canvas')))} onDoubleClick={() => openViewer(m)} />
       )}
       <span className={`studio-thumb-kind kind-${m.kind}`}>{m.kind === 'video' ? <Video size={10} /> : <ImageIcon size={10} />}</span>
       <div className="media-tile-tools">
@@ -512,8 +569,11 @@ export function CreativeStudio({
             <Maximize2 size={12} />
           </button>
         )}
+        <button title={t('View full screen')} onClick={() => openViewer(m)}>
+          <Maximize size={12} />
+        </button>
         {m.prompt && (
-          <button title={t('Use prompt')} onClick={() => setPrompt(m.prompt)}>
+          <button title={t('Use prompt')} onClick={() => usePromptOf(m)}>
             <Wand2 size={12} />
           </button>
         )}
@@ -592,8 +652,39 @@ export function CreativeStudio({
       </header>
 
       {tab === 'launchpad' && (
-        <div className="launchpad">
-          <h2>{t('What do you want to create?')}</h2>
+        <div className="launchpad launchpad-v2">
+          <nav className="launchpad-cats" aria-label={t('Idea categories')}>
+            {IDEA_CATS.map((c) => (
+              <button key={c.id} className={ideaCat === c.id ? 'active' : ''} onClick={() => setIdeaCat(c.id)}>
+                {t(c.label)}
+                <em className="num">{c.id === 'all' ? IDEAS.length : IDEAS.filter((x) => x.cat === c.id).length}</em>
+              </button>
+            ))}
+            <div className="launchpad-status">
+            <p>
+              <strong>{t('Ready on this PC')}</strong>
+            </p>
+            <ul>
+              <li>
+                <span className={`mcp-dot ${localStatus?.engines.sd.installed ? 'mcp-dot-connected' : ''}`} /> {t('Image & video engine')} · {localStatus?.engines.sd.installed ? t('installed') : t('downloads with the first model')}
+              </li>
+              <li>
+                <span className={`mcp-dot ${localImage ? 'mcp-dot-connected' : ''}`} /> {t('Image models')} · <span className="num">{localImage}</span>
+              </li>
+              <li>
+                <span className={`mcp-dot ${localVideo ? 'mcp-dot-connected' : ''}`} /> {t('Video models')} · <span className="num">{localVideo}</span>
+              </li>
+              <li>
+                <span className={`mcp-dot ${options.some((o) => !o.local) ? 'mcp-dot-connected' : ''}`} /> {t('Cloud image models')} · <span className="num">{options.filter((o) => !o.local).length}</span>
+              </li>
+            </ul>
+            <button className="orbi-btn orbi-btn-primary mt-3" onClick={onOpenModels}>
+              <Download size={13} /> {t('Get image & video models')}
+            </button>
+          </div>
+          </nav>
+          <div className="launchpad-main">
+            <h2>{t('What do you want to create?')}</h2>
           <div className="launchpad-actions">
             <button
               onClick={() => {
@@ -634,27 +725,36 @@ export function CreativeStudio({
               <span>{t('Chain briefs, images and exports as nodes.')}</span>
             </button>
           </div>
-          <div className="launchpad-status">
-            <p>
-              <strong>{t('Ready on this PC')}</strong>
-            </p>
-            <ul>
-              <li>
-                <span className={`mcp-dot ${localStatus?.engines.sd.installed ? 'mcp-dot-connected' : ''}`} /> {t('Image & video engine')} · {localStatus?.engines.sd.installed ? t('installed') : t('downloads with the first model')}
-              </li>
-              <li>
-                <span className={`mcp-dot ${localImage ? 'mcp-dot-connected' : ''}`} /> {t('Image models')} · <span className="num">{localImage}</span>
-              </li>
-              <li>
-                <span className={`mcp-dot ${localVideo ? 'mcp-dot-connected' : ''}`} /> {t('Video models')} · <span className="num">{localVideo}</span>
-              </li>
-              <li>
-                <span className={`mcp-dot ${options.some((o) => !o.local) ? 'mcp-dot-connected' : ''}`} /> {t('Cloud image models')} · <span className="num">{options.filter((o) => !o.local).length}</span>
-              </li>
-            </ul>
-            <button className="orbi-btn orbi-btn-primary mt-3" onClick={onOpenModels}>
-              <Download size={13} /> {t('Get image & video models')}
-            </button>
+            <div className="launchpad-ideas-head">
+              <h3>{t(IDEA_CATS.find((c) => c.id === ideaCat)?.label || 'All ideas')}</h3>
+              <label className="orbi-field launchpad-search">
+                <Search size={13} />
+                <input value={ideaQuery} onChange={(e) => setIdeaQuery(e.target.value)} placeholder={t('Search ideas')} />
+              </label>
+            </div>
+            <div className="launchpad-grid">
+              {IDEAS.filter((x) => (ideaCat === 'all' || x.cat === ideaCat) && `${x.title} ${t(x.title)} ${x.tags.join(' ')} ${x.prompt}`.toLowerCase().includes(ideaQuery.toLowerCase())).map((idea) => {
+                const cover = coverOf(idea)
+                return (
+                  <button key={idea.id} className="idea-card" onClick={() => useIdea(idea)} title={idea.prompt}>
+                    <div className="idea-cover" style={{ ['--h1' as string]: idea.hue[0], ['--h2' as string]: idea.hue[1] }}>
+                      {cover ? cover.kind === 'video' ? <video src={cover.url} muted loop autoPlay playsInline /> : <img src={cover.url} alt="" loading="lazy" /> : <span className="idea-cover-text">{idea.prompt}</span>}
+                      <span className="idea-kind">
+                        {idea.mode === 'video' ? <Video size={11} /> : idea.mode === 'workflow' ? <Workflow size={11} /> : <ImageIcon size={11} />}
+                        {idea.mode === 'video' ? t('Video') : idea.mode === 'workflow' ? t('Workflow') : t('Image')}
+                      </span>
+                    </div>
+                    <strong>{t(idea.title)}</strong>
+                    <span className="idea-tags">
+                      {idea.tags.map((tag) => (
+                        <em key={tag}>{t(tag)}</em>
+                      ))}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            <p className="studio-hint">{t('Click an idea to open it in the Canvas or as a workflow. The first image you make from an idea becomes its cover.')}</p>
           </div>
         </div>
       )}
@@ -684,6 +784,28 @@ export function CreativeStudio({
                   placeholder={mode === 'video' ? t('Describe the scene, the action and the camera movement…') : t('Describe the image…')}
                   onKeyDown={(e) => e.key === 'Enter' && (e.ctrlKey || e.metaKey) && invokeNow()}
                 />
+                <PromptTools
+                  models={models}
+                  mode={mode}
+                  prompt={prompt}
+                  negative={negative}
+                  onChange={(r) => {
+                    setPrompt(r.prompt)
+                    setNegative(r.negative)
+                  }}
+                />
+                <div className="studio-prompt-label">
+                  <span>{t('Negative prompt')}</span>
+                  <PromptTools
+                    small
+                    target="negative"
+                    models={models}
+                    mode={mode}
+                    prompt={prompt}
+                    negative={negative}
+                    onChange={(r) => setNegative(r.negative)}
+                  />
+                </div>
                 <textarea className="studio-prompt studio-negative" rows={2} value={negative} onChange={(e) => setNegative(e.target.value)} placeholder={t('Negative prompt (what to avoid)')} />
               </Section>
               <Section title={t('Model')}>
@@ -942,7 +1064,7 @@ export function CreativeStudio({
       {/* The workflow stays mounted after the first visit so a run continues while you use other tabs. */}
       {(flowMounted || tab === 'workflows') && (
         <Suspense fallback={tab === 'workflows' ? <div className="hub-skeleton" /> : null}>
-          <NodeFlow visible={tab === 'workflows'} models={models} localStatus={localStatus} onOpenModels={onOpenModels} onMediaCreated={onMediaCreated} />
+          <NodeFlow visible={tab === 'workflows'} models={models} localStatus={localStatus} onOpenModels={onOpenModels} onMediaCreated={onMediaCreated} pendingTemplate={flowTemplate} onTemplateLoaded={() => setFlowTemplate(null)} />
         </Suspense>
       )}
 
@@ -969,6 +1091,23 @@ export function CreativeStudio({
             )}
           </section>
         </div>
+      )}
+      {viewing && viewing.list[viewing.index] && (
+        <Lightbox
+          items={viewing.list}
+          index={viewing.index}
+          onIndex={(index) => setViewing((v) => (v ? { ...v, index } : v))}
+          onClose={() => setViewing(null)}
+          onDeleted={(m) => {
+            setMedia((cur) => cur.filter((x) => x.id !== m.id))
+            setViewing((v) => (v ? { ...v, list: v.list.filter((x) => x.id !== m.id) } : v))
+            if (base?.id === m.id) setBase(null)
+          }}
+          onUsePrompt={(m) => {
+            usePromptOf(m)
+            setViewing(null)
+          }}
+        />
       )}
     </main>
   )

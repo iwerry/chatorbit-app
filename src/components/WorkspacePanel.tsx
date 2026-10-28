@@ -15,6 +15,7 @@ import {
   FolderPlus,
   Image as ImageIcon,
   Library,
+  Maximize2,
   MessageSquareText,
   Pencil,
   Pin,
@@ -30,6 +31,7 @@ import {
 import { api, type Agent, type Conversation, type McpServer, type MediaItem, type Memory, type Message, type ModelInfo, type Plugin, type Project, type Skill } from '../lib/api'
 import { t } from '../lib/i18n'
 import { McpPanel } from './panels/McpPanel'
+import { Lightbox } from './Lightbox'
 
 export type NavKey = 'chats' | 'creative' | 'explore' | 'studio' | 'agents' | 'skills' | 'mcp' | 'scheduled' | 'memory' | 'bookmarks' | 'media'
 // Full-page sections (no side panel).
@@ -424,6 +426,7 @@ function BookmarksPanel({ bookmarks, onOpen, onRefresh }: { bookmarks: Message[]
 
 function MediaPanel({ media, onRefresh, onOpenCreative }: { media: MediaItem[]; onRefresh: () => void; onOpenCreative: () => void }) {
   const [filter, setFilter] = useState<'all' | 'image' | 'video' | 'file'>('all')
+  const [viewing, setViewing] = useState<number | null>(null)
   const input = useRef<HTMLInputElement>(null)
   const shown = media.filter((m) => filter === 'all' || m.kind === filter || (filter === 'file' && (m.kind === 'audio' || m.kind === 'file')))
   return (
@@ -431,10 +434,10 @@ function MediaPanel({ media, onRefresh, onOpenCreative }: { media: MediaItem[]; 
       <PanelIntro>{t('Every asset created or imported across your conversations and Creative workflows.')}</PanelIntro>
       <div className="media-actions">
         <button className="orbi-btn" onClick={() => input.current?.click()}>
-          <Upload size={13} /> Import
+          <Upload size={13} /> {t('Import')}
         </button>
         <button className="orbi-btn orbi-btn-primary" onClick={onOpenCreative}>
-          <WandSparkles size={13} /> Create
+          <WandSparkles size={13} /> {t('Create')}
         </button>
         <input
           ref={input}
@@ -458,7 +461,7 @@ function MediaPanel({ media, onRefresh, onOpenCreative }: { media: MediaItem[]; 
       <div className="creative-library-tabs media-tabs">
         {(['all', 'image', 'video', 'file'] as const).map((f) => (
           <button key={f} className={filter === f ? 'creative-library-tab-active' : ''} onClick={() => setFilter(f)}>
-            {f === 'all' ? 'All' : f === 'image' ? 'Images' : f === 'video' ? 'Videos' : 'Files'}
+            {t(f === 'all' ? 'All' : f === 'image' ? 'Images' : f === 'video' ? 'Videos' : 'Files')}
           </button>
         ))}
       </div>
@@ -470,17 +473,22 @@ function MediaPanel({ media, onRefresh, onOpenCreative }: { media: MediaItem[]; 
         </div>
       ) : (
         <div className="media-grid">
-          {shown.map((m) => (
+          {shown.map((m, k) => (
             <div className="media-tile" key={m.id} title={m.prompt || m.name}>
               {m.kind === 'image' ? (
-                <img src={m.url} alt={m.name} loading="lazy" onDoubleClick={() => api.openMedia(m.id)} />
+                <img src={m.url} alt={m.name} loading="lazy" onClick={() => setViewing(k)} />
               ) : m.kind === 'video' ? (
-                <video src={m.url} muted onDoubleClick={() => api.openMedia(m.id)} />
+                <video src={m.url} muted onClick={() => setViewing(k)} onMouseEnter={(e) => e.currentTarget.play()} onMouseLeave={(e) => e.currentTarget.pause()} />
               ) : (
-                <div className="media-file">{m.name.split('.').pop()?.toUpperCase()}</div>
+                <div className="media-file" onClick={() => setViewing(k)}>
+                  {m.name.split('.').pop()?.toUpperCase()}
+                </div>
               )}
               <div className="media-tile-tools">
-                <button title={t('Open')} onClick={() => api.openMedia(m.id)}>
+                <button title={t('View full screen')} onClick={() => setViewing(k)}>
+                  <Maximize2 size={12} />
+                </button>
+                <button title={t('Open in another app')} onClick={() => api.openMedia(m.id)}>
                   <ExternalLink size={12} />
                 </button>
                 <button title={t('Show in folder')} onClick={() => api.revealMedia(m.id)}>
@@ -489,7 +497,7 @@ function MediaPanel({ media, onRefresh, onOpenCreative }: { media: MediaItem[]; 
                 <button
                   title={t('Delete')}
                   onClick={async () => {
-                    if (!confirm('Delete this file from the library?')) return
+                    if (!confirm(t('Delete this file from the library?'))) return
                     await api.deleteMedia(m.id)
                     onRefresh()
                   }}
@@ -501,6 +509,26 @@ function MediaPanel({ media, onRefresh, onOpenCreative }: { media: MediaItem[]; 
           ))}
         </div>
       )}
+      {viewing !== null && shown[viewing] && (
+        <Lightbox
+          items={shown}
+          index={viewing}
+          onIndex={setViewing}
+          onClose={() => setViewing(null)}
+          onDeleted={onRefresh}
+          onUsePrompt={(m, negative) => {
+            sendPromptToCreative(m.prompt, negative, m.kind === 'video' ? 'video' : 'image')
+            setViewing(null)
+            onOpenCreative()
+          }}
+        />
+      )}
     </div>
   )
+}
+
+// Sends a prompt to the Creative canvas (it listens while open and reads the setting when it opens).
+export function sendPromptToCreative(prompt: string, negative?: string, mode: 'image' | 'video' = 'image') {
+  api.setSetting('studioPrompt', prompt)
+  window.dispatchEvent(new CustomEvent('orbi:use-prompt', { detail: { prompt, negative: negative || '', mode } }))
 }

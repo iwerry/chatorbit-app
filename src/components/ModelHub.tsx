@@ -93,6 +93,7 @@ function ModelRow({ m, recommended, queued, onChanged }: { m: LocalModel; recomm
           <strong>{m.name}</strong>
           {recommended && !m.installed && <span className="hub-badge hub-badge-rec">{t('Recommended')}</span>}
           {m.vision && <span className="hub-badge">{t('Sees images')}</span>}
+          {m.isNew && <span className="hub-badge hub-badge-new">{t('New')}</span>}
           <span className="hub-meta num">{[fmtBytes(m.size), m.req?.ram ? `${m.req.ram} GB RAM` : '', m.req?.vram ? `${m.req.vram} GB VRAM` : '', m.license].filter(Boolean).join(' · ')}</span>
         </p>
         <p className="hub-desc">{t(m.description)}</p>

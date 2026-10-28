@@ -138,6 +138,7 @@ export type LocalModel = {
   langs?: string[]
   clone?: boolean
   nonCommercial?: boolean
+  isNew?: boolean
   licenseNotice?: string
 }
 export type GenInfo = { presets: [number, number, number]; fixedSteps: boolean; width: number; height: number; fps: number; image: boolean; ref: boolean; end: boolean }
@@ -328,6 +329,8 @@ export const api = {
   studioCheck: (doc: SkillDoc): Promise<SkillCheck> => bridge.invoke('studio:check', doc),
   exportSkill: (doc: SkillDoc): Promise<string | null> => bridge.invoke('studio:exportSkill', doc),
   importSkill: (): Promise<SkillDoc | null> => bridge.invoke('studio:importSkill'),
+  exportBundle: (p: { kind: StudioKind; ids?: string[] }): Promise<string | null> => bridge.invoke('studio:exportBundle', p),
+  importBundle: (): Promise<{ agents: number; teams: number; harnesses: number; skills: number } | null> => bridge.invoke('studio:importBundle'),
   skillMd: (doc: SkillDoc): Promise<string> => bridge.invoke('studio:skillMd', doc),
   teams: (): Promise<Team[]> => bridge.invoke('teams:list'),
   saveTeam: (t: Partial<Omit<Team, 'members'>> & { members: TeamMember[] }): Promise<string> => bridge.invoke('teams:save', t),

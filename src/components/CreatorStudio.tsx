@@ -215,6 +215,32 @@ export function CreatorStudio(props: Props) {
       setErr(cleanErr(e))
     }
   }
+  const [note, setNote] = useState<string | null>(null)
+  useEffect(() => {
+    if (!note) return
+    const tm = setTimeout(() => setNote(null), 4000)
+    return () => clearTimeout(tm)
+  }, [note])
+  const download = async (ids?: string[]) => {
+    try {
+      const file = await api.exportBundle({ kind, ids })
+      if (file) setNote(t('Saved to {file}', { file: file.split(/[\\/]/).pop() || file }))
+    } catch (e) {
+      setErr(cleanErr(e))
+    }
+  }
+  const importAny = async () => {
+    if (kind === 'skill') return importZip()
+    try {
+      const r = await api.importBundle()
+      if (!r) return
+      props.onRefresh()
+      reloadExtras()
+      setNote(t('Imported: {a} agents, {t} teams, {h} harnesses, {s} skills', { a: r.agents, t: r.teams, h: r.harnesses, s: r.skills }))
+    } catch (e) {
+      setErr(cleanErr(e))
+    }
+  }
 
   const K = KINDS.find((x) => x.id === kind)!
   const hasDraft = (kind === 'skill' && skillDraft) || (kind === 'team' && teamDraft) || (kind === 'harness' && harnessDraft) || kind === 'agent'
@@ -267,12 +293,16 @@ export function CreatorStudio(props: Props) {
             <button className="orbi-btn orbi-btn-primary" onClick={newItem}>
               <Plus size={13} /> {t('New')}
             </button>
-            {kind === 'skill' && (
-              <button className="orbi-btn" onClick={importZip} title={t('Import a skill (.zip or SKILL.md)')}>
-                <Upload size={13} /> {t('Import')}
+            <button className="orbi-btn" onClick={importAny} title={kind === 'skill' ? t('Import a skill (.zip or SKILL.md)') : t('Import an Orbi bundle (.zip) with agents, teams, harnesses and skills')}>
+              <Upload size={13} /> {t('Import')}
+            </button>
+            {list.length > 0 && (
+              <button className="orbi-btn" onClick={() => download()} title={t('Download all as one ZIP (with the agents and skills they use)')}>
+                <Download size={13} />
               </button>
             )}
           </div>
+          {note && <p className="studio-note">{note}</p>}
           <ul>
             {list.map((x) => (
               <li key={x.id} className={selected === x.id ? 'active' : ''}>
@@ -290,6 +320,9 @@ export function CreatorStudio(props: Props) {
                   </button>
                 )}
                 {kind === 'harness' && x.on && <span className="hub-badge hub-badge-rec">{t('Active')}</span>}
+                <button className="studio-list-dl" onClick={() => download([x.id])} title={t('Download')} aria-label={t('Download')}>
+                  <Download size={12} />
+                </button>
               </li>
             ))}
             {!list.length && <li className="library-empty-row">{t('Nothing here yet.')}</li>}
@@ -665,6 +698,7 @@ function TeamEditor({ initial, agents, onSaved, onDeleted, onChat }: { initial: 
     setSaved(t('Saved'))
     setTimeout(() => setSaved(null), 1500)
     onSaved(id)
+    return id
   }
   return (
     <div className="studio-card">
@@ -739,6 +773,17 @@ function TeamEditor({ initial, agents, onSaved, onDeleted, onChat }: { initial: 
             <MessageSquarePlus size={13} /> {t('Chat with team')}
           </button>
         )}
+        <button
+          className="orbi-btn"
+          disabled={!d.name.trim() || d.members.length < 2}
+          title={t('Download this team with its agents and skills (ZIP)')}
+          onClick={async () => {
+            const id = d.id || (await save())
+            if (id) await api.exportBundle({ kind: 'team', ids: [id] })
+          }}
+        >
+          <Download size={13} /> {t('Download')}
+        </button>
         <button className="orbi-btn orbi-btn-primary" disabled={!d.name.trim() || d.members.length < 2} onClick={save}>
           <Check size={13} /> {saved || t('Save')}
         </button>
@@ -853,6 +898,17 @@ function HarnessEditor({
         )}
         <button className="orbi-btn orbi-btn-primary" disabled={!d.name.trim()} onClick={save}>
           <Check size={13} /> {saved || t('Save')}
+        </button>
+        <button
+          className="orbi-btn"
+          disabled={!d.name.trim()}
+          title={t('Download this harness with its agents and skills (ZIP)')}
+          onClick={async () => {
+            const id = d.id || (await save())
+            if (id) await api.exportBundle({ kind: 'harness', ids: [id] })
+          }}
+        >
+          <Download size={13} /> {t('Download')}
         </button>
         <button
           className={`orbi-btn ${active ? 'orbi-btn-primary' : ''}`}

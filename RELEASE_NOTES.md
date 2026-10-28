@@ -1,4 +1,43 @@
-## Orbi 0.1.28-1
+## Orbi 0.1.28-2
+
+**Media Library: full-screen viewer**
+- Click any image or video to open it full screen. Move with ← → or the arrows, jump with the film strip, start a slideshow with Space, zoom to actual size with a click, close with Esc.
+- The side panel shows the prompt, the negative prompt, model, size, steps, seed and date, with **Use prompt** and **Copy prompt**. Download, open in another app, show in folder and delete are in the top bar.
+- Works in the Media Library and in Creative → Gallery and boards.
+
+**Magic wand and Random**
+- **Canvas:** under the prompt, **Improve** rewrites your prompt and writes a matching negative prompt with your chat model (local or cloud); with an empty prompt it invents one. **Random** gives an instant idea offline. **Undo** brings back the previous text.
+- The negative prompt has its own wand and random buttons.
+- **Workflow:** every Prompt and Negative prompt node has the same wand and random buttons.
+
+**Negative prompt node**
+- New **Negative prompt** node, ComfyUI style. Image, video, edit and inpaint nodes have a Negative input.
+- Every template now comes with a Negative prompt node already connected.
+- Negative texts in imported ComfyUI workflows become Negative prompt nodes.
+- The negative prompt is saved with each render.
+
+**New Launchpad**
+- Ideas by category, like ComfyUI's template browser: Popular, Product & ads, Character & fashion, Brand & design, Image tools, Video and Audio, with search.
+- Click an idea to open it in the Canvas with prompt, negative prompt and size, or as a ready workflow. The first image you make from an idea becomes its cover.
+
+**New models** (each PC can use what its hardware allows)
+- Image: **FLUX.3 Image Klein**, **FLUX.2 klein 9B** (non-commercial), **Krea 2 Turbo**, **Mage-Flow Turbo**.
+- Image editing: **Mage-Flow Edit Turbo**, **Qwen Image Edit 2511**.
+- Video: **LTX-2.3**, video with synchronized sound (needs a strong GPU).
+- Text: **Qwen3.5 4B** and **Gemma 4 E4B**, both see images.
+- New models carry a "New" badge in Models.
+
+**Creator Studio: download everything you create**
+- Agents, multi-agent teams and harnesses download as a ZIP. The ZIP includes the agents and skills they use, readable AGENT.md / TEAM.md / HARNESS.md files and an orbi-bundle.json.
+- Download one item from the list or the editor, or **Download all** from a tab.
+- **Import** brings a bundle back into Orbi.
+
+**Two new skills and agents by Daniel Rodrigues** (in the library and the Design and Marketing kits)
+- **behavioral-intelligence** + **@behavior (Behavioral Strategist)**: audience psychology, emotional intelligence and a 3-step ethical action plan.
+- **prompt-enhancer** + **@prompt (Prompt Director)**: the magic wand for image, video, music, voice, text and code prompts.
+- Both are full Agent Skills with references, templates and trigger tests.
+
+## Orbi 0.1.28-1 (previous)
 
 **Creator Studio: skills, agents, multi-agent teams and harnesses in one place**
 - The Agent Builder and Skills menus are now one page, **Creator Studio**, with four tabs: Skills, Agents, Multi-agents and Harness.
@@ -24,7 +63,7 @@
 
 **Translations:** Creator Studio and the new voice screens are translated into Portuguese, Spanish and French.
 
-## Orbi 0.1.27-12 (previous)
+## Orbi 0.1.27-12
 
 **Voices on every operating system**
 - **System voices are now read natively** on each system, so they also work in Workflows and on Linux:

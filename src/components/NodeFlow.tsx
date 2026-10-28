@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import {
   AudioLines,
+  Ban,
   Bot,
   Copy,
   Download,
@@ -33,10 +34,12 @@ import { VoiceButton } from './VoiceLibrary'
 import { getLang, t } from '../lib/i18n'
 import { activity } from '../lib/activity'
 import { importComfy } from '../lib/comfy'
+import { DEFAULT_NEGATIVE } from '../lib/ideas'
+import { PromptTools } from './PromptTools'
 
 // ---------- types ----------
 type PortType = 'text' | 'image' | 'video' | 'audio' | 'media'
-type Kind = 'prompt' | 'llm' | 'image' | 'video' | 'load' | 'edit' | 'inpaint' | 'upscale' | 'voice' | 'output' | 'note'
+type Kind = 'prompt' | 'negative' | 'llm' | 'image' | 'video' | 'load' | 'edit' | 'inpaint' | 'upscale' | 'voice' | 'output' | 'note'
 type Media = { id: string; url: string; name: string; kind: string }
 type Val = { text?: string; media?: Media }
 type FNode = {
@@ -56,6 +59,16 @@ type Def = { title: string; hint: string; icon: LucideIcon; color: string; group
 
 const DEFS: Record<Kind, Def> = {
   prompt: { title: 'Prompt', hint: 'Write the idea or brief', icon: FileText, color: '#9a7db0', group: 'Text', inputs: [], outputs: [{ id: 'text', label: 'Text', type: 'text' }], data: () => ({ text: '' }) },
+  negative: {
+    title: 'Negative prompt',
+    hint: 'What the image or video should avoid',
+    icon: Ban,
+    color: '#c46a6a',
+    group: 'Text',
+    inputs: [],
+    outputs: [{ id: 'text', label: 'Negative', type: 'text' }],
+    data: () => ({ text: DEFAULT_NEGATIVE.image }),
+  },
   llm: {
     title: 'Text AI',
     hint: 'Rewrites or expands text with a chat model',
@@ -75,6 +88,7 @@ const DEFS: Record<Kind, Def> = {
     inputs: [
       { id: 'prompt', label: 'Prompt', type: 'text' },
       { id: 'image', label: 'Start image', type: 'image', optional: true },
+      { id: 'negative', label: 'Negative', type: 'text', optional: true },
     ],
     outputs: [{ id: 'image', label: 'Image', type: 'image' }],
     data: () => ({ aspect: '1:1', steps: 0, seed: '', strength: 0.65 }),
@@ -88,19 +102,21 @@ const DEFS: Record<Kind, Def> = {
     inputs: [
       { id: 'prompt', label: 'Prompt', type: 'text' },
       { id: 'image', label: 'First frame', type: 'image', optional: true },
+      { id: 'negative', label: 'Negative', type: 'text', optional: true },
     ],
     outputs: [{ id: 'video', label: 'Video', type: 'video' }],
     data: () => ({ frames: 33 }),
   },
   edit: {
     title: 'Edit image',
-    hint: 'Change an image with words (FLUX.2 klein)',
+    hint: 'Change an image with words (FLUX Klein, Qwen or Mage-Flow Edit)',
     icon: WandSparkles,
     color: '#6f8fe0',
     group: 'Image',
     inputs: [
       { id: 'image', label: 'Image', type: 'image' },
       { id: 'prompt', label: 'What to change', type: 'text' },
+      { id: 'negative', label: 'Negative', type: 'text', optional: true },
     ],
     outputs: [{ id: 'image', label: 'Image', type: 'image' }],
     data: () => ({}),
@@ -114,6 +130,7 @@ const DEFS: Record<Kind, Def> = {
     inputs: [
       { id: 'image', label: 'Image', type: 'image' },
       { id: 'prompt', label: 'What to paint', type: 'text' },
+      { id: 'negative', label: 'Negative', type: 'text', optional: true },
     ],
     outputs: [{ id: 'image', label: 'Image', type: 'image' }],
     data: () => ({ strength: 0.85 }),
@@ -174,58 +191,68 @@ const snap64 = (n: number) => Math.max(256, Math.round(n / 64) * 64)
 function template(id: string): { nodes: FNode[]; edges: FEdge[] } {
   const n = (kind: Kind, x: number, y: number, data: FNode['data'] = {}): FNode => ({ id: uidN(), kind, x, y, data: { ...DEFS[kind].data(), ...data } })
   const e = (a: FNode, ap: string, b: FNode, bp: string): FEdge => ({ id: uidN(), from: a.id, fromPort: ap, to: b.id, toPort: bp })
+  // Every generating template gets a Negative prompt node wired in (ComfyUI style).
+  const neg = (x: number, y: number, video = false) => n('negative', x, y, { text: video ? DEFAULT_NEGATIVE.video : DEFAULT_NEGATIVE.image })
   if (id === 'text-image') {
-    const p = n('prompt', 80, 140, { text: 'A cozy coffee shop on a rainy evening, warm light, cinematic' })
+    const p = n('prompt', 80, 100, { text: 'A cozy coffee shop on a rainy evening, warm light, cinematic' })
+    const ng = neg(80, 330)
     const i = n('image', 430, 100)
     const o = n('output', 780, 140)
-    return { nodes: [p, i, o], edges: [e(p, 'text', i, 'prompt'), e(i, 'image', o, 'media')] }
+    return { nodes: [p, ng, i, o], edges: [e(p, 'text', i, 'prompt'), e(ng, 'text', i, 'negative'), e(i, 'image', o, 'media')] }
   }
   if (id === 'idea-image') {
     const p = n('prompt', 60, 160, { text: 'Poster for a jazz night in São Paulo' })
     const l = n('llm', 390, 120, { preset: 'image' })
+    const ng = neg(390, 460)
     const i = n('image', 740, 100)
     const o = n('output', 1090, 140)
-    return { nodes: [p, l, i, o], edges: [e(p, 'text', l, 'text'), e(l, 'text', i, 'prompt'), e(i, 'image', o, 'media')] }
+    return { nodes: [p, l, ng, i, o], edges: [e(p, 'text', l, 'text'), e(l, 'text', i, 'prompt'), e(ng, 'text', i, 'negative'), e(i, 'image', o, 'media')] }
   }
   if (id === 'image-video') {
     const ld = n('load', 80, 80)
     const p = n('prompt', 80, 340, { text: 'Slow camera push-in, gentle wind, cinematic motion' })
+    const ng = neg(80, 560, true)
     const v = n('video', 440, 160)
     const o = n('output', 800, 200)
-    return { nodes: [ld, p, v, o], edges: [e(ld, 'image', v, 'image'), e(p, 'text', v, 'prompt'), e(v, 'video', o, 'media')] }
+    return { nodes: [ld, p, ng, v, o], edges: [e(ld, 'image', v, 'image'), e(p, 'text', v, 'prompt'), e(ng, 'text', v, 'negative'), e(v, 'video', o, 'media')] }
   }
   if (id === 'edit') {
     const ld = n('load', 80, 100)
     const p = n('prompt', 80, 380, { text: 'Make it a snowy winter evening, keep the subject the same' })
+    const ng = neg(80, 600)
     const ed = n('edit', 440, 160)
     const o = n('output', 800, 200)
-    return { nodes: [ld, p, ed, o], edges: [e(ld, 'image', ed, 'image'), e(p, 'text', ed, 'prompt'), e(ed, 'image', o, 'media')] }
+    return { nodes: [ld, p, ng, ed, o], edges: [e(ld, 'image', ed, 'image'), e(p, 'text', ed, 'prompt'), e(ng, 'text', ed, 'negative'), e(ed, 'image', o, 'media')] }
   }
   if (id === 'inpaint') {
     const ld = n('load', 80, 100)
     const p = n('prompt', 80, 380, { text: 'a vase of red flowers' })
+    const ng = neg(80, 600)
     const ip = n('inpaint', 440, 160)
     const o = n('output', 800, 200)
-    return { nodes: [ld, p, ip, o], edges: [e(ld, 'image', ip, 'image'), e(p, 'text', ip, 'prompt'), e(ip, 'image', o, 'media')] }
+    return { nodes: [ld, p, ng, ip, o], edges: [e(ld, 'image', ip, 'image'), e(p, 'text', ip, 'prompt'), e(ng, 'text', ip, 'negative'), e(ip, 'image', o, 'media')] }
   }
   if (id === 'upscale') {
-    const p = n('prompt', 60, 160, { text: 'Detailed portrait of an astronaut, studio light' })
+    const p = n('prompt', 60, 100, { text: 'Detailed portrait of an astronaut, studio light' })
+    const ng = neg(60, 330)
     const i = n('image', 400, 100)
     const up = n('upscale', 760, 140)
     const o = n('output', 1110, 160)
-    return { nodes: [p, i, up, o], edges: [e(p, 'text', i, 'prompt'), e(i, 'image', up, 'image'), e(up, 'image', o, 'media')] }
+    return { nodes: [p, ng, i, up, o], edges: [e(p, 'text', i, 'prompt'), e(ng, 'text', i, 'negative'), e(i, 'image', up, 'image'), e(up, 'image', o, 'media')] }
   }
   // campaign
   const p = n('prompt', 40, 260, { text: 'Launch of a minimalist smartwatch: calm, premium, soft light' })
   const l1 = n('llm', 370, 80, { preset: 'image' })
+  const ng = neg(370, -200)
+  const ngv = neg(720, -260, true)
   const i = n('image', 720, 40)
   const l2 = n('llm', 370, 470, { preset: 'script' })
   const vo = n('voice', 720, 500)
   const v = n('video', 1070, 120)
   const o = n('output', 1420, 260)
   return {
-    nodes: [p, l1, i, l2, vo, v, o],
-    edges: [e(p, 'text', l1, 'text'), e(l1, 'text', i, 'prompt'), e(i, 'image', v, 'image'), e(l1, 'text', v, 'prompt'), e(p, 'text', l2, 'text'), e(l2, 'text', vo, 'text'), e(v, 'video', o, 'media'), e(vo, 'audio', o, 'media'), e(i, 'image', o, 'media')],
+    nodes: [p, l1, ng, ngv, i, l2, vo, v, o],
+    edges: [e(p, 'text', l1, 'text'), e(l1, 'text', i, 'prompt'), e(ng, 'text', i, 'negative'), e(i, 'image', v, 'image'), e(l1, 'text', v, 'prompt'), e(ngv, 'text', v, 'negative'), e(p, 'text', l2, 'text'), e(l2, 'text', vo, 'text'), e(v, 'video', o, 'media'), e(vo, 'audio', o, 'media'), e(i, 'image', o, 'media')],
   }
 }
 const TEMPLATES = [
@@ -238,7 +265,23 @@ const TEMPLATES = [
   { id: 'campaign', label: 'Campaign: image, video and voiceover' },
 ]
 
-export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, visible = true }: { models: ModelInfo[]; localStatus: LocalStatus | null; onMediaCreated: (m: MediaItem) => void; onOpenModels: () => void; visible?: boolean }) {
+export function NodeFlow({
+  models,
+  localStatus,
+  onMediaCreated,
+  onOpenModels,
+  visible = true,
+  pendingTemplate,
+  onTemplateLoaded,
+}: {
+  models: ModelInfo[]
+  localStatus: LocalStatus | null
+  onMediaCreated: (m: MediaItem) => void
+  onOpenModels: () => void
+  visible?: boolean
+  pendingTemplate?: { id: string; prompt: string; negative?: string } | null
+  onTemplateLoaded?: () => void
+}) {
   const [nodes, setNodes] = useState<FNode[]>([])
   const [edges, setEdges] = useState<FEdge[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -370,12 +413,40 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
     setNodes((cur) => [...cur, c])
     setSelected(c.id)
   }
-  const loadTemplate = (id: string) => {
-    if (nodesRef.current.length > 1 && !confirm(t('Replace the current workflow with this template?'))) return
+  const loadTemplate = (id: string, prompt?: string, negative?: string) => {
+    if (nodesRef.current.length > 1 && !confirm(t('Replace the current workflow with this template?'))) return false
     const tpl = template(id)
+    if (prompt) {
+      const p = tpl.nodes.find((x) => x.kind === 'prompt')
+      if (p) p.data.text = prompt
+    }
+    if (negative) for (const x of tpl.nodes) if (x.kind === 'negative') x.data.text = negative
     setNodes(tpl.nodes)
     setEdges(tpl.edges)
     setView({ x: 40, y: 40, z: 0.85 })
+    setTimeout(fit, 60)
+    return true
+  }
+  // A template picked in the Launchpad.
+  useEffect(() => {
+    if (!loaded || !pendingTemplate) return
+    loadTemplate(pendingTemplate.id, pendingTemplate.prompt, pendingTemplate.negative)
+    onTemplateLoaded?.()
+  }, [loaded, pendingTemplate])
+
+  // Context for the magic wand: is this text going to a video, and which prompt sits next to this negative?
+  const promptContext = (id: string) => {
+    const targets = edges.filter((x) => x.from === id).map((x) => nodes.find((n) => n.id === x.to))
+    const mode: 'image' | 'video' = targets.some((x) => x?.kind === 'video') ? 'video' : 'image'
+    let positive = ''
+    for (const tg of targets) {
+      if (!tg) continue
+      const src = edges.find((x) => x.to === tg.id && x.toPort === 'prompt')
+      const sn = src && nodes.find((n) => n.id === src.from)
+      if (sn) positive = String(sn.out?.text || sn.data.text || '')
+      if (positive) break
+    }
+    return { mode, positive }
   }
 
   useEffect(() => {
@@ -493,8 +564,10 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
   const execNode = async (n: FNode, ins: Record<string, Val[]>): Promise<Val> => {
     const firstText = (k: string) => ins[k]?.map((v) => v.text).filter(Boolean).join('\n\n') || ''
     const firstMedia = (k: string) => ins[k]?.find((v) => v.media)?.media
+    const negativeText = () => firstText('negative') || (n.data.negative ? String(n.data.negative) : '') || undefined
     switch (n.kind) {
       case 'prompt':
+      case 'negative':
       case 'note':
         return { text: String(n.data.text || '') }
       case 'load': {
@@ -532,7 +605,7 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
               return await api.generateLocal({
                 jobId: jobFor(n.id),
                 modelId: choice.slice(7),
-                negative: n.data.negative ? String(n.data.negative) : undefined,
+                negative: negativeText(),
                 prompt,
                 width,
                 height,
@@ -562,7 +635,7 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
           activeMediaNode.current = n.id
           try {
             const initImage = init && init.kind === 'image' ? (await api.mediaDataUrl(init.id)) || undefined : undefined
-            return await api.generateLocal({ jobId: jobFor(n.id), modelId, prompt, frames: Number(n.data.frames) || 33, fps: Number(n.data.fps) || undefined, initImage, seed: Math.floor(Math.random() * 2 ** 31) })
+            return await api.generateLocal({ jobId: jobFor(n.id), modelId, prompt, negative: negativeText(), frames: Number(n.data.frames) || 33, fps: Number(n.data.fps) || undefined, initImage, seed: Math.floor(Math.random() * 2 ** 31) })
           } finally {
             activeMediaNode.current = null
           }
@@ -578,7 +651,7 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
         if (!prompt) throw new Error(t('Connect a prompt to this node.'))
         const list = n.kind === 'edit' ? editChoices : localImageChoices
         const modelId = String(n.data.model || list[0]?.key || '')
-        if (!modelId) throw new Error(n.kind === 'edit' ? t('Image editing needs FLUX.2 klein 4B — download it in Models.') : t('No image model yet — download one in Models or connect a provider.'))
+        if (!modelId) throw new Error(n.kind === 'edit' ? t('Image editing needs an editing model (FLUX.2 or FLUX.3 Klein, Mage-Flow Edit or Qwen Image Edit) — download one in Models.') : t('No image model yet — download one in Models or connect a provider.'))
         if (n.kind === 'inpaint' && !n.data.mask) throw new Error(t('Paint the area to change first (Paint mask).'))
         const dataUrl = (await api.mediaDataUrl(img.id)) || undefined
         const size = await new Promise<{ w: number; h: number }>((ok) => {
@@ -593,6 +666,7 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
             jobId: jobFor(n.id),
             modelId,
             prompt,
+            negative: negativeText(),
             width: snap64(size.w * scaleTo),
             height: snap64(size.h * scaleTo),
             ...(n.kind === 'edit' ? { refImages: dataUrl ? [dataUrl] : [] } : { initImage: dataUrl, mask: String(n.data.mask), strength: Number(n.data.strength) || 0.85 }),
@@ -680,7 +754,7 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
     setRunning(true)
     const act = activity.start({ area: 'creative', kind: 'workflow', label: t('Workflow') })
     const memo = new Map<string, Promise<Val | undefined>>()
-    const ends = nodesRef.current.filter((n) => n.kind !== 'note' && !edgesRef.current.some((e) => e.from === n.id))
+    const ends = nodesRef.current.filter((n) => n.kind !== 'note' && n.kind !== 'negative' && !edgesRef.current.some((e) => e.from === n.id))
     let failed = 0
     for (const n of ends) {
       try {
@@ -706,6 +780,13 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
     const installed = localStatus?.models.filter((m) => m.kind === kind && m.installed) ?? []
     const hint = names.join(' ').toLowerCase()
     const rules: [RegExp, string][] = [
+      [/flux[_.-]?3|image[_-]?klein/, 'flux3-klein'],
+      [/krea/, 'krea2-turbo'],
+      [/mage[_-]?flow[_-]?edit/, 'mage-flow-edit-turbo'],
+      [/mage[_-]?flow/, 'mage-flow-turbo'],
+      [/qwen[_-]?image[_-]?edit/, 'qwen-image-edit-2511'],
+      [/klein[_-]?9b/, 'flux2-klein-9b'],
+      [/ltx/, 'ltx2.3'],
       [/z[_-]?image/, 'z-image-turbo'],
       [/flux[_.-]?2|klein/, 'flux2-klein-4b'],
       [/flux/, 'flux-schnell'],
@@ -732,7 +813,17 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
             data: { ...DEFS[n.kind as Kind].data(), ...n.data, ...(n.kind === 'image' && img ? { model: `local::${img}` } : {}), ...(n.kind === 'video' && vid ? { model: vid } : {}) },
           })) as FNode[],
         )
-        setEdges(r.edges)
+        // Negative texts from ComfyUI samplers become Negative prompt nodes.
+        const extraNodes: FNode[] = []
+        const extraEdges: FEdge[] = []
+        for (const n of r.nodes as FNode[]) {
+          if (!['image', 'video'].includes(n.kind) || !n.data?.negative) continue
+          const ng: FNode = { id: uidN(), kind: 'negative', x: n.x - 330, y: n.y + 260, data: { text: String(n.data.negative) } }
+          extraNodes.push(ng)
+          extraEdges.push({ id: uidN(), from: ng.id, fromPort: 'text', to: n.id, toPort: 'negative' })
+        }
+        if (extraNodes.length) setNodes((cur) => [...cur.map((x) => (extraEdges.some((e) => e.to === x.id) ? { ...x, data: { ...x.data, negative: undefined } } : x)), ...extraNodes])
+        setEdges([...r.edges, ...extraEdges])
         setToast(r.unsupported.length ? t('ComfyUI workflow imported. Not available yet: {list}', { list: r.unsupported.slice(0, 4).join(', ') }) : t('ComfyUI workflow imported.'))
       }
       setTimeout(fit, 50)
@@ -910,7 +1001,7 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
                     media={media}
                     boards={boards}
                     onOpenModels={onOpenModels}
-                    extra={{ editChoices, localImageChoices, upscalers, ttsVoices, onPaintMask: () => setMaskFor(n.id), hasInputImage: !!inputImageOf(n.id), localStatus }}
+                    extra={{ editChoices, localImageChoices, upscalers, ttsVoices, onPaintMask: () => setMaskFor(n.id), hasInputImage: !!inputImageOf(n.id), localStatus, models, promptContext }}
                   />
                   {n.status === 'running' && n.progress !== undefined && (
                     <div className="local-bar">
@@ -1028,7 +1119,17 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
 }
 
 type Choice = { key: string; label: string }
-type Extra = { editChoices: Choice[]; localImageChoices: Choice[]; upscalers: Choice[]; ttsVoices: Choice[]; onPaintMask: () => void; hasInputImage: boolean; localStatus: LocalStatus | null }
+type Extra = {
+  editChoices: Choice[]
+  localImageChoices: Choice[]
+  upscalers: Choice[]
+  ttsVoices: Choice[]
+  onPaintMask: () => void
+  hasInputImage: boolean
+  localStatus: LocalStatus | null
+  models: ModelInfo[]
+  promptContext: (id: string) => { mode: 'image' | 'video'; positive: string }
+}
 
 // Voice node value: 'local:<model>#<voice>' (offline) or 'openai:<voice>'.
 function parseVoice(raw: unknown, local: Choice[]): { type: 'local'; modelId: string; voice?: string | number } | { type: 'openai'; voice: string } | { type: 'native'; id: string; name: string } {
@@ -1080,16 +1181,32 @@ function NodeBody({
   )
   switch (n.kind) {
     case 'prompt':
-    case 'note':
+    case 'negative': {
+      const ctx = extra.promptContext(n.id)
+      const text = String(n.data.text || '')
       return (
-        <textarea
-          className={`flow-text ${n.kind === 'note' ? 'flow-note' : ''}`}
-          rows={n.kind === 'note' ? 3 : 4}
-          value={String(n.data.text || '')}
-          placeholder={n.kind === 'note' ? t('Write a note…') : t('Describe what you want…')}
-          onChange={(e) => setData({ text: e.target.value })}
-        />
+        <>
+          <PromptTools
+            small
+            target={n.kind === 'negative' ? 'negative' : 'prompt'}
+            models={extra.models}
+            mode={ctx.mode}
+            prompt={n.kind === 'negative' ? ctx.positive : text}
+            negative={n.kind === 'negative' ? text : ''}
+            onChange={(r) => setData({ text: n.kind === 'negative' ? r.negative : r.prompt })}
+          />
+          <textarea
+            className={`flow-text ${n.kind === 'negative' ? 'flow-negative' : ''}`}
+            rows={n.kind === 'negative' ? 3 : 4}
+            value={text}
+            placeholder={n.kind === 'negative' ? t('What to avoid: blurry, watermark, extra fingers…') : t('Describe what you want…')}
+            onChange={(e) => setData({ text: e.target.value })}
+          />
+        </>
       )
+    }
+    case 'note':
+      return <textarea className="flow-text flow-note" rows={3} value={String(n.data.text || '')} placeholder={t('Write a note…')} onChange={(e) => setData({ text: e.target.value })} />
     case 'llm':
       return (
         <>
@@ -1204,7 +1321,7 @@ function NodeBody({
               ))}
             </select>
           ) : (
-            missing(n.kind === 'edit' ? t('Download FLUX.2 klein 4B to edit images') : t('Download an image model'))
+            missing(n.kind === 'edit' ? t('Download an image editing model') : t('Download an image model'))
           )}
           {n.kind === 'inpaint' && (
             <>

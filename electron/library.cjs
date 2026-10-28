@@ -297,7 +297,7 @@ const AGENTS = [
 
 // Toolkits ("harnesses"): bundles of MCP servers + skills + agents per profession.
 const KITS = [
-  { id: 'kit-design', profession: 'design', name: 'Design Kit', description: 'Brand, type and color skills, the Art Director and Brand Strategist agents, plus Figma via MCP (token required).', servers: ['orbi-core', 'orbi-files', 'figma'], skills: ['design:brand-identity', 'design:color-palettes', 'design:typography-pairing', 'design:image-prompting'], agents: ['design:art_director', 'design:brand_strategist'] },
+  { id: 'kit-design', profession: 'design', name: 'Design Kit', description: 'Brand, type and color skills, the Art Director and Brand Strategist agents, plus Figma via MCP (token required).', servers: ['orbi-core', 'orbi-files', 'figma'], skills: ['design:prompt-enhancer', 'design:brand-identity', 'design:color-palettes', 'design:typography-pairing', 'design:image-prompting'], agents: ['design:prompt', 'design:art_director', 'design:brand_strategist'] },
   { id: 'kit-ux', profession: 'ux', name: 'UX Kit', description: 'Research, flows, accessibility and UX writing, with web reading for desk research.', servers: ['orbi-core', 'orbi-files'], skills: ['ux:user-research-plan', 'ux:user-flows', 'ux:accessibility-review', 'ux:ux-writing'], agents: ['ux:ux_researcher', 'ux:product_designer'] },
   { id: 'kit-dev', profession: 'dev', name: 'Developer Kit', description: 'Terminal, workspace files, library docs (Context7), repo Q&A (DeepWiki) and the engineering agents.', servers: ['orbi-terminal', 'orbi-files', 'context7', 'deepwiki'], skills: ['dev:code-review', 'dev:debugging', 'dev:test-writer', 'dev:git-helper'], agents: ['dev:senior_engineer', 'dev:code_reviewer'] },
   { id: 'kit-it', profession: 'it', name: 'IT Kit', description: 'Terminal with approval, diagnostics skills and the Helpdesk and Sysadmin agents.', servers: ['orbi-terminal', 'orbi-core', 'orbi-files'], skills: ['it:troubleshooting', 'it:powershell-bash', 'it:network-diagnostics', 'it:security-hardening'], agents: ['it:helpdesk', 'it:sysadmin'] },
@@ -308,7 +308,7 @@ const KITS = [
   { id: 'kit-screen', profession: 'screen', name: 'Writers’ Room Kit', description: 'Master Scene Format by Daniel Rodrigues plus structure, beat sheets and dialogue, with the Script Doctor and Story Editor agents.', servers: ['orbi-core', 'orbi-files'], skills: ['screen:master-scene', 'screen:story-structure', 'screen:beat-sheet', 'screen:dialogue-polish'], agents: ['screen:script_doctor', 'screen:story_editor'] },
   { id: 'kit-motion', profession: 'motion', name: 'Motion Kit', description: 'AI Motion Director by Daniel Rodrigues with Remotion and animation skills, plus the Motion Designer and Remotion Developer agents. Uses the terminal to render.', servers: ['orbi-terminal', 'orbi-files', 'orbi-core'], skills: ['motion:motion-director', 'motion:openai-remotion-best-practices', 'motion:emilkowalski-animate'], agents: ['motion:motion_designer', 'motion:remotion_dev'] },
   { id: 'kit-social', profession: 'social', name: 'Social Media Kit', description: 'LinkedIn Profile Optimizer by Daniel Rodrigues plus hooks, short-video scripts, captions and carousels, with the Strategist and Short Video Writer agents.', servers: ['orbi-core', 'orbi-files'], skills: ['social:linkedin-optimizer', 'social:pavelhov-hook-writer', 'social:pavelhov-short-form-video-script', 'social:pavelhov-caption-writer', 'social:pavelhov-carousel-writer'], agents: ['social:social_strategist', 'social:short_video_writer'] },
-  { id: 'kit-marketing', profession: 'marketing', name: 'Marketing Kit', description: 'Campaigns, copy and SEO with web research.', servers: ['orbi-core'], skills: ['marketing:campaign-strategy', 'marketing:copywriting', 'marketing:seo-content', 'marketing:social-calendar'], agents: ['marketing:marketing_strategist', 'marketing:copywriter'] },
+  { id: 'kit-marketing', profession: 'marketing', name: 'Marketing Kit', description: 'Campaigns, copy and SEO with web research.', servers: ['orbi-core'], skills: ['marketing:behavioral-intelligence', 'marketing:campaign-strategy', 'marketing:copywriting', 'marketing:seo-content', 'marketing:social-calendar'], agents: ['marketing:behavior', 'marketing:marketing_strategist', 'marketing:copywriter'] },
   { id: 'kit-education', profession: 'education', name: 'Classroom Kit', description: 'Lesson plans, quizzes and rubrics with the Teacher Assistant and Tutor agents.', servers: ['orbi-core', 'orbi-files'], skills: ['education:lesson-planner', 'education:quiz-maker', 'education:rubrics', 'education:explain-simply'], agents: ['education:teacher_assistant', 'education:tutor'] },
 ]
 
@@ -316,6 +316,122 @@ const KITS = [
 const GITHUB = require('./library-github.json')
 SKILLS.push(...GITHUB.skills)
 for (const a of GITHUB.agents || []) AGENTS.push({ ...a, category: PROFESSIONS.find((p) => p.id === a.profession)?.name || 'General' })
+
+// Skills by Daniel Rodrigues that ship as full Agent Skills folders (SKILL.md + references + assets + tests).
+const BUNDLED = [
+  { dir: 'behavioral-intelligence', profession: 'marketing' },
+  { dir: 'prompt-enhancer', profession: 'design' },
+]
+{
+  const fs = require('fs')
+  const path = require('path')
+  const { fromSkillMd } = require('./studio.cjs')
+  const root = path.join(__dirname, 'skills-bundled')
+  const walk = (dir, base = '') =>
+    fs.readdirSync(path.join(dir, base), { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(dir, path.posix.join(base, e.name)) : [path.posix.join(base, e.name)]))
+  // Reads evals/tests.yaml (the subset SKILLSMITH writes) into Orbi's test format.
+  const readTests = (text) => {
+    const t = { positive: [], negative: [], cases: [] }
+    let sec = null
+    let cur = null
+    const val = (l) => l.replace(/^[^:]+:\s*/, '').replace(/^"|"$/g, '').replace(/\\"/g, '"')
+    for (const l of text.split('\n')) {
+      if (/^positive_triggers:/.test(l)) sec = 'positive'
+      else if (/^negative_triggers:/.test(l)) sec = 'negative'
+      else if (/^operational_cases:/.test(l)) sec = 'cases'
+      else if (sec === 'positive' && /^\s+- prompt:/.test(l)) t.positive.push(val(l.replace(/^\s+- /, '')))
+      else if (sec === 'negative' && /^\s+- prompt:/.test(l)) t.negative.push((cur = { prompt: val(l.replace(/^\s+- /, '')), reason: '' }))
+      else if (sec === 'negative' && /^\s+reason:/.test(l) && cur) cur.reason = val(l.trim())
+      else if (sec === 'cases' && /^\s+- test_id:/.test(l)) t.cases.push((cur = { id: val(l.replace(/^\s+- /, '')), input: '', criteria: [] }))
+      else if (sec === 'cases' && /^\s+input:/.test(l) && cur) cur.input = val(l.trim())
+      else if (sec === 'cases' && /^\s+- "/.test(l) && cur) cur.criteria.push(l.trim().replace(/^- "|"$/g, ''))
+    }
+    return t
+  }
+  for (const b of BUNDLED) {
+    try {
+      const dir = path.join(root, b.dir)
+      const { meta, body } = fromSkillMd(fs.readFileSync(path.join(dir, 'SKILL.md'), 'utf8'))
+      const files = walk(dir).filter((f) => f !== 'SKILL.md' && !f.startsWith('evals/')).map((f) => ({ path: f, content: fs.readFileSync(path.join(dir, f), 'utf8') }))
+      const testsFile = path.join(dir, 'evals', 'tests.yaml')
+      SKILLS.push({
+        id: `${b.profession}:${b.dir}`,
+        profession: b.profession,
+        name: String(meta.name || b.dir),
+        description: String(meta.description || ''),
+        instructions: body,
+        files,
+        tests: fs.existsSync(testsFile) ? readTests(fs.readFileSync(testsFile, 'utf8')) : undefined,
+        meta: { license: meta.license, version: meta.metadata?.version, compatibility: meta.compatibility, author: meta.metadata?.author },
+        author: 'Daniel Rodrigues',
+        kind: 'own',
+        source: 'https://github.com/iwerry/chatorbit-app/tree/main/electron/skills-bundled/' + b.dir,
+        license: String(meta.license || 'MIT'),
+        rating: 5,
+        signals: { purpose: true, method: true, knowledge: true, checks: true, open: true, references: files.length },
+      })
+    } catch (e) {
+      console.warn('[library] bundled skill', b.dir, e.message)
+    }
+  }
+}
+AGENTS.push(
+  {
+    id: 'marketing:behavior',
+    profession: 'marketing',
+    handle: '@behavior',
+    name: 'Behavioral Strategist',
+    description: 'Reads your audience’s emotions and biases and turns them into an ethical message and a 3-step action plan.',
+    category: 'Marketing',
+    skills: ['behavioral-intelligence'],
+    starters: ['People like my posts but nobody buys. Why?', 'Map the emotional profile of my customers', 'Rewrite this sales message to feel empathetic, not pushy', 'My team stays silent in meetings — what do I change?'],
+    author: 'Daniel Rodrigues',
+    kind: 'own',
+    license: 'MIT',
+    rating: 5,
+    instructions: `## Role
+You are a behavioral strategist who combines consumer psychology, emotional intelligence and marketing. You help founders, creators and leaders decide faster and communicate more humanly.
+
+## How you work
+- Load the behavioral-intelligence skill and follow its three steps: map biases and the emotional state, design an authentic message, give a 3-action plan (do now, adjust, eliminate).
+- When inputs are missing, state the assumption in the first line and continue.
+- Every trigger you suggest must point to real value. Never invent scarcity, testimonials or numbers.
+
+## Deliver
+Behavioral diagnosis → influence and communication strategy (with one ready-to-use hook) → direct action plan.
+
+## Avoid
+Clinical diagnosis or therapy (recommend a professional), manipulation, dark patterns, long theory.`,
+  },
+  {
+    id: 'design:prompt',
+    profession: 'design',
+    handle: '@prompt',
+    name: 'Prompt Director',
+    description: 'The magic wand as an agent: turns any idea into professional prompts for image, video, music, voice, text or code.',
+    category: 'Graphic Design',
+    skills: ['prompt-enhancer'],
+    starters: ['Improve this image prompt: a cat astronaut on the moon', 'Write a FLUX prompt and negative prompt for a jazz poster', 'Turn my idea into a Suno music prompt', 'Make this Sora prompt more cinematic'],
+    author: 'Daniel Rodrigues',
+    kind: 'own',
+    license: 'MIT',
+    rating: 5,
+    instructions: `## Role
+You are a prompt director for generative AI. You turn rough ideas into precise, production-ready prompts for any modality and tool.
+
+## How you work
+- Load the prompt-enhancer skill. Identify the modality and tool, fill in what is missing (subject, style, light, camera, motion, sound), and use the tool's syntax.
+- Keep the user's subject and any quoted text exactly. Final prompts in English; explanations in the user's language.
+- Add a negative prompt for local models (FLUX, Qwen Image, Z-Image, Krea, Wan, LTX). No --flags for them; Midjourney gets --ar/--v.
+
+## Deliver
+The refined prompt in a code block, the negative prompt when supported, and up to three bullets on what changed and why.
+
+## Avoid
+Changing the subject, long lectures, generating the media yourself unless asked.`,
+  },
+)
+
 const LINKS = GITHUB.links
 const DIRECTORIES = GITHUB.directories
 

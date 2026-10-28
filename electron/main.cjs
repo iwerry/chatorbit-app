@@ -368,7 +368,7 @@ const api = {
       )
       const kind = mime.startsWith('video') ? 'video' : 'image'
       const short = payload.prompt.slice(0, 40).replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || kind
-      return saveMedia({ buffer, mime, kind, name: `${short}.${kind === 'video' ? 'webm' : 'png'}`, prompt: payload.prompt, model, source: 'creative', board: payload.board, params: { width: payload.width, height: payload.height, steps: payload.steps, seed: payload.seed } })
+      return saveMedia({ buffer, mime, kind, name: `${short}.${kind === 'video' ? 'webm' : 'png'}`, prompt: payload.prompt, model, source: 'creative', board: payload.board, params: { width: payload.width, height: payload.height, steps: payload.steps, seed: payload.seed, negative: payload.negative || undefined } })
     } finally {
       for (const f of tmp) fs.rmSync(f, { force: true })
     }
@@ -524,6 +524,88 @@ const api = {
       return { name: String(meta.name || path.basename(path.dirname(file))), description: String(meta.description || ''), license: String(meta.license || ''), version: String(meta.metadata?.version || '1.0.0'), author: String(meta.metadata?.author || ''), body, files: [] }
     }
     return studio.importZip(fs.readFileSync(file))
+  },
+
+  // Download agents, teams or harnesses (with the agents and skills they use) as one ZIP.
+  'studio:exportBundle': async ({ kind, ids }) => {
+    const pick = (rows) => (ids && ids.length ? rows.filter((r) => ids.includes(r.id)) : rows)
+    const allAgents = db.all('SELECT * FROM agents ORDER BY created_at ASC')
+    const allSkills = db.all('SELECT * FROM skills ORDER BY created_at ASC')
+    const out = { agents: [], teams: [], harnesses: [], skills: [] }
+    const addAgent = (handle) => {
+      const a = allAgents.find((x) => x.handle === handle || x.handle === '@' + String(handle).replace(/^@/, ''))
+      if (a && !out.agents.includes(a)) out.agents.push(a)
+    }
+    if (kind === 'agent') out.agents = pick(allAgents)
+    if (kind === 'team') {
+      out.teams = pick(db.all('SELECT * FROM teams ORDER BY created_at ASC'))
+      for (const t of out.teams) for (const m of JSON.parse(t.members || '[]')) if (m.agent) addAgent(m.agent)
+    }
+    if (kind === 'harness') {
+      out.harnesses = pick(db.all('SELECT * FROM harnesses ORDER BY created_at ASC'))
+      for (const h of out.harnesses) for (const a of JSON.parse(h.config || '{}').agents || []) addAgent(a)
+    }
+    if (kind === 'skill') out.skills = pick(allSkills).map(skillDoc)
+    const names = new Set()
+    for (const a of out.agents) {
+      if (a.skills_mode === 'all') allSkills.filter((k) => k.enabled).forEach((k) => names.add(k.name))
+      if (a.skills_mode === 'selected') JSON.parse(a.skills || '[]').forEach((n) => names.add(n))
+    }
+    for (const h of out.harnesses) for (const n of JSON.parse(h.config || '{}').skills || []) names.add(n)
+    for (const k of allSkills) if (names.has(k.name) && !out.skills.some((x) => x.name === k.name)) out.skills.push(skillDoc(k))
+    const first = out.agents[0] || out.teams[0] || out.harnesses[0] || out.skills[0]
+    if (!first) throw new Error('Nothing to download yet.')
+    const single = (ids && ids.length === 1) || (kind === 'agent' ? out.agents.length : kind === 'team' ? out.teams.length : kind === 'harness' ? out.harnesses.length : out.skills.length) === 1
+    const title = single ? `${kind}-${String(first.handle || first.name || kind).replace(/^@/, '')}` : `orbi-${kind}s`
+    const r = await dialog.showSaveDialog(BrowserWindow.getFocusedWindow(), { defaultPath: `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.zip`, filters: [{ name: 'Orbi bundle', extensions: ['zip'] }] })
+    if (r.canceled || !r.filePath) return null
+    fs.writeFileSync(r.filePath, studio.exportBundle({ ...out, title, author: getSetting('userName') || os.userInfo().username }))
+    shell.showItemInFolder(r.filePath)
+    return r.filePath
+  },
+  // Import an Orbi bundle ZIP (agents, teams, harnesses and their skills) or a single skill.
+  'studio:importBundle': async () => {
+    const r = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), { properties: ['openFile'], filters: [{ name: 'Orbi bundle or Agent Skill', extensions: ['zip', 'md', 'skill', 'json'] }] })
+    if (r.canceled || !r.filePaths[0]) return null
+    const file = r.filePaths[0]
+    const buf = fs.readFileSync(file)
+    let b = null
+    if (/\.json$/i.test(file)) {
+      const j = JSON.parse(buf.toString('utf8'))
+      if (j.orbi === 'bundle') b = j
+    } else if (/\.(zip|skill)$/i.test(file)) b = studio.importBundle(buf)
+    if (!b) {
+      const doc = /\.md$/i.test(file)
+        ? (() => {
+            const { meta, body } = studio.fromSkillMd(buf.toString('utf8'))
+            return { name: String(meta.name || 'imported-skill'), description: String(meta.description || ''), body, files: [], license: String(meta.license || ''), version: String(meta.metadata?.version || '1.0.0'), author: String(meta.metadata?.author || '') }
+          })()
+        : studio.importZip(buf)
+      b = { agents: [], teams: [], harnesses: [], skills: [doc] }
+    }
+    const counts = { agents: 0, teams: 0, harnesses: 0, skills: 0 }
+    const existingSkills = db.all('SELECT * FROM skills')
+    for (const k of b.skills || []) {
+      const hit = existingSkills.find((x) => x.name === k.name)
+      api['skills:save']({ id: hit?.id, name: k.name, description: k.description, instructions: k.body ?? k.instructions ?? '', files: k.files, tests: k.tests, meta: { license: k.license, version: k.version, compatibility: k.compatibility, author: k.author } })
+      counts.skills++
+    }
+    const handles = new Set(db.all('SELECT handle FROM agents').map((x) => x.handle))
+    for (const a of b.agents || []) {
+      if (handles.has(a.handle)) continue
+      api['agents:save']({ ...a, id: undefined, tools: JSON.parse(typeof a.tools === 'string' ? a.tools || '[]' : JSON.stringify(a.tools || [])), skills: JSON.parse(typeof a.skills === 'string' ? a.skills || '[]' : JSON.stringify(a.skills || [])), starters: JSON.parse(typeof a.starters === 'string' ? a.starters || '[]' : JSON.stringify(a.starters || [])) })
+      counts.agents++
+    }
+    for (const t of b.teams || []) {
+      api['teams:save']({ ...t, id: undefined, members: typeof t.members === 'string' ? JSON.parse(t.members || '[]') : t.members })
+      counts.teams++
+    }
+    for (const h of b.harnesses || []) {
+      api['harness:save']({ ...h, id: undefined, config: typeof h.config === 'string' ? JSON.parse(h.config || '{}') : h.config })
+      counts.harnesses++
+    }
+    broadcast('data:changed', 'studio')
+    return counts
   },
 
   // ---------- multi-agent teams and harnesses ----------
@@ -692,7 +774,7 @@ function installLibrarySkill(id) {
   const k = library.SKILLS.find((x) => x.id === id)
   if (!k) return false
   if (db.get('SELECT id FROM skills WHERE library_id = ? OR name = ?', [k.id, k.name])) return true
-  db.run('INSERT INTO skills (id, name, description, instructions, enabled, created_at, library_id) VALUES (?,?,?,?,?,?,?)', [db.uid(), k.name, k.description, k.instructions, 0, Date.now(), k.id])
+  db.run('INSERT INTO skills (id, name, description, instructions, enabled, created_at, library_id, files, tests, meta) VALUES (?,?,?,?,?,?,?,?,?,?)', [db.uid(), k.name, k.description, k.instructions, 0, Date.now(), k.id, JSON.stringify(k.files || []), JSON.stringify(k.tests || {}), JSON.stringify(k.meta || { author: k.author, license: k.license })])
   return true
 }
 function installLibraryAgent(id) {
@@ -702,6 +784,13 @@ function installLibraryAgent(id) {
   const aid = db.uid()
   db.run('INSERT INTO agents (id, handle, instructions, created_at) VALUES (?,?,?,?)', [aid, a.handle, a.instructions, Date.now()])
   db.run('UPDATE agents SET name = ?, description = ?, category = ?, starters = ? WHERE id = ?', [a.name, a.description, a.category, JSON.stringify(a.starters || []), aid])
+  if (a.skills?.length) {
+    a.skills.forEach((n) => {
+      const lib = library.SKILLS.find((k) => k.name === n)
+      if (lib) installLibrarySkill(lib.id)
+    })
+    db.run("UPDATE agents SET skills_mode = 'selected', skills = ? WHERE id = ?", [JSON.stringify(a.skills), aid])
+  }
   return true
 }
 

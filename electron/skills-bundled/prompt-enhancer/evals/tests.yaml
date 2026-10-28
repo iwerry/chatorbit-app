@@ -1,0 +1,35 @@
+skill_name: prompt-enhancer
+positive_triggers:
+  - prompt: "Improve this prompt: a cat astronaut on the moon"
+    expected_action: "ACTIVATED"
+  - prompt: "Varinha mágica nesse prompt de música: pop triste sobre término"
+    expected_action: "ACTIVATED"
+  - prompt: "Make this Sora prompt more cinematic: a car driving at night"
+    expected_action: "ACTIVATED"
+  - prompt: "Turn 'logo for a coffee shop' into a professional FLUX prompt with a negative prompt"
+    expected_action: "ACTIVATED"
+  - prompt: "My ChatGPT prompt for code review gives vague answers, fix it"
+    expected_action: "ACTIVATED"
+negative_triggers:
+  - prompt: "Generate this image now: a red fox in the snow"
+    expected_action: "NOT_ACTIVATED"
+    reason: "Generation, not prompt work."
+  - prompt: "Why do my followers engage but not buy?"
+    expected_action: "NOT_ACTIVATED"
+    reason: "Behavior analysis belongs to behavioral-intelligence."
+  - prompt: "Translate this paragraph to Spanish"
+    expected_action: "NOT_ACTIVATED"
+    reason: "Plain translation."
+operational_cases:
+  - test_id: "TC-01"
+    input: "astronaut cat on the moon, for Midjourney"
+    verification_criteria:
+      - "Final prompt is in English inside a code block and ends with --ar and --v parameters."
+  - test_id: "TC-02"
+    input: "poster jazz night, for a local FLUX model"
+    verification_criteria:
+      - "No --flags in the prompt; includes a separate negative prompt."
+  - test_id: "TC-03"
+    input: "JSON mode: {\"prompt\": \"sunset\", \"negative\": \"\"}"
+    verification_criteria:
+      - "Reply is valid JSON with prompt and negative keys only."
