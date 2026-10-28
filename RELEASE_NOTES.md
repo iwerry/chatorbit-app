@@ -1,4 +1,21 @@
-## Orbi 0.1.27-10
+## Orbi 0.1.27-11
+
+**Voices: choose, listen, install and remove them anywhere**
+- One voice library everywhere a voice is used: Settings → Voice, Local models, the arrow next to the speaker button under each answer, and the Voice node in Workflows. In each place you can listen to every voice, choose it, install it or uninstall it.
+- **New natural voices that run on your PC:**
+  - **Kokoro 82M:** 41 voices in Portuguese (BR), English, Spanish, French, Italian and Hindi.
+  - **Supertonic 3:** 10 voices that speak 31 languages, very fast.
+  - **Kitten TTS:** tiny English voices, 27 MB.
+  - **Pocket TTS:** clone a voice from a 5–10 second recording. English only, for personal non-commercial use.
+- **Best voices first:** packs list their top-rated voices first and filter by your language. Installing your first natural voice makes it the default in your language.
+- **Long answers start playing sooner:** the first sentence plays while the rest is being generated.
+- **The most-used Hugging Face voices are listed with their license:** Fish Speech, XTTS v2, Chatterbox, Bark, ChatTTS, CosyVoice, Parler-TTS, MetaVoice, OpenVoice and MeloTTS. They need the optional Python engine, which is not included yet.
+
+**Voice input**
+- The arrow next to the microphone opens voice input anywhere: choose the model, test the microphone, install, cancel or uninstall.
+- New models: Whisper Medium and Whisper Large v3.
+
+## Orbi 0.1.27-10 (previous)
 
 **Agents and skills, completed**
 - **37 agents from GitHub** (Seth Hobson's MIT collection): Kubernetes Architect, Incident Responder, AI Engineer, Prompt Engineer, Data Engineer, Business Analyst, Accessibility Expert, Content Marketer and more. Agents now have **stars, author, license and GitHub link**, and each profession shows its top 10, the same as skills.

@@ -50,7 +50,9 @@ export function SetupWizard({
     for (const { kind } of KINDS) {
       const usable = status.models.filter((m) => m.kind === kind && m.engineSupported && m.tier !== 'custom')
       // Voices: the first one in the user's language.
-      const byLang = kind === 'tts' ? usable.find((m) => m.lang && lang.toLowerCase().startsWith(m.lang.slice(0, 2).toLowerCase()))?.id : undefined
+      const short = lang.slice(0, 2).toLowerCase()
+      const pack = kind === 'tts' ? usable.find((m) => m.id === status.recommended.tts && m.voices?.some((v) => v.lang === 'multi' || v.lang.toLowerCase().startsWith(short)))?.id : undefined
+      const byLang = kind === 'tts' ? pack || usable.find((m) => m.lang && lang.toLowerCase().startsWith(m.lang.slice(0, 2).toLowerCase()))?.id : undefined
       const rec = byLang || status.recommended[kind] || usable.find((m) => m.fit.level !== 'no')?.id
       if (rec) p[kind] = rec
       inc[kind] = (!!status.recommended[kind] || !!byLang) && usable.length > 0

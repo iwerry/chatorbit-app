@@ -3,6 +3,8 @@ import { AudioLines, Check, Cpu, Download, FolderOpen, HardDrive, Image as Image
 import { api, type HfFile, type HfRepo, type LocalModel, type LocalStatus, type ModelKind } from '../lib/api'
 import { fmtBytes, t } from '../lib/i18n'
 import { sampleFor, speak } from '../lib/tts'
+import { VoiceLibrary } from './VoiceLibrary'
+import { VoiceSettings } from './VoiceInput'
 
 type Tab = ModelKind | 'audio'
 const TABS: { id: Tab; label: string; icon: typeof Cpu }[] = [
@@ -167,7 +169,7 @@ export function ModelHub({ status, onChanged, initialTab = 'text', onOpenSetup }
   const [tab, setTab] = useState<Tab>(initialTab)
   if (!status) return <div className="hub-skeleton" aria-busy="true" />
   const models = status.models.filter((m) => m.kind === tab)
-  const engineKey = tab === 'text' ? 'llama' : tab === 'stt' ? 'whisper' : tab === 'audio' ? 'piper' : 'sd'
+  const engineKey = tab === 'text' ? 'llama' : tab === 'stt' ? 'whisper' : tab === 'audio' ? 'sherpa' : 'sd'
   const engine = engineKey ? status.engines[engineKey] : null
   return (
     <div className="model-hub">
@@ -207,7 +209,7 @@ export function ModelHub({ status, onChanged, initialTab = 'text', onOpenSetup }
       <div className="hub-tabs" role="tablist">
         {TABS.map((x) => {
           const Icon = x.icon
-          const count = x.id === 'audio' ? 0 : status.models.filter((m) => m.kind === x.id && m.installed).length
+          const count = status.models.filter((m) => m.kind === (x.id === 'audio' ? 'tts' : x.id) && m.installed).length
           return (
             <button key={x.id} role="tab" aria-selected={tab === x.id} className={tab === x.id ? 'active' : ''} onClick={() => setTab(x.id)}>
               <Icon size={14} />
@@ -231,27 +233,9 @@ export function ModelHub({ status, onChanged, initialTab = 'text', onOpenSetup }
       )}
 
       {tab === 'audio' ? (
-        <div className="hub-group">
-          <div className="hub-model installed fit-ok">
-            <div className="min-w-0 flex-1">
-              <p className="hub-model-title">
-                <strong>{t('System voices')}</strong>
-                <span className="hub-meta">{t('Built in · 0 MB')}</span>
-              </p>
-              <p className="hub-desc">{t('Read answers aloud with the voices already installed on your computer. Click the speaker icon under any answer.')}</p>
-            </div>
-            <span className="provider-status">
-              <Check size={12} className="inline" /> {t('Ready')}
-            </span>
-          </div>
-          {status.models
-            .filter((m) => m.kind === 'tts')
-            .map((m) => (
-              <ModelRow key={m.id} m={m} recommended={false} queued={!!status.queue?.includes(m.id)} onChanged={onChanged} />
-            ))}
-          <p className="hub-note">{t('Pick the default voice and listen to each one in Settings → Voice.')}</p>
-        </div>
-      ) : (
+        <VoiceLibrary status={status} onLocalChanged={onChanged} />
+      ) : tab === 'stt' ? (
+        <VoiceSettings status={status} onLocalChanged={onChanged} />      ) : (
         TIERS.map((tier) => {
           const list = models.filter((m) => m.tier === tier)
           if (!list.length) return null

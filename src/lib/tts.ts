@@ -20,23 +20,53 @@ export function systemVoices(): SpeechSynthesisVoice[] {
   return typeof speechSynthesis === 'undefined' ? [] : speechSynthesis.getVoices()
 }
 
+// Split long text at sentence ends so the first part plays while the next one is being made.
+function chunks(text: string, max = 320): string[] {
+  const parts = text.split(/(?<=[.!?…])\s+|\n+/).map((p) => p.trim()).filter(Boolean)
+  const out: string[] = []
+  let cur = ''
+  for (const p of parts) {
+    if (cur && (cur + ' ' + p).length > max) {
+      out.push(cur)
+      cur = p
+    } else cur = cur ? cur + ' ' + p : p
+  }
+  if (cur) out.push(cur)
+  return out.length ? out : [text]
+}
+
+export const isLocalChoice = (c: TtsChoice | null): c is Extract<TtsChoice, { modelId: string }> => !!c && (c.type === 'piper' || c.type === 'local')
+
 // Plays text and resolves when it ends (or is stopped).
 export async function speak(text: string, choice: TtsChoice | null, lang: string): Promise<void> {
   stopSpeaking()
   const clean = text.replace(/```[\s\S]*?```/g, ' ').replace(/\]\([^)]*\)/g, ']').replace(/[#*_>`~[\]]/g, '')
-  if (choice?.type === 'piper') {
-    const url = await api.speakLocal({ text: clean, modelId: choice.modelId, rate: choice.rate })
-    const audio = new Audio(url)
-    return new Promise((resolve) => {
-      current = {
-        stop: () => {
-          audio.pause()
-          resolve()
-        },
-      }
-      audio.onended = audio.onerror = () => resolve()
-      audio.play().catch(() => resolve())
-    })
+  if (isLocalChoice(choice)) {
+    let stopped = false
+    let audio: HTMLAudioElement | null = null
+    let finish = () => {}
+    current = {
+      stop: () => {
+        stopped = true
+        audio?.pause()
+        finish()
+      },
+    }
+    const make = (part: string) => api.speakLocal({ text: part, modelId: choice.modelId, rate: choice.rate, voice: choice.voice, lang })
+    const list = chunks(clean)
+    let next: Promise<string> | null = make(list[0])
+    for (let i = 0; i < list.length && !stopped; i++) {
+      const url: string = await next!
+      next = i + 1 < list.length ? make(list[i + 1]) : null
+      if (stopped) break
+      await new Promise<void>((resolve) => {
+        finish = resolve
+        audio = new Audio(url)
+        audio.onended = audio.onerror = () => resolve()
+        audio.play().catch(() => resolve())
+      })
+    }
+    return
   }
   const synth = typeof speechSynthesis === 'undefined' ? null : speechSynthesis
   if (!synth) throw new Error('This system has no voices for reading aloud.')

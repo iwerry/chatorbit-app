@@ -2848,3 +2848,35 @@ select optgroup {
 .lib-dirs ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 18px; list-style: none; padding: 0; margin: 0; }
 .lib-dirs li { display: flex; flex-direction: column; font-size: 12px; color: var(--neo-muted); }
 .lib-dirs li button { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; color: var(--neo-text, inherit); font-weight: 500; }
+
+/* ---------- voice library (choose, listen, install anywhere) ---------- */
+.voice-lib { display: flex; flex-direction: column; gap: 12px; }
+.voice-lib-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.voice-lib-top .voice-rate { flex: 1; min-width: 220px; margin: 0; }
+.voice-pack { border-top: 1px solid var(--neo-line); padding-top: 8px; }
+.voice-pack:first-of-type { border-top: 0; padding-top: 0; }
+.voice-pack-head { display: flex; align-items: center; gap: 8px; }
+.voice-pack-title { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; text-align: left; padding: 4px 2px; font-size: 13px; color: inherit; cursor: pointer; }
+.voice-pack-title:disabled { cursor: default; }
+.voice-pack-title small { flex-basis: 100%; font-size: 11px; color: var(--neo-muted); line-height: 1.45; }
+.voice-pack-title .local-bar { flex-basis: 100%; }
+.voice-pack-voices { display: flex; flex-direction: column; gap: 2px; margin: 6px 0 4px 10px; padding-left: 10px; border-left: 2px solid var(--neo-line); }
+.voice-top { color: #f5b301; font-size: 11px; }
+.hub-badge-warn { border-color: color-mix(in srgb, #e0a020 55%, transparent) !important; color: #d08a00 !important; }
+.voice-clone { margin-top: 8px; padding: 10px; border-radius: 10px; background: var(--neo-surface-strong); font-size: 12px; color: var(--neo-muted); }
+.voice-clone strong { color: var(--neo-text); }
+.voice-clone-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.voice-clone-row .ab-input { flex: 1; min-width: 140px; }
+.voice-clone-row label.orbi-btn { cursor: pointer; }
+.voice-advanced > summary { cursor: pointer; list-style: none; }
+.voice-advanced > summary::-webkit-details-marker { display: none; }
+.voice-dialog-wide { width: min(720px, 94vw); }
+.voice-dialog-wide h3 { font-size: 16px; font-weight: 600; }
+.voice-dialog-wide > div:first-child p { font-size: 12.5px; color: var(--neo-muted); margin: 2px 0 12px; }
+.voice-button { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; cursor: pointer; }
+.voice-button .truncate { flex: 1; min-width: 0; }
+.meta-split { display: inline-flex; align-items: center; }
+.meta-split > button + button { width: 14px !important; margin-left: -3px; }
+.microphone-menu { display: grid; place-items: center; width: 18px; height: 30px; margin-right: -4px; border-radius: 7px; color: var(--neo-faint); }
+.microphone-menu:hover { background: var(--neo-surface-solid); color: var(--neo-text); }
+.rotate-180 { transform: rotate(180deg); }

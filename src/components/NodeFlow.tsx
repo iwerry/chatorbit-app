@@ -28,8 +28,9 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
-import { api, on, type Board, type LocalStatus, type MediaItem, type ModelInfo } from '../lib/api'
-import { t } from '../lib/i18n'
+import { api, on, type Board, type LocalStatus, type MediaItem, type ModelInfo, type TtsChoice } from '../lib/api'
+import { VoiceButton } from './VoiceLibrary'
+import { getLang, t } from '../lib/i18n'
 import { activity } from '../lib/activity'
 import { importComfy } from '../lib/comfy'
 
@@ -612,8 +613,8 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
       case 'voice': {
         const text = firstText('text')
         if (!text) throw new Error(t('Connect a script to this node.'))
-        const v = String(n.data.voice || (ttsVoices[0] ? `local:${ttsVoices[0].key}` : 'openai:alloy'))
-        const item = v.startsWith('local:') ? await api.speakToMedia({ text, modelId: v.slice(6) }) : await api.speech({ text, voice: v.replace(/^openai:/, '') })
+        const v = parseVoice(n.data.voice, ttsVoices)
+        const item = v.type === 'local' ? await api.speakToMedia({ text, modelId: v.modelId, voice: v.voice, lang: getLang() }) : await api.speech({ text, voice: v.voice })
         onMediaCreated(item)
         return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
       }
@@ -904,7 +905,7 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
                     media={media}
                     boards={boards}
                     onOpenModels={onOpenModels}
-                    extra={{ editChoices, localImageChoices, upscalers, ttsVoices, onPaintMask: () => setMaskFor(n.id), hasInputImage: !!inputImageOf(n.id) }}
+                    extra={{ editChoices, localImageChoices, upscalers, ttsVoices, onPaintMask: () => setMaskFor(n.id), hasInputImage: !!inputImageOf(n.id), localStatus }}
                   />
                   {n.status === 'running' && n.progress !== undefined && (
                     <div className="local-bar">
@@ -1022,7 +1023,15 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
 }
 
 type Choice = { key: string; label: string }
-type Extra = { editChoices: Choice[]; localImageChoices: Choice[]; upscalers: Choice[]; ttsVoices: Choice[]; onPaintMask: () => void; hasInputImage: boolean }
+type Extra = { editChoices: Choice[]; localImageChoices: Choice[]; upscalers: Choice[]; ttsVoices: Choice[]; onPaintMask: () => void; hasInputImage: boolean; localStatus: LocalStatus | null }
+
+// Voice node value: 'local:<model>#<voice>' (offline) or 'openai:<voice>'.
+function parseVoice(raw: unknown, local: Choice[]): { type: 'local'; modelId: string; voice?: string | number } | { type: 'openai'; voice: string } {
+  const s = String(raw || (local[0] ? `local:${local[0].key}` : 'openai:alloy'))
+  if (s.startsWith('openai:')) return { type: 'openai', voice: s.slice(7) }
+  const [modelId, voice] = s.slice(6).split('#')
+  return { type: 'local', modelId, voice: voice == null ? undefined : /^\d+$/.test(voice) ? Number(voice) : voice }
+}
 
 function NodeBody({
   n,
@@ -1220,30 +1229,40 @@ function NodeBody({
           {preview}
         </>
       )
-    case 'voice':
+    case 'voice': {
+      const v = parseVoice(n.data.voice, extra.ttsVoices)
+      const value: TtsChoice | null = v.type === 'local' ? { type: 'local', modelId: v.modelId, voice: v.voice, rate: 1 } : null
       return (
         <>
-          <select className="ab-input" value={String(n.data.voice || (extra.ttsVoices[0] ? `local:${extra.ttsVoices[0].key}` : 'openai:alloy'))} onChange={(e) => setData({ voice: e.target.value })}>
-            {extra.ttsVoices.length > 0 && (
-              <optgroup label={t('On this PC')}>
-                {extra.ttsVoices.map((v) => (
-                  <option key={v.key} value={`local:${v.key}`}>
-                    {v.label}
-                  </option>
+          <VoiceButton
+            status={extra.localStatus}
+            onLocalChanged={() => {}}
+            value={value}
+            hideSystem
+            label={v.type === 'openai' ? `OpenAI · ${v.voice}` : undefined}
+            onPick={(c) => c.type !== 'system' && setData({ voice: `local:${c.modelId}${c.voice != null ? `#${c.voice}` : ''}` })}
+            extra={
+              <div className="voice-option">
+                <div className="voice-option-head">
+                  <strong>{t('OpenAI (key needed)')}</strong>
+                </div>
+                {VOICES.map((o) => (
+                  <div key={o} className={`voice-model ${v.type === 'openai' && v.voice === o ? 'active' : ''}`}>
+                    <div className="min-w-0 flex-1">
+                      <strong>{o}</strong>
+                    </div>
+                    <button className={`orbi-btn ${v.type === 'openai' && v.voice === o ? 'orbi-btn-primary' : ''}`} onClick={() => setData({ voice: `openai:${o}` })}>
+                      {v.type === 'openai' && v.voice === o ? t('Chosen') : t('Use')}
+                    </button>
+                  </div>
                 ))}
-              </optgroup>
-            )}
-            <optgroup label={t('OpenAI (key needed)')}>
-              {VOICES.map((v) => (
-                <option key={v} value={`openai:${v}`}>
-                  {v}
-                </option>
-              ))}
-            </optgroup>
-          </select>
+              </div>
+            }
+          />
           {preview}
         </>
       )
+    }
     case 'output':
       return (
         <>

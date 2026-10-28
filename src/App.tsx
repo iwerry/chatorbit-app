@@ -69,6 +69,7 @@ import {
   on,
   parseJSON,
 } from './lib/api'
+import { VoiceDialog, VoiceLibrary, defaultVoiceFor } from './components/VoiceLibrary'
 import { Markdown } from './components/Markdown'
 import { OrbiMark, SpyHatIcon } from './components/Logo'
 import type { SettingsTab } from './components/SettingsModal'
@@ -84,7 +85,7 @@ import { speak as speak_, stopSpeaking } from './lib/tts'
 import { activity, useActivities, type ActivityDone } from './lib/activity'
 
 const SettingsModal = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal })))
-const VoiceSettings = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.VoiceSettings })))
+const VoiceSettings = lazy(() => import('./components/VoiceInput').then((m) => ({ default: m.VoiceSettings })))
 const CreativeStudio = lazy(() => import('./components/CreativeStudio').then((m) => ({ default: m.CreativeStudio })))
 const UpdateCenter = lazy(() => import('./components/UpdateCenter').then((m) => ({ default: m.UpdateCenter })))
 const SetupWizard = lazy(() => import('./components/SetupWizard').then((m) => ({ default: m.SetupWizard })))
@@ -181,7 +182,8 @@ export default function App() {
   const [lang, setLangState] = useState<Lang>('en')
   const [webOn, setWebOn] = useState(false)
   const [voiceMode, setVoiceMode] = useState<VoiceMode | null>(null)
-  const [voicePicker, setVoicePicker] = useState(false)
+  const [voicePicker, setVoicePicker] = useState<false | 'auto' | 'menu'>(false)
+  const [voiceOutFor, setVoiceOutFor] = useState<ChatMessage | null>(null)
   const [recording, setRecording] = useState<null | { stop: () => Promise<string>; started: number }>(null)
   const [transcribing, setTranscribing] = useState(false)
   const [speaking, setSpeaking] = useState<string | null>(null)
@@ -722,7 +724,7 @@ export default function App() {
       }
       return
     }
-    if (!mode) return setVoicePicker(true)
+    if (!mode) return setVoicePicker('auto')
     try {
       const stopFn = await recordWav()
       setRecording({ stop: stopFn, started: Date.now() })
@@ -1612,9 +1614,14 @@ export default function App() {
                                   <button title={t('Copy')} onClick={() => navigator.clipboard.writeText(item.content)}>
                                     <Copy size={12} />
                                   </button>
-                                  <button title={speaking === item.id ? t('Stop reading') : t('Read aloud')} onClick={() => speak(item)} className={speaking === item.id ? 'meta-active' : ''}>
-                                    {speaking === item.id ? <VolumeX size={12} /> : <Volume2 size={12} />}
-                                  </button>
+                                  <span className="meta-split">
+                                    <button title={speaking === item.id ? t('Stop reading') : t('Read aloud')} onClick={() => speak(item)} className={speaking === item.id ? 'meta-active' : ''}>
+                                      {speaking === item.id ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                                    </button>
+                                    <button title={t('Choose a voice')} aria-label={t('Choose a voice')} onClick={() => setVoiceOutFor(item)}>
+                                      <ChevronDown size={11} />
+                                    </button>
+                                  </span>
                                   {!item.temp && conversationId && (
                                     <button
                                       title={item.bookmarked ? t('Remove bookmark') : t('Bookmark')}
@@ -1821,6 +1828,11 @@ export default function App() {
                         </>
                       )}
                     </div>
+                    {!recording && !transcribing && (
+                      <button type="button" className="microphone-menu" onClick={() => setVoicePicker('menu')} aria-label={t('Voice input settings')} title={t('Voice input settings')}>
+                        <ChevronDown size={12} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       className={`microphone-button ${recording ? 'microphone-recording' : ''}`}
@@ -2042,7 +2054,7 @@ export default function App() {
             themeMode={themeMode}
             setThemeMode={setThemeMode}
             onDone={({ sttModel, ttsModel }) => {
-              if (ttsModel) api.getSetting('ttsVoice', null).then((v) => !v && api.setSetting('ttsVoice', { type: 'piper', modelId: ttsModel, rate: 1 }))
+              if (ttsModel) api.getSetting('ttsVoice', null).then((v) => !v && api.setSetting('ttsVoice', { type: 'local', modelId: ttsModel, voice: defaultVoiceFor(localStatus?.models.find((m) => m.id === ttsModel), lang), rate: 1 }))
               setSetupOpen(null)
               api.setSetting('onboarded', true)
               if (sttModel && !voiceMode) {
@@ -2060,8 +2072,8 @@ export default function App() {
           <div className="voice-dialog" role="dialog" aria-label={t('Voice input')}>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3>{t('Set up voice input')}</h3>
-                <p>{t('Choose how Orbi turns your voice into text. You can change this later in Settings → Voice.')}</p>
+                <h3>{voicePicker === 'menu' ? t('Voice input') : t('Set up voice input')}</h3>
+                <p>{t('Choose how Orbi turns your voice into text, test it, and install or remove models.')}</p>
               </div>
               <button className="icon-button" onClick={() => setVoicePicker(false)} aria-label={t('Close')}>
                 <X size={16} />
@@ -2073,13 +2085,30 @@ export default function App() {
                 onLocalChanged={() => api.localStatus().then(setLocalStatus)}
                 onPicked={(m) => {
                   setVoiceMode(m)
-                  setVoicePicker(false)
-                  startVoice(m)
+                  if (voicePicker === 'auto') {
+                    setVoicePicker(false)
+                    startVoice(m)
+                  }
                 }}
               />
             </Suspense>
           </div>
         </div>
+      )}
+
+      {voiceOutFor && (
+        <VoiceDialog title={t('Read-aloud voice')} subtitle={t('Choose, listen, install or remove voices. The voice you pick becomes the default.')} onClose={() => setVoiceOutFor(null)}>
+          <VoiceLibrary
+            status={localStatus}
+            onLocalChanged={() => api.localStatus().then(setLocalStatus)}
+            compact
+            onPick={() => {
+              const m = voiceOutFor
+              setVoiceOutFor(null)
+              setTimeout(() => speak(m), 50)
+            }}
+          />
+        </VoiceDialog>
       )}
 
       {notice && <div className="orbi-toast">{notice}</div>}

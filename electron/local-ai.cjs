@@ -55,6 +55,18 @@ const ENGINES = {
       return a && `https://github.com/rhasspy/piper/releases/download/${this.tag}/${a}`
     },
   },
+  // sherpa-onnx: one native engine for the most natural open voices (Kokoro, Supertonic, Kitten,
+  // Pocket TTS voice cloning). Shared builds are small; the Windows one has a static C runtime.
+  sherpa: {
+    name: 'sherpa-onnx voices',
+    tag: 'v1.13.8',
+    exe: { tts: 'sherpa-onnx-offline-tts' },
+    asset() {
+      const t = this.tag
+      const a = { 'win32-x64': 'win-x64-shared-MT-Release', 'linux-x64': 'linux-x64-shared', 'darwin-arm64': 'osx-arm64-shared', 'darwin-x64': 'osx-x64-shared' }[`${process.platform}-${process.arch}`]
+      return a && `https://github.com/k2-fsa/sherpa-onnx/releases/download/${t}/sherpa-onnx-${t}-${a}.tar.bz2`
+    },
+  },
   whisper: {
     name: 'whisper.cpp',
     tag: 'v1.9.2',
@@ -116,6 +128,10 @@ const CATALOG = [
     description: 'Good accuracy in Portuguese and other languages.', files: [{ role: 'model', repo: 'ggerganov/whisper.cpp', file: 'ggml-small.bin' }] },
   { id: 'whisper-turbo', kind: 'stt', tier: 'heavy', name: 'Whisper Large v3 Turbo', license: 'MIT', size: 0.547, req: { ram: 4, vram: 0 },
     description: 'Best accuracy. Needs a decent CPU or a GPU.', files: [{ role: 'model', repo: 'ggerganov/whisper.cpp', file: 'ggml-large-v3-turbo-q5_0.bin' }] },
+  { id: 'whisper-medium', kind: 'stt', tier: 'medium', name: 'Whisper Medium', license: 'MIT', size: 0.539, req: { ram: 3, vram: 0 },
+    description: 'Very good accuracy for accents and noisy audio. Slower than Turbo.', files: [{ role: 'model', repo: 'ggerganov/whisper.cpp', file: 'ggml-medium-q5_0.bin' }] },
+  { id: 'whisper-large-v3', kind: 'stt', tier: 'heavy', name: 'Whisper Large v3', license: 'MIT', size: 1.08, req: { ram: 5, vram: 0 },
+    description: 'The most accurate Whisper. Best for long recordings and interviews; slow without a GPU.', files: [{ role: 'model', repo: 'ggerganov/whisper.cpp', file: 'ggml-large-v3-q5_0.bin' }] },
 
   // IMAGE (stable-diffusion.cpp)
   { id: 'sdxs-512', kind: 'image', tier: 'light', name: 'SDXS 512', license: 'see model card', size: 1.2, req: { ram: 3, vram: 0 },
@@ -181,6 +197,70 @@ const CATALOG = [
   { id: 'tts-fr_FR-siwis-medium', kind: 'tts', tier: 'light', name: 'Siwis · Français', lang: 'fr', license: 'see voice card', size: 0.063, req: { ram: 1, vram: 0 },
     description: 'French female voice.', files: [{ role: 'model', repo: 'rhasspy/piper-voices', file: 'fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx' }, { role: 'config', repo: 'rhasspy/piper-voices', file: 'fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx.json' }] },
 
+  // NATURAL VOICES (sherpa-onnx). Packs hold several voices; pick one by id (speaker).
+  { id: 'tts-kokoro', kind: 'tts', engine: 'sherpa', family: 'kokoro', tier: 'medium', name: 'Kokoro 82M', lang: 'multi', license: 'Apache-2.0', size: 0.132, req: { ram: 2, vram: 0 },
+    langs: ['pt-BR', 'en-US', 'en-GB', 'es', 'fr', 'it', 'hi'],
+    description: 'The most natural open voice of its size. 41 voices in Portuguese (BR), English, Spanish, French, Italian and Hindi.',
+    files: [{ role: 'pack', url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-int8-multi-lang-v1_0.tar.bz2', file: 'kokoro-int8-multi-lang-v1_0' }],
+    voices: [
+      { id: 0, name: 'Alloy', lang: 'en-US', gender: 'f' },
+      { id: 1, name: 'Aoede', lang: 'en-US', gender: 'f' },
+      { id: 2, name: 'Bella', lang: 'en-US', gender: 'f', top: true },
+      { id: 3, name: 'Heart', lang: 'en-US', gender: 'f', top: true },
+      { id: 4, name: 'Jessica', lang: 'en-US', gender: 'f' },
+      { id: 5, name: 'Kore', lang: 'en-US', gender: 'f' },
+      { id: 6, name: 'Nicole', lang: 'en-US', gender: 'f' },
+      { id: 7, name: 'Nova', lang: 'en-US', gender: 'f' },
+      { id: 8, name: 'River', lang: 'en-US', gender: 'f' },
+      { id: 9, name: 'Sarah', lang: 'en-US', gender: 'f' },
+      { id: 10, name: 'Sky', lang: 'en-US', gender: 'f' },
+      { id: 11, name: 'Adam', lang: 'en-US', gender: 'm' },
+      { id: 12, name: 'Echo', lang: 'en-US', gender: 'm' },
+      { id: 13, name: 'Eric', lang: 'en-US', gender: 'm' },
+      { id: 14, name: 'Fenrir', lang: 'en-US', gender: 'm' },
+      { id: 15, name: 'Liam', lang: 'en-US', gender: 'm' },
+      { id: 16, name: 'Michael', lang: 'en-US', gender: 'm', top: true },
+      { id: 17, name: 'Onyx', lang: 'en-US', gender: 'm' },
+      { id: 18, name: 'Puck', lang: 'en-US', gender: 'm' },
+      { id: 19, name: 'Santa', lang: 'en-US', gender: 'm' },
+      { id: 20, name: 'Alice', lang: 'en-GB', gender: 'f' },
+      { id: 21, name: 'Emma', lang: 'en-GB', gender: 'f', top: true },
+      { id: 22, name: 'Isabella', lang: 'en-GB', gender: 'f' },
+      { id: 23, name: 'Lily', lang: 'en-GB', gender: 'f' },
+      { id: 24, name: 'Daniel', lang: 'en-GB', gender: 'm' },
+      { id: 25, name: 'Fable', lang: 'en-GB', gender: 'm' },
+      { id: 26, name: 'George', lang: 'en-GB', gender: 'm' },
+      { id: 27, name: 'Lewis', lang: 'en-GB', gender: 'm' },
+      { id: 28, name: 'Dora', lang: 'es', gender: 'f', top: true },
+      { id: 29, name: 'Alex', lang: 'es', gender: 'm' },
+      { id: 30, name: 'Siwis', lang: 'fr', gender: 'f', top: true },
+      { id: 31, name: 'Alpha', lang: 'hi', gender: 'f' },
+      { id: 32, name: 'Beta', lang: 'hi', gender: 'f' },
+      { id: 33, name: 'Omega', lang: 'hi', gender: 'm' },
+      { id: 34, name: 'Psi', lang: 'hi', gender: 'm' },
+      { id: 35, name: 'Sara', lang: 'it', gender: 'f', top: true },
+      { id: 36, name: 'Nicola', lang: 'it', gender: 'm' },
+      { id: 42, name: 'Dora', lang: 'pt-BR', gender: 'f', top: true },
+      { id: 43, name: 'Alex', lang: 'pt-BR', gender: 'm', top: true },
+      { id: 44, name: 'Santa', lang: 'pt-BR', gender: 'm' },
+      { id: 53, name: 'Santa', lang: 'es', gender: 'm' },
+    ] },
+  { id: 'tts-supertonic', kind: 'tts', engine: 'sherpa', family: 'supertonic', tier: 'light', name: 'Supertonic 3', lang: 'multi', license: 'OpenRAIL-M', size: 0.129, req: { ram: 1.5, vram: 0 },
+    langs: ['pt', 'en', 'es', 'fr', 'it', 'de', 'nl', 'pl', 'ru', 'tr', 'uk', 'ja', 'ko', 'hi', 'ar', 'vi', 'id', 'sv', 'da', 'fi', 'cs', 'ro', 'hu', 'el', 'bg', 'hr', 'sk', 'sl', 'lt', 'lv', 'et'],
+    description: 'Very fast and clear, 31 languages. 10 voices that speak any of them.',
+    files: [{ role: 'pack', url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/sherpa-onnx-supertonic-3-tts-int8-2026-05-11.tar.bz2', file: 'sherpa-onnx-supertonic-3-tts-int8-2026-05-11' }],
+    voices: ['F1', 'F2', 'F3', 'F4', 'F5', 'M1', 'M2', 'M3', 'M4', 'M5'].map((n, i) => ({ id: i, name: n, lang: 'multi', gender: n[0] === 'F' ? 'f' : 'm', top: n === 'F1' || n === 'M1' })) },
+  { id: 'tts-kitten', kind: 'tts', engine: 'sherpa', family: 'kitten', tier: 'light', name: 'Kitten TTS Nano', lang: 'en', license: 'Apache-2.0', size: 0.027, req: { ram: 1, vram: 0 },
+    langs: ['en-US'],
+    description: 'Tiny (27 MB) expressive English voices that run on any PC.',
+    files: [{ role: 'pack', url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kitten-nano-en-v0_2-fp16.tar.bz2', file: 'kitten-nano-en-v0_2-fp16' }],
+    voices: [2, 3, 4, 5].flatMap((n, k) => [{ id: k * 2, name: `Voice ${n} ♂`, lang: 'en-US', gender: 'm' }, { id: k * 2 + 1, name: `Voice ${n} ♀`, lang: 'en-US', gender: 'f' }]) },
+  { id: 'tts-pocket', kind: 'tts', engine: 'sherpa', family: 'pocket', tier: 'medium', name: 'Pocket TTS · voice cloning', lang: 'en', license: 'CC-BY-4.0 · non-commercial ONNX', nonCommercial: true, size: 0.098, req: { ram: 2, vram: 0 },
+    langs: ['en-US'], clone: true,
+    description: 'Clones a voice from a 5–10 second recording (English). Personal, non-commercial use.',
+    files: [{ role: 'pack', url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/sherpa-onnx-pocket-tts-int8-2026-01-26.tar.bz2', file: 'sherpa-onnx-pocket-tts-int8-2026-01-26' }],
+    voices: [{ id: 'ref:bria', name: 'Bria', lang: 'en-US', gender: 'f' }, { id: 'ref:loona', name: 'Loona', lang: 'en-US', gender: 'f' }] },
+
   // UPSCALE (stable-diffusion.cpp ESRGAN)
   { id: 'realesrgan-x4', kind: 'upscale', tier: 'light', name: 'Real-ESRGAN 4×', license: 'BSD-3-Clause', size: 0.067, req: { ram: 2, vram: 0 },
     description: 'Makes images 4× bigger and sharper. Small and fast.', files: [{ role: 'model', url: 'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth', file: 'RealESRGAN_x4plus.pth' }] },
@@ -190,6 +270,9 @@ const CATALOG = [
 // Models removed from the catalog because the engine rejects them; their files are cleaned up on start.
 const RETIRED = ['tiny-sd-turbo']
 const ENGINE_FOR = { text: 'llama', image: 'sd', video: 'sd', upscale: 'sd', stt: 'whisper', tts: 'piper' }
+const engineOf = (m) => m.engine || ENGINE_FOR[m.kind] || 'llama'
+const isPack = (f) => f.role === 'pack'
+const archiveOf = (f) => localName(f) + '.tar.bz2'
 
 // ---------- state ----------
 let root = null
@@ -260,7 +343,7 @@ function hasVision(m) {
   return !!(m.vision && fileOf(m, 'mmproj'))
 }
 function isInstalled(m) {
-  return m.files.every((f) => f.optional || (f.file && fs.existsSync(path.join(modelsDir(), localName(f)))))
+  return m.files.every((f) => f.optional || (isPack(f) ? fs.existsSync(path.join(modelsDir(), localName(f), '.orbi-ok')) : f.file && fs.existsSync(path.join(modelsDir(), localName(f)))))
 }
 
 function fitFor(m) {
@@ -279,8 +362,8 @@ function fitFor(m) {
   return { level: 'ok', reason: 'Runs well on this PC.' }
 }
 
-function engineSupported(kind) {
-  const e = ENGINES[ENGINE_FOR[kind]]
+function engineSupported(m) {
+  const e = ENGINES[typeof m === 'string' ? ENGINE_FOR[m] : engineOf(m)]
   return !!e?.asset(false)
 }
 
@@ -302,7 +385,7 @@ function status() {
       id: m.id, kind: m.kind, tier: m.tier, name: m.name, description: m.description, license: m.license,
       size: Math.round((m.size || 0) * GB), req: m.req, ram: m.req?.ram ? `${m.req.ram} GB RAM` : '',
       badge: m.tier === 'light' ? 'Light' : m.tier === 'medium' ? 'Medium' : m.tier === 'heavy' ? 'Heavy' : 'Custom',
-      fit: fitFor(m), installed: isInstalled(m), engineSupported: engineSupported(m.kind), vision: !!m.vision, visionReady: hasVision(m),
+      fit: fitFor(m), installed: isInstalled(m), engineSupported: engineSupported(m), engine: engineOf(m), family: m.family, voices: m.voices, langs: m.langs, clone: !!m.clone, nonCommercial: !!m.nonCommercial, vision: !!m.vision, visionReady: hasVision(m),
       lang: m.lang,
       partial: partialBytes(m),
       gen: m.args ? { presets: m.args.presets || [20, 28, 40], fixedSteps: !!m.args.fixedSteps, width: m.args.width, height: m.args.height, fps: m.args.fps || 0, image: m.kind === 'image' || !!m.args.image, ref: !!m.args.ref, end: !!m.args.end } : null,
@@ -317,8 +400,12 @@ function status() {
     // Video on a PC without a usable GPU takes too long to recommend.
     recommended[kind] = ok.length ? ok[ok.length - 1].id : slow.length && kind !== 'video' ? slow[0].id : null
   }
+  // Voices: Kokoro sounds the most natural; Supertonic is the light choice for weaker PCs and other languages.
+  const tts = (id) => models.find((m) => m.id === id && m.engineSupported && m.fit.level === 'ok')
+  recommended.tts = tts('tts-kokoro')?.id || tts('tts-supertonic')?.id || null
   return {
     orphans: orphans(),
+    clones: root ? clones() : [],
     hardware: hw,
     paths: root ? { root, models: path.join(root, 'models'), engines: path.join(root, 'engine') } : null,
     queue: queue.map((q) => q.id),
@@ -403,6 +490,17 @@ async function extract(archive, dir) {
       fs.mkdirSync(path.dirname(out), { recursive: true })
       fs.writeFileSync(out, data)
     }
+  } else if (/\.tar\.bz2$|\.tbz2?$/.test(archive)) {
+    // The system tar handles bzip2 natively (Windows 10+, Linux, macOS). Fall back to a JS decoder.
+    const ok = await new Promise((resolve) => {
+      const proc = spawn(process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe') : 'tar', ['-xjf', archive, '-C', dir], { windowsHide: true })
+      proc.on('error', () => resolve(false))
+      proc.on('exit', (code) => resolve(code === 0))
+    })
+    if (!ok) {
+      const bz2 = require('unbzip2-stream')
+      await pipeline(fs.createReadStream(archive), bz2(), require('tar').x({ cwd: dir }))
+    }
   } else await require('tar').x({ file: archive, cwd: dir })
 }
 
@@ -433,12 +531,29 @@ async function installEngine(key = 'llama') {
 async function installModel(id) {
   const m = CATALOG.find((x) => x.id === id) || allModels().find((x) => x.id === id)
   if (!m) throw new Error('Unknown model')
-  await installEngine(ENGINE_FOR[m.kind] || 'llama')
+  await installEngine(engineOf(m))
   const total = Math.round((m.size || 0) * GB)
   let done = 0
   try {
     for (const f of m.files) {
       try {
+        if (isPack(f)) {
+          // A pack is a .tar.bz2 with a folder inside; a marker file says it was fully extracted.
+          const folder = path.join(modelsDir(), localName(f))
+          if (!fs.existsSync(path.join(folder, '.orbi-ok'))) {
+            const archive = path.join(modelsDir(), archiveOf(f))
+            if (!fs.existsSync(archive)) await download(f.url, archive, id, `${m.name}`, done, total)
+            jobs.get(id).label = `${m.name} · unpacking`
+            emit()
+            fs.rmSync(folder, { recursive: true, force: true })
+            await extract(archive, modelsDir())
+            if (!fs.existsSync(folder)) throw new Error(`${m.name}: the download did not contain ${localName(f)}.`)
+            fs.writeFileSync(path.join(folder, '.orbi-ok'), new Date().toISOString())
+            fs.rmSync(archive, { force: true })
+          }
+          done += Math.round((m.size || 0) * GB)
+          continue
+        }
         const { url, file } = await resolveFile(f)
         const dest = path.join(modelsDir(), file)
         if (!fs.existsSync(dest)) await download(url, dest, id, `${m.name} · ${file}`, done, total)
@@ -593,7 +708,7 @@ function activeWork() {
 function partialBytes(m) {
   let n = 0
   for (const f of m.files) {
-    const p = f.file && path.join(modelsDir(), localName(f) + '.part')
+    const p = f.file && path.join(modelsDir(), (isPack(f) ? archiveOf(f) : localName(f)) + '.part')
     if (p && fs.existsSync(p)) n += fs.statSync(p).size
   }
   return n
@@ -604,15 +719,20 @@ function orphans() {
   if (!root || !fs.existsSync(path.join(root, 'models'))) return { files: [], bytes: 0 }
   const used = new Set()
   for (const m of allModels()) for (const f of m.files) if (f.file) used.add(localName(f))
-  const busy = new Set([...jobs.keys()].flatMap((id) => (allModels().find((m) => m.id === id)?.files || []).map((f) => localName(f) + '.part')))
+  const busy = new Set([...jobs.keys()].flatMap((id) => (allModels().find((m) => m.id === id)?.files || []).flatMap((f) => [localName(f) + '.part', archiveOf(f), archiveOf(f) + '.part'])))
   const files = fs
     .readdirSync(modelsDir())
     .filter((f) => !busy.has(f) && (f.endsWith('.part') ? !jobs.size : !used.has(f)))
-    .map((f) => ({ file: f, bytes: fs.statSync(path.join(modelsDir(), f)).size }))
+    .map((f) => ({ file: f, bytes: dirBytes(path.join(modelsDir(), f)) }))
   return { files, bytes: files.reduce((a, f) => a + f.bytes, 0) }
 }
+function dirBytes(p) {
+  const st = fs.statSync(p)
+  if (!st.isDirectory()) return st.size
+  return fs.readdirSync(p).reduce((a, f) => a + dirBytes(path.join(p, f)), 0)
+}
 function cleanOrphans() {
-  for (const f of orphans().files) fs.rmSync(path.join(modelsDir(), f.file), { force: true })
+  for (const f of orphans().files) fs.rmSync(path.join(modelsDir(), f.file), { recursive: true, force: true })
   emit()
   return status()
 }
@@ -629,9 +749,10 @@ function removeModel(id) {
   const resolved = loadResolved()[id] || []
   m.files.forEach((f, i) => {
     const name = path.basename(resolved[i] || f.file || f.url || '')
-    if (name && !shared.has(name)) fs.rmSync(path.join(modelsDir(), name), { force: true })
-    // Interrupted downloads leave a .part file — remove it too.
-    if (name) fs.rmSync(path.join(modelsDir(), name + '.part'), { force: true })
+    const local = isPack(f) ? localName(f) : name
+    if (local && !shared.has(local)) fs.rmSync(path.join(modelsDir(), local), { recursive: true, force: true })
+    // Interrupted downloads leave a .part file (and packs an archive) — remove them too.
+    if (local) for (const extra of [local + '.part', local + '.tar.bz2', local + '.tar.bz2.part']) fs.rmSync(path.join(modelsDir(), extra), { force: true })
   })
   if (id.startsWith('custom-')) fs.writeFileSync(path.join(root, 'custom-models.json'), JSON.stringify(readCustom().filter((x) => x.id !== id), null, 2))
   emit()
@@ -861,28 +982,113 @@ async function transcribe({ wavPath, modelId, language }) {
   return outText.replace(/\[[^\]]*\]/g, '').replace(/\s+/g, ' ').trim()
 }
 
-// ---------- text to speech: piper ----------
-async function speak({ modelId, text, rate = 1 }) {
-  const m = allModels().find((x) => x.id === modelId && x.kind === 'tts')
-  if (!m || !isInstalled(m)) throw new Error('This voice is not downloaded yet.')
+// ---------- text to speech ----------
+// Cloned voices (reference recordings) live in <root>/voices as <id>.wav plus voices.json.
+function voicesDir() {
+  const d = path.join(root, 'voices')
+  fs.mkdirSync(d, { recursive: true })
+  return d
+}
+function clones() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(voicesDir(), 'voices.json'), 'utf8'))
+  } catch {
+    return []
+  }
+}
+function saveClone({ name, wav }) {
+  const id = `clone-${Date.now().toString(36)}`
+  fs.writeFileSync(path.join(voicesDir(), `${id}.wav`), Buffer.from(wav, 'base64'))
+  const list = [...clones(), { id, name: String(name || 'My voice').slice(0, 40), created: Date.now() }]
+  fs.writeFileSync(path.join(voicesDir(), 'voices.json'), JSON.stringify(list, null, 2))
+  emit()
+  return list
+}
+function deleteClone(id) {
+  fs.rmSync(path.join(voicesDir(), `${id}.wav`), { force: true })
+  const list = clones().filter((c) => c.id !== id)
+  fs.writeFileSync(path.join(voicesDir(), 'voices.json'), JSON.stringify(list, null, 2))
+  emit()
+  return list
+}
+
+function cleanForSpeech(text) {
+  return String(text).replace(/[*_#`>]/g, '').replace(/\s*\n+\s*/g, '\n').slice(0, 8000)
+}
+
+function run(bin, args, { stdin, env } = {}) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(bin, args, { cwd: path.dirname(bin), windowsHide: true, env: { ...process.env, ...env } })
+    let err = ''
+    proc.stderr.on('data', (d) => (err = (err + d).slice(-3000)))
+    proc.stdout.on('data', () => {})
+    proc.on('error', reject)
+    proc.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(err.trim().split('\n').filter((l) => !/parse-options|^\s*$/.test(l)).pop() || `exit ${code}`))))
+    if (stdin != null) proc.stdin.end(stdin)
+    else proc.stdin.end()
+  })
+}
+
+async function speakPiper(m, text, rate, out) {
   const bin = engineBinary('piper')
   if (!bin) throw new Error('The voice engine is not installed.')
-  const out = path.join(os.tmpdir(), `orbi-tts-${Date.now()}.wav`)
   const args = ['-m', path.join(modelsDir(), localName(m.files[0])), '-c', path.join(modelsDir(), localName(m.files[1])), '-f', out, '--length_scale', String(Math.max(0.5, Math.min(2, 1 / (rate || 1)))), '-q']
   const espeak = path.join(path.dirname(bin), 'espeak-ng-data')
   if (fs.existsSync(espeak)) args.push('--espeak_data', espeak)
-  await new Promise((resolve, reject) => {
-    const proc = spawn(bin, args, { cwd: path.dirname(bin), windowsHide: true })
-    let err = ''
-    proc.stderr.on('data', (d) => (err = (err + d).slice(-2000)))
-    proc.on('error', reject)
-    proc.on('exit', (code) => (code === 0 ? resolve() : reject(new Error(err.trim().split('\n').pop() || `exit ${code}`))))
-    // One paragraph per line; Piper reads stdin until it closes.
-    proc.stdin.end(String(text).replace(/[*_#`>]/g, '').replace(/\s*\n+\s*/g, '\n').slice(0, 8000) + '\n')
-  })
-  const buffer = fs.readFileSync(out)
-  fs.rmSync(out, { force: true })
-  return buffer
+  // One paragraph per line; Piper reads stdin until it closes.
+  await run(bin, args, { stdin: cleanForSpeech(text) + '\n' })
+}
+
+const KOKORO_LANG = { 'pt-BR': 'pt-br', es: 'es', fr: 'fr', it: 'it', hi: 'hi' }
+async function speakSherpa(m, { text, rate = 1, voice, lang }, out) {
+  const bin = engineBinary('sherpa')
+  if (!bin) throw new Error('The voice engine is not installed.')
+  const dir = path.join(modelsDir(), localName(m.files[0]))
+  const p = (f) => path.join(dir, f)
+  const v = m.voices?.find((x) => String(x.id) === String(voice)) || m.voices?.find((x) => x.top) || m.voices?.[0]
+  const length = String(Math.max(0.5, Math.min(2, 1 / (rate || 1))))
+  const args = [`--num-threads=${threads()}`, `--output-filename=${out}`]
+  if (m.family === 'kokoro') {
+    args.push(`--kokoro-model=${p('model.int8.onnx')}`, `--kokoro-voices=${p('voices.bin')}`, `--kokoro-tokens=${p('tokens.txt')}`, `--kokoro-data-dir=${p('espeak-ng-data')}`, `--sid=${v?.id ?? 3}`, `--kokoro-length-scale=${length}`)
+    if (v?.lang === 'en-US') args.push(`--kokoro-lexicon=${p('lexicon-us-en.txt')}`)
+    else if (v?.lang === 'en-GB') args.push(`--kokoro-lexicon=${p('lexicon-gb-en.txt')}`)
+    else args.push(`--kokoro-lang=${KOKORO_LANG[v?.lang] || 'en'}`)
+  } else if (m.family === 'supertonic') {
+    const code = String(lang || 'en').slice(0, 2).toLowerCase()
+    args.push(
+      `--supertonic-duration-predictor=${p('duration_predictor.int8.onnx')}`, `--supertonic-text-encoder=${p('text_encoder.int8.onnx')}`,
+      `--supertonic-vector-estimator=${p('vector_estimator.int8.onnx')}`, `--supertonic-vocoder=${p('vocoder.int8.onnx')}`,
+      `--supertonic-tts-json=${p('tts.json')}`, `--supertonic-unicode-indexer=${p('unicode_indexer.bin')}`, `--supertonic-voice-style=${p('voice.bin')}`,
+      `--lang=${m.langs.includes(code) ? code : 'en'}`, `--sid=${v?.id ?? 0}`, '--num-steps=8', `--speed=${Math.max(0.5, Math.min(2, rate || 1))}`,
+    )
+  } else if (m.family === 'kitten') {
+    args.push(`--kitten-model=${p('model.fp16.onnx')}`, `--kitten-voices=${p('voices.bin')}`, `--kitten-tokens=${p('tokens.txt')}`, `--kitten-data-dir=${p('espeak-ng-data')}`, `--sid=${v?.id ?? 1}`, `--kitten-length-scale=${length}`)
+  } else if (m.family === 'pocket') {
+    const id = String(voice || 'ref:bria')
+    const ref = id.startsWith('ref:') ? p(`test_wavs/${id.slice(4)}.wav`) : path.join(voicesDir(), `${id}.wav`)
+    if (!fs.existsSync(ref)) throw new Error('This cloned voice was deleted. Pick another voice.')
+    args.push(
+      `--pocket-lm-flow=${p('lm_flow.int8.onnx')}`, `--pocket-lm-main=${p('lm_main.int8.onnx')}`, `--pocket-encoder=${p('encoder.onnx')}`,
+      `--pocket-decoder=${p('decoder.int8.onnx')}`, `--pocket-text-conditioner=${p('text_conditioner.onnx')}`, `--pocket-vocab-json=${p('vocab.json')}`,
+      `--pocket-token-scores-json=${p('token_scores.json')}`, `--reference-audio=${ref}`,
+    )
+  } else throw new Error('Unknown voice family.')
+  args.push(cleanForSpeech(text).replace(/\n/g, ' '))
+  const lib = path.join(path.dirname(path.dirname(bin)), 'lib')
+  await run(bin, args, { env: process.platform === 'linux' ? { LD_LIBRARY_PATH: lib } : process.platform === 'darwin' ? { DYLD_LIBRARY_PATH: lib } : {} })
+}
+
+async function speak({ modelId, text, rate = 1, voice, lang }) {
+  const m = allModels().find((x) => x.id === modelId && x.kind === 'tts')
+  if (!m || !isInstalled(m)) throw new Error('This voice is not downloaded yet.')
+  const out = path.join(os.tmpdir(), `orbi-tts-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.wav`)
+  try {
+    if (engineOf(m) === 'sherpa') await speakSherpa(m, { text, rate, voice, lang }, out)
+    else await speakPiper(m, text, rate, out)
+    return fs.readFileSync(out)
+  } finally {
+    fs.rmSync(out, { force: true })
+  }
 }
 
 async function init(dir, sender, app) {
@@ -907,5 +1113,5 @@ async function refreshHardware() {
 
 module.exports = {
   init, status, installEngine, installModel, addCustomModel, removeModel, cancel, ensureRunning, stop, installedModels,
-  generateMedia, cancelMedia, upscaleImage, runningJobs, transcribe, speak, cleanOrphans, refreshHardware, hfSearch, hfFiles, enqueue, clearQueue, removeAll, activeWork, CTX, CATALOG,
+  generateMedia, cancelMedia, upscaleImage, runningJobs, transcribe, speak, clones, saveClone, deleteClone, cleanOrphans, refreshHardware, hfSearch, hfFiles, enqueue, clearQueue, removeAll, activeWork, CTX, CATALOG,
 }

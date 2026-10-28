@@ -120,6 +120,12 @@ export type LocalModel = {
   gen?: GenInfo | null
   lang?: string
   partial?: number
+  engine?: string
+  family?: 'kokoro' | 'supertonic' | 'kitten' | 'pocket'
+  voices?: VoiceInfo[]
+  langs?: string[]
+  clone?: boolean
+  nonCommercial?: boolean
 }
 export type GenInfo = { presets: [number, number, number]; fixedSteps: boolean; width: number; height: number; fps: number; image: boolean; ref: boolean; end: boolean }
 export type Hardware = {
@@ -134,11 +140,14 @@ export type Hardware = {
   gpuAccel: boolean
   diskFree: number
 }
-export type TtsChoice = { type: 'piper'; modelId: string; rate: number } | { type: 'system'; name: string; rate: number }
+// 'piper' is the old name for a downloaded voice; 'local' covers every downloaded voice (voice = speaker inside a pack).
+export type TtsChoice = { type: 'piper' | 'local'; modelId: string; voice?: number | string; rate: number } | { type: 'system'; name: string; rate: number }
+export type VoiceInfo = { id: number | string; name: string; lang: string; gender: 'f' | 'm'; top?: boolean }
+export type VoiceClone = { id: string; name: string; created: number }
 export type EngineState = { name: string; tag: string; supported: boolean; installed: boolean; downloading: { received: number; total: number } | null }
 export type LocalStatus = {
   hardware: Hardware | null
-  engines: Record<'llama' | 'sd' | 'whisper' | 'piper', EngineState>
+  engines: Record<'llama' | 'sd' | 'whisper' | 'piper' | 'sherpa', EngineState>
   engineInstalled: boolean
   engineTag: string
   running: { modelId: string; port: number } | null
@@ -149,6 +158,7 @@ export type LocalStatus = {
   paths: { root: string; models: string; engines: string } | null
   orphans?: { files: { file: string; bytes: number }[]; bytes: number }
   queue: string[]
+  clones?: VoiceClone[]
 }
 export type HfRepo = { repo: string; downloads: number; likes: number; updated: string }
 export type HfFile = { file: string; size: number; fits: boolean; quant: string }
@@ -320,8 +330,11 @@ export const api = {
   clearLocalQueue: (): Promise<LocalStatus> => bridge.invoke('local:clearQueue'),
   removeAllLocal: (): Promise<LocalStatus> => bridge.invoke('local:removeAll'),
   cleanOrphans: (): Promise<LocalStatus> => bridge.invoke('local:cleanOrphans'),
-  speakLocal: (p: { text: string; modelId: string; rate?: number }): Promise<string> => bridge.invoke('voice:speak', p),
-  speakToMedia: (p: { text: string; modelId: string; rate?: number }): Promise<MediaItem> => bridge.invoke('voice:speakToMedia', p),
+  speakLocal: (p: { text: string; modelId: string; rate?: number; voice?: number | string; lang?: string }): Promise<string> => bridge.invoke('voice:speak', p),
+  speakToMedia: (p: { text: string; modelId: string; rate?: number; voice?: number | string; lang?: string }): Promise<MediaItem> => bridge.invoke('voice:speakToMedia', p),
+  voiceClones: (): Promise<VoiceClone[]> => bridge.invoke('voice:clones'),
+  saveVoiceClone: (p: { name: string; wav: string }): Promise<VoiceClone[]> => bridge.invoke('voice:saveClone', p),
+  deleteVoiceClone: (id: string): Promise<VoiceClone[]> => bridge.invoke('voice:deleteClone', id),
   openModelsFolder: () => bridge.invoke('local:openFolder'),
   complete: (p: { providerId: string; model: string; system?: string; prompt: string }): Promise<string> => bridge.invoke('ai:complete', p),
   speech: (p: { text: string; voice?: string }): Promise<MediaItem> => bridge.invoke('ai:speech', p),

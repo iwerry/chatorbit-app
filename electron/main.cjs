@@ -483,12 +483,16 @@ const api = {
   'local:clearQueue': () => localAI.clearQueue(),
   'local:removeAll': () => localAI.removeAll(),
   'local:cleanOrphans': () => localAI.cleanOrphans(),
-  // Read text aloud with a downloaded Piper voice (returns a WAV data URL to play).
-  'voice:speak': async ({ text, modelId, rate }) => 'data:audio/wav;base64,' + (await localAI.speak({ text, modelId, rate })).toString('base64'),
-  'voice:speakToMedia': async ({ text, modelId, rate }) => {
-    const buffer = await localAI.speak({ text, modelId, rate })
-    return saveMedia({ buffer, mime: 'audio/wav', kind: 'audio', name: `voiceover-${Date.now()}.wav`, prompt: String(text).slice(0, 300), model: modelId, source: 'creative' })
+  // Read text aloud with a downloaded voice (returns a WAV data URL to play).
+  'voice:speak': async (p) => 'data:audio/wav;base64,' + (await localAI.speak(p)).toString('base64'),
+  'voice:speakToMedia': async (p) => {
+    const buffer = await localAI.speak(p)
+    return saveMedia({ buffer, mime: 'audio/wav', kind: 'audio', name: `voiceover-${Date.now()}.wav`, prompt: String(p.text).slice(0, 300), model: p.modelId, source: 'creative' })
   },
+  // Voice cloning: reference recordings kept on this computer.
+  'voice:clones': () => localAI.clones(),
+  'voice:saveClone': (p) => localAI.saveClone(p),
+  'voice:deleteClone': (id) => localAI.deleteClone(id),
   'local:openFolder': () => shell.openPath(path.join(app.getPath('userData'), 'local-ai')),
 
   // updates
