@@ -1,0 +1,218 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-28T15:05:35.669875+00:00",
+  "title": "Design System: Orbi",
+  "extensions": {
+    "colorMeta": {
+      "orbit-lime": {
+        "role": "primary",
+        "displayName": "Orbit Lime"
+      },
+      "phosphor-green": {
+        "role": "primary",
+        "displayName": "Phosphor Green (Terminal)"
+      },
+      "ghost-violet": {
+        "role": "secondary",
+        "displayName": "Ghost Violet"
+      },
+      "node-image-blue": {
+        "role": "tertiary",
+        "displayName": "Image Blue"
+      },
+      "node-video-teal": {
+        "role": "tertiary",
+        "displayName": "Video Teal"
+      },
+      "node-text-plum": {
+        "role": "tertiary",
+        "displayName": "Text Plum"
+      },
+      "node-audio-amber": {
+        "role": "tertiary",
+        "displayName": "Audio Amber"
+      },
+      "dark-desk": {
+        "role": "neutral",
+        "displayName": "Graphite Desk"
+      },
+      "light-desk": {
+        "role": "neutral",
+        "displayName": "Sage Desk"
+      },
+      "terminal-desk": {
+        "role": "neutral",
+        "displayName": "Phosphor Night"
+      }
+    },
+    "themes": [
+      {
+        "name": "Orbi Dark",
+        "style": "Premium Dark Soft UI"
+      },
+      {
+        "name": "Orbi Light",
+        "style": "Soft Neumorphic UI"
+      },
+      {
+        "name": "Orbi Terminal",
+        "style": "Cyberpunk Terminal UI"
+      }
+    ],
+    "shadows": [
+      {
+        "name": "raised",
+        "value": "3px 3px 8px var(--neo-shadow-dark), -3px -3px 8px var(--neo-shadow-light)",
+        "purpose": "Buttons, chips, tabs at rest."
+      },
+      {
+        "name": "lifted",
+        "value": "8px 8px 18px var(--neo-shadow-dark), -6px -6px 16px var(--neo-shadow-light)",
+        "purpose": "Panels, popovers, composer, hovered cards."
+      },
+      {
+        "name": "inset",
+        "value": "inset 2px 2px 5px var(--neo-inset-dark), inset -2px -2px 5px var(--neo-shadow-light)",
+        "purpose": "Inputs, pressed controls."
+      },
+      {
+        "name": "active-glow",
+        "value": "0 0 0 1px color-mix(in srgb, var(--neo-accent) 55%, transparent), 0 6px 18px color-mix(in srgb, var(--neo-accent) 28%, transparent)",
+        "purpose": "Active tab, primary hover, running node."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "All state transitions."
+      },
+      {
+        "name": "dur-1",
+        "value": "150ms",
+        "purpose": "Feedback."
+      },
+      {
+        "name": "dur-2",
+        "value": "220ms",
+        "purpose": "Routine state changes."
+      },
+      {
+        "name": "composer-ring",
+        "value": "6s rotate + 2.8s breathe",
+        "purpose": "Invitation to type while idle."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "stack",
+        "value": "860px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one action color: generate, save, run.",
+      "html": "<button class=\"ds-btn-primary\">Generate image</button>",
+      "css": ":host{--neo-accent:#bce64a;--neo-accent-text:#1e2718;--neo-surface-solid:#202326;--neo-bg-deep:#0b0d0f;--neo-text:#f0f2ef;--neo-muted:#a2aaa5;--neo-faint:#8a938e;--neo-line:rgba(255,255,255,.065);--neo-shadow-dark:rgba(0,0,0,.62);--neo-shadow-light:rgba(68,73,75,.2);font-family:'DM Sans',sans-serif}.ds-btn-primary{height:34px;padding:0 14px;border:0;border-radius:12px;background:var(--neo-accent);color:var(--neo-accent-text);font-weight:600;font-size:12px;cursor:pointer;transition:box-shadow .15s cubic-bezier(.16,1,.3,1),transform .15s}.ds-btn-primary:hover{box-shadow:0 0 0 1px color-mix(in srgb,var(--neo-accent) 55%,transparent),0 6px 18px color-mix(in srgb,var(--neo-accent) 28%,transparent)}.ds-btn-primary:active{transform:scale(.97)}.ds-btn-primary:focus-visible{outline:2px solid var(--neo-accent);outline-offset:2px}"
+    },
+    {
+      "name": "Soft Button",
+      "kind": "button",
+      "refersTo": "button-soft",
+      "description": "Secondary actions with soft relief.",
+      "html": "<button class=\"ds-btn-soft\">Import</button>",
+      "css": ":host{--neo-accent:#bce64a;--neo-accent-text:#1e2718;--neo-surface-solid:#202326;--neo-bg-deep:#0b0d0f;--neo-text:#f0f2ef;--neo-muted:#a2aaa5;--neo-faint:#8a938e;--neo-line:rgba(255,255,255,.065);--neo-shadow-dark:rgba(0,0,0,.62);--neo-shadow-light:rgba(68,73,75,.2);font-family:'DM Sans',sans-serif}.ds-btn-soft{height:34px;padding:0 12px;border:1px solid var(--neo-line);border-radius:12px;background:var(--neo-surface-solid);color:var(--neo-text);font-weight:600;font-size:12px;box-shadow:3px 3px 8px var(--neo-shadow-dark),-3px -3px 8px var(--neo-shadow-light);cursor:pointer;transition:border-color .15s}.ds-btn-soft:hover{border-color:color-mix(in srgb,var(--neo-accent) 55%,var(--neo-line))}.ds-btn-soft:active{box-shadow:inset 2px 2px 5px rgba(0,0,0,.5)}"
+    },
+    {
+      "name": "Page Tab",
+      "kind": "nav",
+      "refersTo": "tab-active",
+      "description": "Creative and Studio page tabs; active one glows.",
+      "html": "<nav class=\"ds-tabs\"><button>Launchpad</button><button class=\"on\">Canvas</button><button>Workflows</button></nav>",
+      "css": ":host{--neo-accent:#bce64a;--neo-accent-text:#1e2718;--neo-surface-solid:#202326;--neo-bg-deep:#0b0d0f;--neo-text:#f0f2ef;--neo-muted:#a2aaa5;--neo-faint:#8a938e;--neo-line:rgba(255,255,255,.065);--neo-shadow-dark:rgba(0,0,0,.62);--neo-shadow-light:rgba(68,73,75,.2);font-family:'DM Sans',sans-serif}.ds-tabs{display:flex;gap:4px}.ds-tabs button{height:34px;padding:0 14px;border:1px solid transparent;border-radius:12px;background:none;color:var(--neo-muted);font-weight:600;font-size:12px;cursor:pointer}.ds-tabs button:hover{background:var(--neo-surface-solid);color:var(--neo-text)}.ds-tabs button.on{background:var(--neo-surface-solid);color:var(--neo-text);border-color:color-mix(in srgb,var(--neo-accent) 55%,transparent);box-shadow:0 6px 18px color-mix(in srgb,var(--neo-accent) 22%,transparent)}"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Tags, filters and media kinds.",
+      "html": "<span class=\"ds-chip\">Text to image</span> <span class=\"ds-chip on\">Popular</span>",
+      "css": ":host{--neo-accent:#bce64a;--neo-accent-text:#1e2718;--neo-surface-solid:#202326;--neo-bg-deep:#0b0d0f;--neo-text:#f0f2ef;--neo-muted:#a2aaa5;--neo-faint:#8a938e;--neo-line:rgba(255,255,255,.065);--neo-shadow-dark:rgba(0,0,0,.62);--neo-shadow-light:rgba(68,73,75,.2);font-family:'DM Sans',sans-serif}.ds-chip{display:inline-flex;padding:4px 10px;border:1px solid var(--neo-line);border-radius:999px;background:var(--neo-surface-solid);color:var(--neo-muted);font-size:11px;font-weight:600}.ds-chip.on{background:color-mix(in srgb,var(--neo-accent) 18%,transparent);border-color:color-mix(in srgb,var(--neo-accent) 55%,transparent);color:var(--neo-text)}"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Inset well for prompts and fields.",
+      "html": "<textarea class=\"ds-input\" rows=\"3\" placeholder=\"Describe the image…\"></textarea>",
+      "css": ":host{--neo-accent:#bce64a;--neo-accent-text:#1e2718;--neo-surface-solid:#202326;--neo-bg-deep:#0b0d0f;--neo-text:#f0f2ef;--neo-muted:#a2aaa5;--neo-faint:#8a938e;--neo-line:rgba(255,255,255,.065);--neo-shadow-dark:rgba(0,0,0,.62);--neo-shadow-light:rgba(68,73,75,.2);font-family:'DM Sans',sans-serif}.ds-input{width:260px;padding:9px 10px;border:1px solid var(--neo-line);border-radius:8px;background:var(--neo-bg-deep);color:var(--neo-text);font:12.5px/1.5 'DM Sans',sans-serif;box-shadow:inset 2px 2px 5px rgba(0,0,0,.5)}.ds-input::placeholder{color:var(--neo-faint)}.ds-input:focus{outline:0;border-color:color-mix(in srgb,var(--neo-accent) 60%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--neo-accent) 18%,transparent)}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Clickable card: raised at rest, lifted on hover.",
+      "html": "<div class=\"ds-card\"><strong>Natural-light portrait</strong><p>Text to image · Photo</p></div>",
+      "css": ":host{--neo-accent:#bce64a;--neo-accent-text:#1e2718;--neo-surface-solid:#202326;--neo-bg-deep:#0b0d0f;--neo-text:#f0f2ef;--neo-muted:#a2aaa5;--neo-faint:#8a938e;--neo-line:rgba(255,255,255,.065);--neo-shadow-dark:rgba(0,0,0,.62);--neo-shadow-light:rgba(68,73,75,.2);font-family:'DM Sans',sans-serif}.ds-card{width:220px;padding:16px;border:1px solid var(--neo-line);border-radius:14px;background:var(--neo-surface-solid);color:var(--neo-text);box-shadow:3px 3px 8px var(--neo-shadow-dark),-3px -3px 8px var(--neo-shadow-light);transition:transform .22s cubic-bezier(.16,1,.3,1),box-shadow .22s}.ds-card:hover{transform:translateY(-3px);box-shadow:8px 8px 18px var(--neo-shadow-dark),-6px -6px 16px var(--neo-shadow-light)}.ds-card strong{font:700 15px/1.3 Manrope,sans-serif}.ds-card p{margin:6px 0 0;color:var(--neo-muted);font-size:12.5px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Studio Desk",
+    "overview": "Orbi is a professional's desk where every tool is within reach: chat, images, video, voice, workflows, agents and a terminal laid out on one surface. The desk is soft and tactile — controls feel like they rise out of the surface they sit on — and the user's work is always the brightest thing on it. Ornament stays quiet until something is active; then it is bold: the active tab glows, the message box ring circles and breathes, a running node pulses with its own color.\n\nThe language is **Adaptive Soft UI**: the same components, sizes, spacing and interaction hierarchy in every theme, with three lighting worlds that change only tokens (color, shadow, border, font and effects):\n\n- **Orbi Dark — Premium Dark Soft UI.** Deep graphite desk, soft lifted surfaces, faint ambient light, Orbit Lime for action.\n- **Orbi Light — Soft Neumorphic UI.** Pale sage desk; controls extruded with paired light and dark shadows, pressed controls inset.\n- **Orbi Terminal — Cyberpunk Terminal UI.** Near-black desk, phosphor-green text and thin neon borders, monospace everywhere.\n\nNeumorphism is a material here, not a rule: it never costs contrast or makes a clickable thing look like decoration. Every control keeps a visible border or label in addition to its relief.",
+    "keyCharacteristics": [
+      "One component system, three themes; switching theme never moves anything.",
+      "Soft relief at rest, bold light on state (active, focus, running, success).",
+      "Orbit Lime is the single action color; node hues label media types only.",
+      "Rounded, friendly geometry (8–18px), pills for chips and tags.",
+      "Manrope for headings, DM Sans for everything else, monospace only in Terminal and code."
+    ],
+    "rules": [
+      {
+        "name": "The One Action Color Rule",
+        "body": "Only Orbit Lime (Phosphor Green in Terminal) means \"do this\". Media hues never fill a primary button.",
+        "section": "colors"
+      },
+      {
+        "name": "The Token-Only Rule",
+        "body": "Colors come from `--neo-*` tokens; a hardcoded gray is a bug because it breaks one of the three themes.",
+        "section": "colors"
+      },
+      {
+        "name": "The 11/12 Floor Rule",
+        "body": "No UI text below 11px; no sentence below 12px.",
+        "section": "typography"
+      },
+      {
+        "name": "The Terminal Voice Rule",
+        "body": "In Terminal every face becomes the monospace stack; sizes and weights stay the same.",
+        "section": "typography"
+      },
+      {
+        "name": "The Same Grid Rule",
+        "body": "Every Creative tab uses the same top bar height, column widths and section rhythm, so switching tabs never shifts the frame.",
+        "section": "layout"
+      },
+      {
+        "name": "The Light-On-State Rule",
+        "body": "At rest things are soft; when active, focused or running they glow in their color. Never glow something that is idle (the composer's breathing ring is the one invitation).",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** build every new screen from the `--neo-*` tokens so it works in Dark, Light and Terminal at once.",
+      "**Do** make active, selected and running states bold: lime (or the media hue) plus the active glow.",
+      "**Do** keep text at 11px minimum and sentences at 12px; check contrast in all three themes.",
+      "**Do** keep the Draft Creative / Daniel Rodrigues signature where the brand requires it (About, exports)."
+    ],
+    "donts": [
+      "**Don't** hardcode grays or hex text colors in components.",
+      "**Don't** use a colored side stripe thicker than 1px, an icon tile above a heading, or gradient text.",
+      "**Don't** let neumorphic relief be the only sign that something is clickable.",
+      "**Don't** change layout, sizes or positions between themes — only tokens change."
+    ]
+  }
+}

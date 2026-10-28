@@ -1,0 +1,18 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "dist/index.html",
+          "src/studio.css"
+        ],
+        "createdAt": "2026-10-28T15:12:54.169Z",
+        "reason": "Owner chose bold, bright active states (DESIGN.md: The Light-On-State Rule): Orbit Lime glow marks active, selected and running controls only"
+      }
+    ]
+  }
+}

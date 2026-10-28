@@ -1,4 +1,27 @@
-## Orbi 0.1.28-3
+## Orbi 0.1.28-4
+
+**Orbi now has a written design system**
+- **PRODUCT.md** records who Orbi is for (professionals in general), what makes it different (everything in one app) and the brand commitments (Draft Creative Studio · Daniel Rodrigues).
+- **DESIGN.md** records the visual language, **Adaptive Soft UI**, with the North Star "The Studio Desk" and three variants:
+  - **Orbi Dark** — Premium Dark Soft UI
+  - **Orbi Light** — Soft Neumorphic UI
+  - **Orbi Terminal** — Cyberpunk Terminal UI
+- It covers the tokens (colors per theme, type, radii, spacing, shadows, motion), the components and the rules every new screen follows.
+
+**Creative reorganized**
+- **Fixed the cause of the mess:** Creator Studio's styles were leaking into Creative, turning the tabs into big boxes hanging from the top. They are now kept separate.
+- Launchpad, Canvas, Workflows and Gallery share one frame:
+  - the same top bar;
+  - side columns of the same width (300px);
+  - the same panel headers and the same section spacing.
+- **Bold, bright states:**
+  - The active tab, the Image/Video switch, aspect and quality choices, the selected board and the selected image light up in Orbit Lime.
+  - A running workflow node glows in its own color.
+- **Generate** is the clear main action. When it is unavailable, it stays readable instead of fading out.
+- Launchpad quick actions are soft tiles that light up on hover. Idea text no longer spills out of the card.
+- In Portuguese, "Templates" no longer says "Modelos", so it is not confused with AI models.
+
+## Orbi 0.1.28-3 (previous)
 
 **Design pass with Impeccable (anti-slop)**
 - The whole app was checked with Impeccable's design detector on the real screens, in light and dark: chat, temporary chat, Creative (Launchpad, Canvas, Workflows, Gallery), Creator Studio, Explore and Media Library. Every screen now passes.
@@ -18,7 +41,7 @@
 - The rainbow ring circles the message box again, a bit faster, and pulses softly while it waits for you, to draw attention.
 - When you click in to type, it holds steady. With "reduce motion" turned on in your system, it stays still.
 
-## Orbi 0.1.28-2 (previous)
+## Orbi 0.1.28-2
 
 **Media Library: full-screen viewer**
 - Click any image or video to open it full screen. Move with ← → or the arrows, jump with the film strip, start a slideshow with Space, zoom to actual size with a click, close with Esc.
