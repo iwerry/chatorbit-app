@@ -1,8 +1,8 @@
 // One voice library used everywhere a voice is chosen: Settings, Local models, the speaker button
 // under answers and the Voice node in Workflows. Choose, listen, install and uninstall in place.
 import { useEffect, useMemo, useState } from 'react'
-import { X, Check, ChevronDown, Download, ExternalLink, Globe, Loader2, Mic, Sparkles, Square, Trash2, Upload, Volume2 } from 'lucide-react'
-import { api, type LocalModel, type LocalStatus, type TtsChoice, type VoiceInfo } from '../lib/api'
+import { X, Check, ChevronDown, Download, ExternalLink, Globe, Loader2, Mic, RefreshCw, Sparkles, Square, Trash2, Upload, Volume2 } from 'lucide-react'
+import { api, type LocalModel, type LocalStatus, type NativeVoice, type TtsChoice, type VoiceInfo } from '../lib/api'
 import { fmtBytes, getLang, t } from '../lib/i18n'
 import { isLocalChoice, sampleFor, speak, stopSpeaking, systemVoices } from '../lib/tts'
 import { recordWav } from '../lib/voice'
@@ -45,7 +45,7 @@ export function defaultVoiceFor(m: LocalModel | undefined, lang: string): number
 
 export function choiceLabel(c: TtsChoice | null, status: LocalStatus | null): string {
   if (!c) return t('System voice')
-  if (c.type === 'system') return c.name
+  if (c.type === 'system' || c.type === 'native') return c.name
   const m = status?.models.find((x) => x.id === c.modelId)
   if (!m) return t('Voice')
   const v = voicesOf(m, status?.clones || []).find((x) => String(x.id) === String(c.voice ?? '')) || voicesOf(m, status?.clones || [])[0]
@@ -82,6 +82,11 @@ export function VoiceLibrary({
   const [open, setOpen] = useState<Record<string, boolean>>({})
   const [more, setMore] = useState<Record<string, boolean>>({})
   const [sys, setSys] = useState<SpeechSynthesisVoice[]>(systemVoices())
+  const [native, setNative] = useState<{ voices: NativeVoice[]; hint: string | null; platform: string } | null>(null)
+  const loadNative = (refresh = false) => api.systemVoices(refresh).then(setNative).catch(() => setNative({ voices: [], hint: null, platform: '' }))
+  useEffect(() => {
+    loadNative()
+  }, [])
   const choice = mode === 'pick' ? (value ?? null) : saved
 
   useEffect(() => {
@@ -152,6 +157,17 @@ export function VoiceLibrary({
       .sort((a, b) => rank(a) - rank(b) || Number(b.installed) - Number(a.installed))
   }, [status, allLangs, short])
   const sysShown = sys.filter((v) => allLangs || v.lang.toLowerCase().startsWith(short)).slice(0, allLangs ? 60 : compact ? 4 : 8)
+  const nativeAll = native?.voices ?? []
+  const nativeShown = nativeAll.filter((v) => allLangs || v.lang.toLowerCase().startsWith(short)).slice(0, allLangs ? 200 : compact ? 6 : 12)
+  const useNative = nativeAll.length > 0
+  const addMore =
+    native?.platform === 'win32'
+      ? t('Add voices in Windows Settings → Time & language → Speech → Add voices.')
+      : native?.platform === 'darwin'
+        ? t('Add voices in System Settings → Accessibility → Spoken Content → System voice → Manage voices.')
+        : native?.hint
+          ? t('Install a speech engine with: {cmd}', { cmd: native.hint })
+          : t('More voices: install espeak-ng or pico2wave from your distribution.')
 
   return (
     <div className={`voice-lib ${compact ? 'compact' : ''}`}>
@@ -289,34 +305,62 @@ export function VoiceLibrary({
         })}
       </div>
 
-      {!hideSystem && <div className="voice-option">
+      <div className="voice-option">
         <div className="voice-option-head">
           <Globe size={16} />
           <div>
             <strong>{t('System voices')}</strong>
-            <small>{t('Already on your computer (Windows, macOS or Linux). Nothing to download.')}</small>
+            <small>{t('Already on your computer (Windows, macOS or Linux). Nothing to download. License: your operating system’s.')}</small>
           </div>
+          <button className="icon-button ml-auto" title={t('Refresh')} onClick={() => loadNative(true)}>
+            <RefreshCw size={13} />
+          </button>
         </div>
-        {sysShown.map((v) => {
-          const active = choice?.type === 'system' && choice.name === v.name
-          const c: TtsChoice = { type: 'system', name: v.name, rate }
-          return (
-            <div key={v.name} className={`voice-model ${active ? 'active' : ''}`}>
-              <div className="min-w-0 flex-1">
-                <strong className="truncate">{v.name}</strong>
-                <small>{v.lang}</small>
+        {useNative &&
+          nativeShown.map((v) => {
+            const active = choice?.type === 'native' && choice.id === v.id
+            const c: TtsChoice = { type: 'native', id: v.id, name: v.name, rate }
+            return (
+              <div key={v.id} className={`voice-model ${active ? 'active' : ''}`}>
+                <div className="min-w-0 flex-1">
+                  <strong className="truncate">{v.name}</strong>
+                  <small>
+                    {v.lang} · {v.engine}
+                    {v.gender ? ` · ${v.gender === 'f' ? t('female') : t('male')}` : ''}
+                  </small>
+                </div>
+                <button className="orbi-btn" onClick={() => listen(v.id, c, v.lang)}>
+                  {playing === v.id ? <Square size={11} /> : <Volume2 size={13} />} {t('Listen')}
+                </button>
+                <button className={`orbi-btn ${active ? 'orbi-btn-primary' : ''}`} onClick={() => choose(c)}>
+                  {active ? <Check size={13} /> : null} {active ? (mode === 'pick' ? t('Chosen') : t('Default')) : t('Use')}
+                </button>
               </div>
-              <button className="orbi-btn" onClick={() => listen(v.name, c, v.lang)}>
-                {playing === v.name ? <Square size={11} /> : <Volume2 size={13} />} {t('Listen')}
-              </button>
-              <button className={`orbi-btn ${active ? 'orbi-btn-primary' : ''}`} onClick={() => choose(c)}>
-                {active ? <Check size={13} /> : null} {active ? (mode === 'pick' ? t('Chosen') : t('Default')) : t('Use')}
-              </button>
-            </div>
-          )
-        })}
-        {!sysShown.length && <p className="hub-note">{t('No system voices for this language.')}</p>}
-      </div>}
+            )
+          })}
+        {!useNative &&
+          !hideSystem &&
+          sysShown.map((v) => {
+            const active = choice?.type === 'system' && choice.name === v.name
+            const c: TtsChoice = { type: 'system', name: v.name, rate }
+            return (
+              <div key={v.name} className={`voice-model ${active ? 'active' : ''}`}>
+                <div className="min-w-0 flex-1">
+                  <strong className="truncate">{v.name}</strong>
+                  <small>{v.lang}</small>
+                </div>
+                <button className="orbi-btn" onClick={() => listen(v.name, c, v.lang)}>
+                  {playing === v.name ? <Square size={11} /> : <Volume2 size={13} />} {t('Listen')}
+                </button>
+                <button className={`orbi-btn ${active ? 'orbi-btn-primary' : ''}`} onClick={() => choose(c)}>
+                  {active ? <Check size={13} /> : null} {active ? (mode === 'pick' ? t('Chosen') : t('Default')) : t('Use')}
+                </button>
+              </div>
+            )
+          })}
+        {native && (useNative ? !nativeShown.length : !sysShown.length) && <p className="hub-note">{t('No system voices for this language.')}</p>}
+        {native && <p className="hub-note">{addMore}</p>}
+      </div>
 
       {extra}
 

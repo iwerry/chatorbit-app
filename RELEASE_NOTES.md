@@ -1,4 +1,19 @@
-## Orbi 0.1.27-11
+## Orbi 0.1.27-12
+
+**Voices on every operating system**
+- **System voices are now read natively** on each system, so they also work in Workflows and on Linux:
+  - Windows: SAPI and OneCore voices, including the ones you add in Settings → Time & language → Speech.
+  - macOS: every voice of the system, including downloaded Enhanced and Premium voices.
+  - Linux: eSpeak NG (130+ languages) and SVOX Pico. Orbi tells you what to install when none is present.
+- **Natural AI voices** (Kokoro, Supertonic, Kitten, Pocket and Piper) run on Windows, macOS and Linux.
+- Each voice shows its license. System voices use your operating system's license.
+
+**Voice input on every operating system**
+- **New: Parakeet TDT 0.6B v3** (NVIDIA, CC-BY-4.0). Fast and very accurate in 25 European languages, including Portuguese, Spanish and French, with punctuation. Works on Windows, macOS and Linux.
+- **Local dictation now works on macOS and Linux**, with Whisper Tiny, Base and Large v3 Turbo.
+- Each model shows its license.
+
+## Orbi 0.1.27-11 (previous)
 
 **Voices: choose, listen, install and remove them anywhere**
 - One voice library everywhere a voice is used: Settings → Voice, Local models, the arrow next to the speaker button under each answer, and the Voice node in Workflows. In each place you can listen to every voice, choose it, install it or uninstall it.

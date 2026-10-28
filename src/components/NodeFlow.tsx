@@ -614,7 +614,12 @@ export function NodeFlow({ models, localStatus, onMediaCreated, onOpenModels, vi
         const text = firstText('text')
         if (!text) throw new Error(t('Connect a script to this node.'))
         const v = parseVoice(n.data.voice, ttsVoices)
-        const item = v.type === 'local' ? await api.speakToMedia({ text, modelId: v.modelId, voice: v.voice, lang: getLang() }) : await api.speech({ text, voice: v.voice })
+        const item =
+          v.type === 'local'
+            ? await api.speakToMedia({ text, modelId: v.modelId, voice: v.voice, lang: getLang() })
+            : v.type === 'native'
+              ? await api.speakSystemToMedia({ text, system: v.id })
+              : await api.speech({ text, voice: v.voice })
         onMediaCreated(item)
         return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
       }
@@ -1026,9 +1031,13 @@ type Choice = { key: string; label: string }
 type Extra = { editChoices: Choice[]; localImageChoices: Choice[]; upscalers: Choice[]; ttsVoices: Choice[]; onPaintMask: () => void; hasInputImage: boolean; localStatus: LocalStatus | null }
 
 // Voice node value: 'local:<model>#<voice>' (offline) or 'openai:<voice>'.
-function parseVoice(raw: unknown, local: Choice[]): { type: 'local'; modelId: string; voice?: string | number } | { type: 'openai'; voice: string } {
+function parseVoice(raw: unknown, local: Choice[]): { type: 'local'; modelId: string; voice?: string | number } | { type: 'openai'; voice: string } | { type: 'native'; id: string; name: string } {
   const s = String(raw || (local[0] ? `local:${local[0].key}` : 'openai:alloy'))
   if (s.startsWith('openai:')) return { type: 'openai', voice: s.slice(7) }
+  if (s.startsWith('native:')) {
+    const [id, name] = s.slice(7).split('|')
+    return { type: 'native', id, name: name || id }
+  }
   const [modelId, voice] = s.slice(6).split('#')
   return { type: 'local', modelId, voice: voice == null ? undefined : /^\d+$/.test(voice) ? Number(voice) : voice }
 }
@@ -1231,7 +1240,7 @@ function NodeBody({
       )
     case 'voice': {
       const v = parseVoice(n.data.voice, extra.ttsVoices)
-      const value: TtsChoice | null = v.type === 'local' ? { type: 'local', modelId: v.modelId, voice: v.voice, rate: 1 } : null
+      const value: TtsChoice | null = v.type === 'local' ? { type: 'local', modelId: v.modelId, voice: v.voice, rate: 1 } : v.type === 'native' ? { type: 'native', id: v.id, name: v.name, rate: 1 } : null
       return (
         <>
           <VoiceButton
@@ -1240,7 +1249,10 @@ function NodeBody({
             value={value}
             hideSystem
             label={v.type === 'openai' ? `OpenAI · ${v.voice}` : undefined}
-            onPick={(c) => c.type !== 'system' && setData({ voice: `local:${c.modelId}${c.voice != null ? `#${c.voice}` : ''}` })}
+            onPick={(c) => {
+              if (c.type === 'native') setData({ voice: `native:${c.id}|${c.name}` })
+              else if (c.type !== 'system') setData({ voice: `local:${c.modelId}${c.voice != null ? `#${c.voice}` : ''}` })
+            }}
             extra={
               <div className="voice-option">
                 <div className="voice-option-head">

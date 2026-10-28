@@ -41,7 +41,7 @@ export const isLocalChoice = (c: TtsChoice | null): c is Extract<TtsChoice, { mo
 export async function speak(text: string, choice: TtsChoice | null, lang: string): Promise<void> {
   stopSpeaking()
   const clean = text.replace(/```[\s\S]*?```/g, ' ').replace(/\]\([^)]*\)/g, ']').replace(/[#*_>`~[\]]/g, '')
-  if (isLocalChoice(choice)) {
+  if (isLocalChoice(choice) || choice?.type === 'native') {
     let stopped = false
     let audio: HTMLAudioElement | null = null
     let finish = () => {}
@@ -52,11 +52,19 @@ export async function speak(text: string, choice: TtsChoice | null, lang: string
         finish()
       },
     }
-    const make = (part: string) => api.speakLocal({ text: part, modelId: choice.modelId, rate: choice.rate, voice: choice.voice, lang })
+    const make = (part: string) =>
+      choice.type === 'native' ? api.speakSystem({ text: part, system: choice.id, rate: choice.rate }) : api.speakLocal({ text: part, modelId: choice.modelId, rate: choice.rate, voice: choice.voice, lang })
     const list = chunks(clean)
     let next: Promise<string> | null = make(list[0])
     for (let i = 0; i < list.length && !stopped; i++) {
-      const url: string = await next!
+      let url: string
+      try {
+        url = await next!
+      } catch (e) {
+        // If the operating system refuses a native voice, fall back to the browser voice with the same name.
+        if (i === 0 && choice.type === 'native') return speak(text, { type: 'system', name: choice.name, rate: choice.rate }, lang)
+        throw e
+      }
       next = i + 1 < list.length ? make(list[i + 1]) : null
       if (stopped) break
       await new Promise<void>((resolve) => {

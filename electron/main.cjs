@@ -8,6 +8,7 @@ const ai = require('./providers.cjs')
 const terminal = require('./terminal.cjs')
 const websearch = require('./websearch.cjs')
 const library = require('./library.cjs')
+const systemVoices = require('./system-voices.cjs')
 const mcp = require('./mcp.cjs')
 const localAI = require('./local-ai.cjs')
 const updater = require('./updater.cjs')
@@ -484,13 +485,15 @@ const api = {
   'local:removeAll': () => localAI.removeAll(),
   'local:cleanOrphans': () => localAI.cleanOrphans(),
   // Read text aloud with a downloaded voice (returns a WAV data URL to play).
-  'voice:speak': async (p) => 'data:audio/wav;base64,' + (await localAI.speak(p)).toString('base64'),
+  'voice:speak': async (p) => 'data:audio/wav;base64,' + (await (p.system ? systemVoices.speak({ id: p.system, text: p.text, rate: p.rate }) : localAI.speak(p))).toString('base64'),
   'voice:speakToMedia': async (p) => {
-    const buffer = await localAI.speak(p)
+    const buffer = await (p.system ? systemVoices.speak({ id: p.system, text: p.text, rate: p.rate }) : localAI.speak(p))
     return saveMedia({ buffer, mime: 'audio/wav', kind: 'audio', name: `voiceover-${Date.now()}.wav`, prompt: String(p.text).slice(0, 300), model: p.modelId, source: 'creative' })
   },
   // Voice cloning: reference recordings kept on this computer.
   'voice:clones': () => localAI.clones(),
+  // Voices of the operating system (Windows SAPI/OneCore, macOS say, Linux eSpeak NG/Pico).
+  'voice:systemList': async (refresh) => ({ voices: await systemVoices.list({ refresh: !!refresh }), hint: systemVoices.hint(), platform: process.platform }),
   'voice:saveClone': (p) => localAI.saveClone(p),
   'voice:deleteClone': (id) => localAI.deleteClone(id),
   'local:openFolder': () => shell.openPath(path.join(app.getPath('userData'), 'local-ai')),

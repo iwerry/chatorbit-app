@@ -60,7 +60,7 @@ const ENGINES = {
   sherpa: {
     name: 'sherpa-onnx voices',
     tag: 'v1.13.8',
-    exe: { tts: 'sherpa-onnx-offline-tts' },
+    exe: { tts: 'sherpa-onnx-offline-tts', asr: 'sherpa-onnx-offline' },
     asset() {
       const t = this.tag
       const a = { 'win32-x64': 'win-x64-shared-MT-Release', 'linux-x64': 'linux-x64-shared', 'darwin-arm64': 'osx-arm64-shared', 'darwin-x64': 'osx-x64-shared' }[`${process.platform}-${process.arch}`]
@@ -132,6 +132,19 @@ const CATALOG = [
     description: 'Very good accuracy for accents and noisy audio. Slower than Turbo.', files: [{ role: 'model', repo: 'ggerganov/whisper.cpp', file: 'ggml-medium-q5_0.bin' }] },
   { id: 'whisper-large-v3', kind: 'stt', tier: 'heavy', name: 'Whisper Large v3', license: 'MIT', size: 1.08, req: { ram: 5, vram: 0 },
     description: 'The most accurate Whisper. Best for long recordings and interviews; slow without a GPU.', files: [{ role: 'model', repo: 'ggerganov/whisper.cpp', file: 'ggml-large-v3-q5_0.bin' }] },
+  // Speech to text on every system (sherpa-onnx). Parakeet v3 is very accurate in 25 European languages.
+  { id: 'stt-parakeet-v3', kind: 'stt', engine: 'sherpa', family: 'parakeet', tier: 'medium', name: 'Parakeet TDT 0.6B v3', license: 'CC-BY-4.0', size: 0.487, req: { ram: 3, vram: 0 },
+    description: 'NVIDIA’s fast, very accurate model for 25 European languages, including Portuguese, Spanish and French. Adds punctuation.',
+    files: [{ role: 'pack', url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2', file: 'sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8' }] },
+  { id: 'stt-whisper-tiny-onnx', kind: 'stt', engine: 'sherpa', family: 'whisper', size_name: 'tiny', platforms: ['linux', 'darwin'], tier: 'light', name: 'Whisper Tiny', license: 'MIT', size: 0.116, req: { ram: 1, vram: 0 },
+    description: 'Fast dictation on any computer. Multilingual.',
+    files: [{ role: 'pack', url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.tar.bz2', file: 'sherpa-onnx-whisper-tiny' }] },
+  { id: 'stt-whisper-base-onnx', kind: 'stt', engine: 'sherpa', family: 'whisper', size_name: 'base', platforms: ['linux', 'darwin'], tier: 'light', name: 'Whisper Base', license: 'MIT', size: 0.208, req: { ram: 1, vram: 0 },
+    description: 'Better accuracy, still fast. Multilingual.',
+    files: [{ role: 'pack', url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-base.tar.bz2', file: 'sherpa-onnx-whisper-base' }] },
+  { id: 'stt-whisper-turbo-onnx', kind: 'stt', engine: 'sherpa', family: 'whisper', size_name: 'turbo', platforms: ['linux', 'darwin'], tier: 'heavy', name: 'Whisper Large v3 Turbo', license: 'MIT', size: 0.564, req: { ram: 4, vram: 0 },
+    description: 'Best Whisper accuracy in 99 languages. Needs a decent CPU.',
+    files: [{ role: 'pack', url: 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-turbo.tar.bz2', file: 'sherpa-onnx-whisper-turbo' }] },
 
   // IMAGE (stable-diffusion.cpp)
   { id: 'sdxs-512', kind: 'image', tier: 'light', name: 'SDXS 512', license: 'see model card', size: 1.2, req: { ram: 3, vram: 0 },
@@ -329,7 +342,7 @@ function allModels() {
   const r = loadResolved()
   // Files found by pattern on first download are remembered in resolved.json.
   const withResolved = CATALOG.map((m) => (r[m.id] ? { ...m, files: m.files.map((f, i) => (f.file ? f : { ...f, file: r[m.id][i] })) } : m))
-  return [...withResolved, ...customModels()]
+  return [...withResolved, ...customModels()].filter((m) => !m.platforms || m.platforms.includes(process.platform))
 }
 function localName(f) {
   return path.basename(f.file || f.url || '')
@@ -964,9 +977,42 @@ function runningJobs() {
 }
 
 // ---------- speech to text: whisper-cli ----------
+function sherpaBin(name) {
+  return findExe(engineDir('sherpa'), name)
+}
+function sherpaEnv(bin) {
+  const lib = path.join(path.dirname(path.dirname(bin)), 'lib')
+  return { ...process.env, ...(process.platform === 'linux' ? { LD_LIBRARY_PATH: lib } : process.platform === 'darwin' ? { DYLD_LIBRARY_PATH: lib } : {}) }
+}
+async function transcribeSherpa(m, wavPath, language) {
+  const bin = sherpaBin('sherpa-onnx-offline')
+  if (!bin) throw new Error('The voice engine is not installed.')
+  const dir = path.join(modelsDir(), localName(m.files[0]))
+  const p = (f) => path.join(dir, f)
+  const args = [`--num-threads=${threads()}`]
+  if (m.family === 'parakeet') args.push(`--encoder=${p('encoder.int8.onnx')}`, `--decoder=${p('decoder.int8.onnx')}`, `--joiner=${p('joiner.int8.onnx')}`, `--tokens=${p('tokens.txt')}`, '--model-type=nemo_transducer')
+  else {
+    const n = m.size_name
+    args.push(`--whisper-encoder=${p(`${n}-encoder.int8.onnx`)}`, `--whisper-decoder=${p(`${n}-decoder.int8.onnx`)}`, `--tokens=${p(`${n}-tokens.txt`)}`)
+    if (language && language !== 'auto') args.push(`--whisper-language=${language.slice(0, 2)}`)
+  }
+  args.push(wavPath)
+  const out = await new Promise((resolve, reject) => {
+    const proc = spawn(bin, args, { cwd: path.dirname(bin), windowsHide: true, env: sherpaEnv(bin) })
+    let all = ''
+    proc.stdout.on('data', (d) => (all += d))
+    proc.stderr.on('data', (d) => (all += d))
+    proc.on('error', reject)
+    proc.on('exit', (code) => (code === 0 ? resolve(all) : reject(new Error(all.trim().split('\n').pop() || `exit ${code}`))))
+  })
+  const texts = [...String(out).matchAll(/"text":\s*"((?:[^"\\]|\\.)*)"/g)].map((x) => JSON.parse(`"${x[1]}"`))
+  return texts.join(' ').replace(/\s+/g, ' ').trim()
+}
+
 async function transcribe({ wavPath, modelId, language }) {
   const m = allModels().find((x) => x.id === modelId && x.kind === 'stt')
   if (!m || !isInstalled(m)) throw new Error('This voice model is not downloaded yet.')
+  if (engineOf(m) === 'sherpa') return transcribeSherpa(m, wavPath, language)
   const bin = engineBinary('whisper')
   if (!bin) throw new Error('The voice engine is not installed.')
   const args = ['-m', path.join(modelsDir(), localName(m.files[0])), '-f', wavPath, '-nt', '-np', '-t', String(threads()), '-l', language || 'auto']
@@ -1074,8 +1120,7 @@ async function speakSherpa(m, { text, rate = 1, voice, lang }, out) {
     )
   } else throw new Error('Unknown voice family.')
   args.push(cleanForSpeech(text).replace(/\n/g, ' '))
-  const lib = path.join(path.dirname(path.dirname(bin)), 'lib')
-  await run(bin, args, { env: process.platform === 'linux' ? { LD_LIBRARY_PATH: lib } : process.platform === 'darwin' ? { DYLD_LIBRARY_PATH: lib } : {} })
+  await run(bin, args, { env: sherpaEnv(bin) })
 }
 
 async function speak({ modelId, text, rate = 1, voice, lang }) {

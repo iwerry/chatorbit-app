@@ -141,7 +141,11 @@ export type Hardware = {
   diskFree: number
 }
 // 'piper' is the old name for a downloaded voice; 'local' covers every downloaded voice (voice = speaker inside a pack).
-export type TtsChoice = { type: 'piper' | 'local'; modelId: string; voice?: number | string; rate: number } | { type: 'system'; name: string; rate: number }
+export type TtsChoice =
+  | { type: 'piper' | 'local'; modelId: string; voice?: number | string; rate: number }
+  | { type: 'system'; name: string; rate: number }
+  | { type: 'native'; id: string; name: string; rate: number }
+export type NativeVoice = { id: string; name: string; lang: string; gender: 'f' | 'm' | ''; engine: string }
 export type VoiceInfo = { id: number | string; name: string; lang: string; gender: 'f' | 'm'; top?: boolean }
 export type VoiceClone = { id: string; name: string; created: number }
 export type EngineState = { name: string; tag: string; supported: boolean; installed: boolean; downloading: { received: number; total: number } | null }
@@ -333,6 +337,9 @@ export const api = {
   speakLocal: (p: { text: string; modelId: string; rate?: number; voice?: number | string; lang?: string }): Promise<string> => bridge.invoke('voice:speak', p),
   speakToMedia: (p: { text: string; modelId: string; rate?: number; voice?: number | string; lang?: string }): Promise<MediaItem> => bridge.invoke('voice:speakToMedia', p),
   voiceClones: (): Promise<VoiceClone[]> => bridge.invoke('voice:clones'),
+  systemVoices: (refresh?: boolean): Promise<{ voices: NativeVoice[]; hint: string | null; platform: string }> => bridge.invoke('voice:systemList', refresh),
+  speakSystem: (p: { text: string; system: string; rate?: number }): Promise<string> => bridge.invoke('voice:speak', p),
+  speakSystemToMedia: (p: { text: string; system: string; rate?: number }): Promise<MediaItem> => bridge.invoke('voice:speakToMedia', p),
   saveVoiceClone: (p: { name: string; wav: string }): Promise<VoiceClone[]> => bridge.invoke('voice:saveClone', p),
   deleteVoiceClone: (id: string): Promise<VoiceClone[]> => bridge.invoke('voice:deleteClone', id),
   openModelsFolder: () => bridge.invoke('local:openFolder'),

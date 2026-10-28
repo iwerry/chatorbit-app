@@ -22,8 +22,8 @@ export function VoiceSettings({ status, onLocalChanged, onPicked }: { status: Lo
     api.setSetting('voiceMode', m)
     onPicked?.(m)
   }
-  const stt = status?.models.filter((m) => m.kind === 'stt') ?? []
-  const localSupported = !!status?.engines.whisper.supported
+  const stt = status?.models.filter((m) => m.kind === 'stt' && m.engineSupported) ?? []
+  const localSupported = stt.length > 0
   const rec = status?.recommended.stt
   const keyed = (id: string) => providers.find((p) => p.id === id)?.hasKey
   return (
@@ -33,7 +33,7 @@ export function VoiceSettings({ status, onLocalChanged, onPicked }: { status: Lo
           <Mic size={16} />
           <div>
             <strong>{t('On this computer')}</strong>
-            <small>{localSupported ? t('Private and free. Downloads a Whisper model once.') : t('Local voice is available on Windows for now.')}</small>
+            <small>{localSupported ? t('Private and free. Download a model once — Whisper or Parakeet.') : t('Local voice input is not available for this system yet.')}</small>
           </div>
         </div>
         {localSupported &&
@@ -45,7 +45,7 @@ export function VoiceSettings({ status, onLocalChanged, onPicked }: { status: Lo
                 <div className="min-w-0 flex-1">
                   <strong>{m.name}</strong> {m.id === rec && <span className="hub-badge hub-badge-rec">{t('Recommended')}</span>}
                   <small className="num">
-                    {Math.round(m.size / 1e6)} MB · {t(m.fit.reason, m.fit.vars)}
+                    {Math.round(m.size / 1e6)} MB · {m.license} · {t(m.fit.reason, m.fit.vars)}
                   </small>
                   {m.downloading && (
                     <div className="local-bar mt-1">
