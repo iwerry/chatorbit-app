@@ -1,4 +1,9 @@
-## Orbi 0.1.28-6
+## Orbi 0.1.28-7
+
+- Creative › Canvas (Image and Video): one **Improve** (magic wand) and one **Random** under the prompt. Both write the prompt **and** the negative prompt together. The small extra buttons next to the negative prompt were removed.
+- The Video / Image / Story buttons are no longer on the home screen (0.1.28-6).
+
+## Orbi 0.1.28-6 (previous)
 
 - Removed the Video / Image / Story buttons from the home screen. To create images and videos, use the **Chat · Image · Video** switch in the message box, or `/image` and `/video`.
 

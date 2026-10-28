@@ -880,15 +880,6 @@ export function CreativeStudio({
                 />
                 <div className="studio-prompt-label">
                   <span>{t('Negative prompt')}</span>
-                  <PromptTools
-                    small
-                    target="negative"
-                    models={models}
-                    mode={mode}
-                    prompt={prompt}
-                    negative={negative}
-                    onChange={(r) => setNegative(r.negative)}
-                  />
                 </div>
                 <textarea className="studio-prompt studio-negative" rows={2} value={negative} onChange={(e) => setNegative(e.target.value)} placeholder={t('Negative prompt (what to avoid)')} />
               </Section>
