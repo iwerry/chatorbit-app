@@ -1903,27 +1903,6 @@ export default function App() {
                       </div>
                       <h2>{themeMode === 'terminal' ? t('System ready, {name}.', { name: userName }) : `${t(greeting())}, ${userName}.`}</h2>
                       <p>{themeMode === 'terminal' ? t('Initialize a multimodal workflow.') : t('Chat, search the web, and direct images and video — on your PC or in the cloud.')}</p>
-                      <div className="hero-capabilities">
-                        <button type="button" className={composeMode === 'video' ? 'on' : ''} onClick={() => (setComposeMode('video'), textareaRef.current?.focus())}>
-                          <Video size={12} />
-                          {t('Video')}
-                        </button>
-                        <button type="button" className={composeMode === 'image' ? 'on' : ''} onClick={() => (setComposeMode('image'), textareaRef.current?.focus())}>
-                          <ImageIcon size={12} />
-                          {t('Image')}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setComposeMode('chat')
-                            setMessage(t('Write a short story about '))
-                            textareaRef.current?.focus()
-                          }}
-                        >
-                          <FileText size={12} />
-                          {t('Story')}
-                        </button>
-                      </div>
                     </div>
                   )
                 ) : (

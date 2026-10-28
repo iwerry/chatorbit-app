@@ -1,4 +1,8 @@
-## Orbi 0.1.28-5
+## Orbi 0.1.28-6
+
+- Removed the Video / Image / Story buttons from the home screen. To create images and videos, use the **Chat · Image · Video** switch in the message box, or `/image` and `/video`.
+
+## Orbi 0.1.28-5 (previous)
 
 **A message box that teaches itself**
 - While the box is empty, an animated placeholder types real examples one character at a time: `Ask anything…`, `/skill-creator "…"`, `@agent init "…"`, `/image …`, `/web …`, `/video …`. Press **Tab** to use the example on screen. The examples come from your own skills and agents.
