@@ -1,4 +1,12 @@
-## Orbi 0.1.29-10
+## Orbi 0.1.29-11
+
+- Indicadores de atividade com luz em dois pulsos, ritmo variado por execução e contagem de tarefas. Sem o traço giratório nos botões laterais; a preferência de movimento reduzido mantém uma luz estática.
+- Canvas e Workflows sinalizam execuções mesmo quando outra tela está aberta. As abas de workflow também indicam onde há trabalho em andamento.
+- Imagem e Vídeo têm rascunhos, configurações, imagens de referência e resultados independentes. Um resultado concluído atualiza somente o seu próprio espaço, sem trocar a tela aberta.
+- Removido o limite de quatro renders simultâneos na nuvem. Os limites do provedor e a capacidade dos motores locais continuam valendo.
+- Áudio permanece ativo ao sair da tela, sinaliza atividade na lateral e permite iniciar tarefas de voz, música e efeitos independentemente.
+
+## Orbi 0.1.29-10 (previous)
 
 - **Mais espaço para criar:** a tela inicial se ajusta à altura do conteúdo, sem esconder a caixa de mensagem. Textos, controles e sugestões têm espaçamento mais claro.
 - **Um padrão de modelos:** busca neutra, preços e recomendações no mesmo menu para chat, imagem, vídeo e áudio. Os menus se posicionam dentro da janela e têm uma única área de rolagem.

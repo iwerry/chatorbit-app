@@ -37,7 +37,8 @@ import { CLOUD_ONLY, fmtCredits, nearestDuration, nearestRes, useCloud } from '.
 import { CostChip, ModelSelect } from './ModelMenu'
 import { creativeItems } from '../lib/menuItems'
 import { aspectInfo, aspectsFor, estimateUsd, imageResValue, nearestAspect, ratio, resLabel, resolutionsFor } from '../lib/creative'
-import { activity } from '../lib/activity'
+import { useModeState } from '../lib/useModeState'
+import { activity, useActivities } from '../lib/activity'
 import { fmtBytes, t } from '../lib/i18n'
 import { ThemeSwitcher, type ThemeMode } from './ThemeSwitcher'
 import { Lightbox } from './Lightbox'
@@ -152,30 +153,31 @@ export function CreativeStudio({
 
   // what to make
   const [mode, setMode] = useState<Mode>('image')
-  const [prompt, setPrompt] = useState('')
-  const [negative, setNegative] = useState('')
+  const activities = useActivities()
+  const [prompt, setPrompt, setPromptFor] = useModeState(mode, '')
+  const [negative, setNegative, setNegativeFor] = useModeState(mode, '')
   const [modelKeys, setModelKeys] = useState<Record<Mode, string>>({ image: '', video: '' })
-  const [aspect, setAspect] = useState('1:1')
-  const [size, setSize] = useState({ w: 768, h: 768 })
-  const [quality, setQuality] = useState<Quality>(1)
-  const [customSteps, setCustomSteps] = useState(20)
-  const [seed, setSeed] = useState<number>(42)
-  const [randomSeed, setRandomSeed] = useState(true)
-  const [count, setCount] = useState(1)
-  const [strength, setStrength] = useState(0.65)
-  const [useInit, setUseInit] = useState(false)
+  const [aspect, setAspect, setAspectFor] = useModeState(mode, '1:1')
+  const [size, setSize, setSizeFor] = useModeState(mode, { w: 768, h: 768 })
+  const [quality, setQuality] = useModeState<Quality>(mode, 1)
+  const [customSteps, setCustomSteps] = useModeState(mode, 20)
+  const [seed, setSeed] = useModeState<number>(mode, 42)
+  const [randomSeed, setRandomSeed] = useModeState(mode, true)
+  const [count, setCount] = useModeState(mode, 1)
+  const [strength, setStrength] = useModeState(mode, 0.65)
+  const [useInit, setUseInit, setUseInitFor] = useModeState(mode, false)
   const [duration, setDuration] = useState(2)
   const [cloudRes, setCloudRes] = useState<Record<Mode, number>>({ image: 1024, video: 720 })
   const [audio, setAudio] = useState(true)
   const [fps, setFps] = useState(16)
 
   // canvas
-  const [base, setBase] = useState<{ id?: string; dataUrl: string; name: string; kind: 'image' | 'video'; url?: string } | null>(null)
-  const [baseVisible, setBaseVisible] = useState(true)
+  const [base, setBase, setBaseFor] = useModeState<{ id?: string; dataUrl: string; name: string; kind: 'image' | 'video'; url?: string } | null>(mode, null)
+  const [baseVisible, setBaseVisible, setBaseVisibleFor] = useModeState(mode, true)
   const [maskVisible, setMaskVisible] = useState(true)
   const [maskDirty, setMaskDirty] = useState(false)
-  const [tool, setTool] = useState<'brush' | 'eraser' | 'view'>('view')
-  const [brush, setBrush] = useState(48)
+  const [tool, setTool] = useModeState<'brush' | 'eraser' | 'view'>(mode, 'view')
+  const [brush, setBrush] = useModeState(mode, 48)
   const maskRef = useRef<HTMLCanvasElement>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const [stageSize, setStageSize] = useState({ w: 800, h: 600 })
@@ -218,15 +220,15 @@ export function CreativeStudio({
       const d = (e as CustomEvent<{ prompt: string; negative?: string; mode?: Mode; initMediaId?: string }>).detail
       if (!d?.prompt && !d?.initMediaId) return
       takePendingUse()
-      if (d.prompt) setPrompt(d.prompt)
-      if (d.negative !== undefined) setNegative(d.negative)
+      if (d.prompt) setPromptFor(d.mode || 'image', d.prompt)
+      if (d.negative !== undefined) setNegativeFor(d.mode || 'image', d.negative)
       if (d.mode) setMode(d.mode)
       if (d.initMediaId)
         api.mediaDataUrl(d.initMediaId).then((dataUrl) => {
           if (!dataUrl) return
-          setBase({ id: d.initMediaId, dataUrl, name: t('Start image'), kind: 'image' })
-          setBaseVisible(true)
-          setUseInit(true)
+          setBaseFor(d.mode || 'image', { id: d.initMediaId, dataUrl, name: t('Start image'), kind: 'image' })
+          setBaseVisibleFor(d.mode || 'image', true)
+          setUseInitFor(d.mode || 'image', true)
         })
       setTab('canvas')
       api.setSetting('studioPrompt', '')
@@ -417,14 +419,15 @@ export function CreativeStudio({
     ctx.drawImage(img, (width - img.width * s) / 2, (height - img.height * s) / 2, img.width * s, img.height * s)
     return out.toDataURL('image/png')
   }
-  const showInCanvas = async (m: MediaItem) => {
+  const showInCanvas = async (m: MediaItem, follow = true) => {
+    if (follow && (m.kind === 'image' || m.kind === 'video')) setMode(m.kind)
     if (m.kind === 'video') {
-      setBase({ id: m.id, dataUrl: '', name: m.name, kind: 'video', url: m.url })
+      setBaseFor(m.kind as Mode, { id: m.id, dataUrl: '', name: m.name, kind: 'video', url: m.url })
     } else if (m.kind === 'image') {
       const dataUrl = await api.mediaDataUrl(m.id)
-      if (dataUrl) setBase({ id: m.id, dataUrl, name: m.name, kind: 'image', url: m.url })
+      if (dataUrl) setBaseFor(m.kind as Mode, { id: m.id, dataUrl, name: m.name, kind: 'image', url: m.url })
     }
-    setBaseVisible(true)
+    setBaseVisibleFor(m.kind === 'video' ? 'video' : 'image', true)
   }
 
   // ---------- queue ----------
@@ -432,7 +435,7 @@ export function CreativeStudio({
   useEffect(() => {
     const running = jobs.filter((j) => j.status === 'running')
     const runningLocal = running.filter((j) => j.local).length
-    const next = jobs.find((j) => j.status === 'queued' && !startedIds.current.has(j.id) && (j.local ? runningLocal < maxLocal : running.length < 4))
+    const next = jobs.find((j) => j.status === 'queued' && !startedIds.current.has(j.id) && (j.local ? runningLocal < maxLocal : true))
     if (!next) return
     startedIds.current.add(next.id)
     patchJob(next.id, { status: 'running', started: Date.now(), phase: 'loading' })
@@ -445,7 +448,7 @@ export function CreativeStudio({
         setMedia((cur) => [item, ...cur])
         activity.end(next.id, { ok: true, message: next.mode === 'video' ? t('Your video is ready.') : t('Your image is ready.') })
         // Show the newest result unless the user is painting a mask.
-        if (!maskDirty) showInCanvas(item)
+        if (!maskDirty) showInCanvas(item, false)
       })
       .catch((e) => {
         const msg = cleanErr(e)
@@ -457,7 +460,7 @@ export function CreativeStudio({
 
   const invokeNow = async () => {
     if (!current || !prompt.trim()) return
-    const mask = maskDirty ? exportMask() : undefined
+    const mask = mode === 'image' && maskDirty ? exportMask() : undefined
     const init = (useInit || mask) && base?.kind === 'image' ? await exportInit() : undefined
     const p = prompt.trim()
     const n = mode === 'video' ? 1 : count
@@ -574,7 +577,7 @@ export function CreativeStudio({
     setTab('canvas')
   }
   const activeJobs = jobs.filter((j) => j.status === 'queued' || j.status === 'running')
-  const focusJob = jobs.filter((j) => j.status === 'running').slice(-1)[0]
+  const focusJob = jobs.filter((j) => j.status === 'running' && j.mode === mode).slice(-1)[0]
   const tabs: { id: Tab; label: string; icon: typeof Rocket }[] = [
     { id: 'launchpad', label: 'Launchpad', icon: Rocket },
     { id: 'canvas', label: 'Canvas', icon: LayoutGrid },
@@ -650,9 +653,9 @@ export function CreativeStudio({
     }
   }
   const usePromptOf = (m: MediaItem) => {
-    setPrompt(m.prompt)
+    setPromptFor(m.kind === 'video' ? 'video' : 'image', m.prompt)
     const neg = negativeOf(m)
-    if (neg) setNegative(neg)
+    if (neg) setNegativeFor(m.kind === 'video' ? 'video' : 'image', neg)
     if (m.kind === 'video' || m.kind === 'image') setMode(m.kind)
     setTab('canvas')
   }
@@ -667,10 +670,10 @@ export function CreativeStudio({
       return
     }
     setMode(idea.mode)
-    setPrompt(idea.prompt)
-    setNegative(idea.negative || DEFAULT_NEGATIVE[idea.mode])
-    setUseInit(false)
-    if (idea.aspect) applyAspect(idea.aspect)
+    setPromptFor(idea.mode, idea.prompt)
+    setNegativeFor(idea.mode, idea.negative || DEFAULT_NEGATIVE[idea.mode])
+    setUseInitFor(idea.mode, false)
+    if (idea.aspect) { setAspectFor(idea.mode, idea.aspect); setSizeFor(idea.mode, sizeFor(idea.aspect, 768)) }
     // The idea's model, when Orbi Cloud has it.
     const pick = idea.model && options.find((o) => o.kind === idea.mode && o.modelId === idea.model)
     if (pick) setModelKeys((c) => ({ ...c, [idea.mode]: pick.key }))
@@ -770,10 +773,11 @@ export function CreativeStudio({
             {tabs.map((x) => {
               const Icon = x.icon
               return (
-                <button key={x.id} role="tab" aria-selected={tab === x.id} className={tab === x.id ? 'active' : ''} onClick={() => setTab(x.id)}>
+                <button key={x.id} role="tab" aria-selected={tab === x.id} className={`${tab === x.id ? 'active' : ''} ${activities.some((a) => a.area === 'creative' && (x.id === 'workflows' ? a.kind === 'workflow' : x.id === 'canvas' && a.kind !== 'workflow')) ? 'task-heartbeat' : ''}`} onClick={() => setTab(x.id)}>
                   <Icon size={14} />
                   {t(x.label)}
                   {x.id === 'canvas' && activeJobs.length > 0 && <span className="studio-tab-badge num">{activeJobs.length}</span>}
+                  {x.id === 'workflows' && activities.some((a) => a.kind === 'workflow') && <span className="studio-tab-badge num">{activities.filter((a) => a.kind === 'workflow').length}</span>}
                 </button>
               )
             })}
@@ -877,7 +881,7 @@ export function CreativeStudio({
             <button
               onClick={() => {
                 setMode('image')
-                setUseInit(true)
+                setUseInitFor('image', true)
                 setTool('brush')
                 setTab('canvas')
               }}
@@ -942,7 +946,7 @@ export function CreativeStudio({
                   ['video', 'Video', Video],
                 ] as const
               ).map(([id, label, Icon]) => (
-                <button key={id} role="tab" aria-selected={mode === id} className={mode === id ? 'active' : ''} onClick={() => setMode(id)}>
+                <button key={id} role="tab" aria-selected={mode === id} className={`${mode === id ? 'active' : ''} ${activeJobs.some((j) => j.mode === id) ? 'task-heartbeat' : ''}`} onClick={() => setMode(id)}>
                   <Icon size={14} /> {t(label)}
                 </button>
               ))}

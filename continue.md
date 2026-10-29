@@ -5,7 +5,7 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
 Notas anteriores: [histórico da versão 0.1.27-2](docs/history/continuation-0.1.27-2.md). Esse histórico descreve uma versão antiga; para o estado atual, use as notas abaixo.
 
 Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trabalho sem perder contexto.
-Versão desta revisão: **0.1.29-10** (publicação via GitHub Actions, `iwerry/chatorbit-app`).
+Versão desta revisão: **0.1.29-11** (publicação via GitHub Actions, `iwerry/chatorbit-app`).
 
 ## 29/10: revisão do workspace com Codex
 
@@ -171,3 +171,12 @@ Versão desta revisão: **0.1.29-10** (publicação via GitHub Actions, `iwerry/
 - Ler este arquivo, `library-imports/INDEX.md`, `supabase/README.md`, `PRODUCT.md` e `DESIGN.md`.
 - O conector do Supabase pode estar ligado: use `list_tables`, `apply_migration`, `deploy_edge_function` e `query_logs` no projeto `jtdkbtszyrqogmvznrig`.
 - O ambiente do Claude não acessa `openrouter.ai` nem `supabase.co` direto. Teste com serviços simulados e confira o real pelos logs.
+
+## 0.1.29-11 — atividades e espaços independentes
+
+- Luz pulsante em duas batidas indica execução; a lateral usa ritmo aleatório por atividade e mostra o total. Preferência de movimento reduzido mantém luz estática.
+- Canvas e Workflows indicam suas atividades, inclusive nas abas; o nome do workflow aparece na atividade.
+- useModeState mantém prompts, configurações e resultados de Imagem/Vídeo separados; conclusões assíncronas apontam explicitamente ao espaço de origem.
+- Sem limite de quatro renders simultâneos na nuvem. Limites externos e capacidade local continuam valendo.
+- AudioStudio fica montado ao navegar, registra atividades e permite gerações independentes.
+- Verificação: TypeScript/build e testes com renders simulados simultâneos, rascunhos independentes e atividade em segundo plano.

@@ -297,6 +297,7 @@ function WorkflowEditor({
   pendingTemplate,
   onTemplateLoaded,
   storageKey = 'flow',
+  workspaceName = 'Workflow',
   onBusyChange,
 }: {
   models: ModelInfo[]
@@ -307,6 +308,7 @@ function WorkflowEditor({
   pendingTemplate?: { id: string; prompt: string; negative?: string } | null
   onTemplateLoaded?: () => void
   storageKey?: string
+  workspaceName?: string
   onBusyChange?: (key: string, busy: boolean) => void
 }) {
   const [nodes, setNodes] = useState<FNode[]>([])
@@ -875,7 +877,7 @@ function WorkflowEditor({
     stopRef.current = false
     setRunning(true)
     const n = nodesRef.current.find((x) => x.id === id)
-    const act = activity.start({ area: 'creative', kind: 'workflow', label: `${t('Workflow')} · ${t(DEFS[n?.kind || 'image'].title)}` })
+    const act = activity.start({ area: 'creative', kind: 'workflow', label: `${workspaceName} · ${t(DEFS[n?.kind || 'image'].title)}` })
     let ok = true
     try {
       await runNode(id, new Map(), (nid) => nid === id)
@@ -889,7 +891,7 @@ function WorkflowEditor({
   const runAll = async () => {
     stopRef.current = false
     setRunning(true)
-    const act = activity.start({ area: 'creative', kind: 'workflow', label: t('Workflow') })
+    const act = activity.start({ area: 'creative', kind: 'workflow', label: workspaceName })
     const memo = new Map<string, Promise<Val | undefined>>()
     const ends = nodesRef.current.filter((n) => n.kind !== 'note' && n.kind !== 'negative' && !edgesRef.current.some((e) => e.from === n.id))
     let failed = 0

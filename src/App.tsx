@@ -1542,10 +1542,11 @@ export default function App() {
               <button
                 key={item.id}
                 className={`rail-button ${selected ? 'rail-button-active' : ''} ${activities.some((a) => a.area === item.id) ? 'rail-busy' : ''}`}
+                style={{ ['--heartbeat-period' as string]: `${activities.find((a) => a.area === item.id)?.pulsePeriod || 3}s` }}
                 onClick={() => toggleNavigation(item.id)}
                 aria-label={t(item.label)}
                 aria-pressed={selected}
-                title={t(item.label)}
+                title={[t(item.label), ...activities.filter((a) => a.area === item.id).map((a) => a.label)].join('\n')}
               >
                 <Icon size={18} strokeWidth={1.8} />
                 {activities.some((a) => a.area === item.id) && <span className="rail-busy-count num">{activities.filter((a) => a.area === item.id).length}</span>}
@@ -1677,6 +1678,19 @@ export default function App() {
           />
         </Suspense>
       )}
+
+        <Suspense fallback={<main className="view-loading" />}>
+          <AudioStudio visible={activeNav === 'audio'}
+            media={media}
+            onBack={() => {
+              setActiveNav('chats')
+              setPanelOpen(false)
+            }}
+            onMediaCreated={(m) => setMedia((cur) => (cur.some((x) => x.id === m.id) ? cur : [m, ...cur]))}
+            onOpenAccount={() => setSettingsOpen('account')}
+          />
+        </Suspense>
+
       {activeNav === 'studio' ? (
         <Suspense fallback={<main className="view-loading" />}>
           <CreatorStudio
@@ -1696,19 +1710,7 @@ export default function App() {
             onChatWith={chatWithAgent}
           />
         </Suspense>
-      ) : activeNav === 'creative' ? null : activeNav === 'audio' ? (
-        <Suspense fallback={<main className="view-loading" />}>
-          <AudioStudio
-            media={media}
-            onBack={() => {
-              setActiveNav('chats')
-              setPanelOpen(false)
-            }}
-            onMediaCreated={(m) => setMedia((cur) => (cur.some((x) => x.id === m.id) ? cur : [m, ...cur]))}
-            onOpenAccount={() => setSettingsOpen('account')}
-          />
-        </Suspense>
-      ) : activeNav === 'media' ? (
+      ) : activeNav === 'creative' ? null : activeNav === 'audio' ? null : activeNav === 'media' ? (
         <Suspense fallback={<main className="view-loading" />}>
           <MediaLibrary
             media={media}

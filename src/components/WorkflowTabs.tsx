@@ -7,7 +7,7 @@ type Tab = { id: string; name: string }
 type Workspace = { tabs: Tab[]; active: string; closed: Tab[] }
 const initial: Workspace = { tabs: [{ id: 'flow', name: 'Workflow 1' }], active: 'flow', closed: [] }
 
-export function WorkflowTabs<P extends { visible?: boolean; storageKey?: string; onBusyChange?: (key: string, busy: boolean) => void; pendingTemplate?: unknown }>({ Editor, editorProps }: { Editor: ComponentType<P>; editorProps: Omit<P, 'storageKey' | 'onBusyChange'> }) {
+export function WorkflowTabs<P extends { visible?: boolean; storageKey?: string; workspaceName?: string; onBusyChange?: (key: string, busy: boolean) => void; pendingTemplate?: unknown }>({ Editor, editorProps }: { Editor: ComponentType<P>; editorProps: Omit<P, 'storageKey' | 'onBusyChange'> }) {
   const [workspace, setWorkspace] = useState(initial)
   const [loaded, setLoaded] = useState(false)
   const [busy, setBusy] = useState<Record<string, boolean>>({})
@@ -56,6 +56,6 @@ export function WorkflowTabs<P extends { visible?: boolean; storageKey?: string;
         })
       }}><option value="">{t('Reopen workflow')}</option>{workspace.closed.map((tab) => <option key={tab.id} value={tab.id}>{tab.name}</option>)}</select>}
     </div>
-    {workspace.tabs.map((tab) => <Editor key={tab.id} {...{ ...editorProps, storageKey: tab.id, visible: editorProps.visible !== false && workspace.active === tab.id, pendingTemplate: workspace.active === tab.id ? editorProps.pendingTemplate : null, onBusyChange: reportBusy } as P} />)}
+    {workspace.tabs.map((tab) => <Editor key={tab.id} {...{ ...editorProps, storageKey: tab.id, workspaceName: tab.name, visible: editorProps.visible !== false && workspace.active === tab.id, pendingTemplate: workspace.active === tab.id ? editorProps.pendingTemplate : null, onBusyChange: reportBusy } as P} />)}
   </div>
 }

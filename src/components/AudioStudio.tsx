@@ -2,6 +2,7 @@
 // Same pattern as the Creative studio: controls on the left, results on the right, cost shown before you generate.
 import { useMemo, useState } from 'react'
 import { ChevronLeft, Download, Loader2, Mic2, Music, Sparkles, Volume2, Wallet, Waves } from 'lucide-react'
+import { activity } from '../lib/activity'
 import { api, type MediaItem } from '../lib/api'
 import { fmtCredits, refreshCloud, useCloud } from '../lib/cloud'
 import { fmtDate, t } from '../lib/i18n'
@@ -21,7 +22,7 @@ const MUSIC_IDEAS = [
 const SFX_IDEAS = ['Heavy rain on a tin roof with distant thunder', 'Old wooden door creaking open slowly', 'Sci-fi spaceship engine powering up', 'Crowd cheering in a stadium after a goal', 'Notification chime, soft and friendly, short']
 const VOICE_IDEAS = ['Bem-vindo ao Orbi. Aqui você cria imagens, vídeos e áudio com os melhores modelos de IA, em um só lugar.', 'Introducing the new Orbi watch: calm design, all-day battery, and the details that matter.']
 
-export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount }: { media: MediaItem[]; onBack: () => void; onMediaCreated: (m: MediaItem) => void; onOpenAccount: () => void }) {
+export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount, visible = true }: { visible?: boolean; media: MediaItem[]; onBack: () => void; onMediaCreated: (m: MediaItem) => void; onOpenAccount: () => void }) {
   const { catalog, state } = useCloud()
   const [tab, setTab] = useState<Tab>('voice')
   const [script, setScript] = useState('')
@@ -33,7 +34,7 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount }: { 
   const [musicModel, setMusicModel] = useState('')
   const [sfxPrompt, setSfxPrompt] = useState('')
   const [sfxModel, setSfxModel] = useState('')
-  const [busy, setBusy] = useState<Tab | null>(null)
+  const [busy, setBusy] = useState<Record<Tab, number>>({ voice: 0, music: 0, sfx: 0 })
   const [error, setError] = useState('')
   const [lastLyrics, setLastLyrics] = useState('')
 
@@ -51,7 +52,8 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount }: { 
 
   const run = async () => {
     setError('')
-    setBusy(tab)
+    setBusy((p) => ({ ...p, [tab]: p[tab] + 1 }))
+    const activityId = activity.start({ area: 'audio', kind: 'audio', label: t(tab === 'voice' ? 'Voiceover' : tab === 'music' ? 'Music' : 'Sound effects') })
     try {
       if (tab === 'voice') {
         if (!script.trim()) throw new Error(t('Write the text to read.'))
@@ -71,9 +73,11 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount }: { 
       }
       refreshCloud()
     } catch (e) {
+      activity.end(activityId, { ok: false })
       setError(String((e as Error)?.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''))
     } finally {
-      setBusy(null)
+      setBusy((p) => ({ ...p, [tab]: Math.max(0, p[tab] - 1) }))
+      activity.end(activityId)
     }
   }
 
@@ -84,7 +88,7 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount }: { 
   ]
 
   return (
-    <main className="studio audio-studio">
+    <main className="studio audio-studio" style={visible ? undefined : { display: 'none' }}>
       <header className="studio-top">
         <div className="flex min-w-0 items-center gap-2">
           <button className="creative-topbar-button" onClick={onBack} aria-label={t('Back to chats')}>
@@ -93,7 +97,7 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount }: { 
           <span className="studio-title">{t('Audio')}</span>
           <nav className="studio-tabs" role="tablist">
             {TABS.map((x) => (
-              <button key={x.id} role="tab" aria-selected={tab === x.id} className={tab === x.id ? 'active' : ''} onClick={() => (setTab(x.id), setError(''))}>
+              <button key={x.id} role="tab" aria-selected={tab === x.id} className={`${tab === x.id ? 'active' : ''} ${busy[x.id] ? 'task-heartbeat' : ''}`} onClick={() => (setTab(x.id), setError(''))}>
                 <x.icon size={14} />
                 {t(x.label)}
               </button>
@@ -183,11 +187,11 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount }: { 
 
           <div className="audio-go">
             <CostChip usd={estimate} />
-            <button className="orbi-btn orbi-btn-primary" onClick={run} disabled={!!busy}>
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {busy ? t('Creating…') : t('Generate')}
+            <button className="orbi-btn orbi-btn-primary" onClick={run} >
+              {busy[tab] ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} {t('Generate')} {busy[tab] > 0 && <span className="num">{busy[tab]}</span>}
             </button>
           </div>
-          {busy === 'music' && <p className="studio-hint">{t('Music takes up to a minute.')}</p>}
+          {busy.music > 0 && <p className="studio-hint">{t('Music takes up to a minute.')}</p>}
           {error && <p className="studio-error">{error}</p>}
           {tab === 'music' && lastLyrics && (
             <details className="audio-lyrics">
