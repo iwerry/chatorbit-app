@@ -23,6 +23,8 @@ export type ModelInfo = {
   mode: 'API' | 'Local'
   image: boolean
   vision?: boolean
+  /** Orbi Cloud: one of the popular models shown first. */
+  featured?: boolean
 }
 
 export type Project = { id: string; name: string; created_at: number }
@@ -526,9 +528,9 @@ export type CloudPlans = {
 }
 export type CloudUsageItem = { created_at: number; kind: string; amount: number; model: string; note: string }
 export type CloudCatalog = {
-  chat: { id: string; name: string; vendor: string; context: number; input: string[]; image: boolean; price: { in: number; out: number } }[]
-  image: { id: string; name: string; vendor: string; price?: number; aspects?: string[]; resolutions?: string[] }[]
-  video: { id: string; name: string; vendor: string; durations: number[]; resolutions: string[]; aspects: string[]; audio: boolean; pricePerSecond?: number; imageInput: boolean }[]
+  chat: { id: string; name: string; vendor: string; featured?: boolean; context: number; input: string[]; image: boolean; price: { in: number; out: number } }[]
+  image: { id: string; name: string; vendor: string; featured?: boolean; price?: number; aspects?: string[]; resolutions?: string[] }[]
+  video: { id: string; name: string; vendor: string; featured?: boolean; durations: number[]; resolutions: string[]; aspects: string[]; audio: boolean; pricePerSecond?: number; imageInput: boolean }[]
   tts: { id: string; name: string; voices: string[] }[]
   stt: { id: string; name: string }[]
   credits: { usd: number; markup: number }

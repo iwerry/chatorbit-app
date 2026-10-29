@@ -1,7 +1,7 @@
 # Orbi: continuar daqui
 
 Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trabalho sem perder contexto.
-Última versão publicada: **0.1.29-2** (GitHub Releases, `iwerry/chatorbit-app`).
+Última versão publicada: **0.1.29-3** (GitHub Releases, `iwerry/chatorbit-app`).
 
 ## Regras do projeto
 
@@ -33,6 +33,11 @@ Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trab
 | `RELEASE_NOTES.md` | O que mudou em cada versão |
 
 ## 29/10: o que mudou
+
+- **0.1.29-3 (atualização rápida):** modelos populares primeiro.
+  - Na função `orbi` (versão 2 no Supabase): `featured` no catálogo e ordem por empresa.
+  - A lista de modelos do OpenRouter é pública, então carrega mesmo sem a chave.
+  - No app: grupo "Populares" e nomes como "ChatGPT · OpenAI". Saíram os botões de modelos locais.
 
 - **Atualização rápida (0.1.29-2):** cada release publica também `orbi-ui-<versão>.asar` (a pasta `dist/`, cerca de 2 MB) e `orbi-ui-<versão>.json`.
   - `build/stamp.cjs` grava em `build-info.json` um `core`: um hash de `electron/`, do `package.json` sem a versão, do `pnpm-lock.yaml` e do instalador.

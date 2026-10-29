@@ -1,6 +1,10 @@
 // UI translations. English is the key; each row is [en, pt-BR, es, fr].
 // Missing keys fall back to English, so new strings never break the UI.
 const ROWS: [string, string, string, string][] = [
+  ["Popular", "Populares", "Populares", "Populaires"],
+  ["The model list did not load from Orbi Cloud. Check your internet and press Refresh list.", "A lista de modelos não carregou do Orbi Cloud. Confira sua internet e clique em Atualizar lista.", "La lista de modelos no cargó desde Orbi Cloud. Revisa tu internet y pulsa Actualizar lista.", "La liste des modèles ne s’est pas chargée depuis Orbi Cloud. Vérifiez votre connexion et cliquez sur Actualiser la liste."],
+  ["Sign in to your Orbi account to see the models.", "Entre na sua conta Orbi para ver os modelos.", "Inicia sesión en tu cuenta Orbi para ver los modelos.", "Connectez-vous à votre compte Orbi pour voir les modèles."],
+  ["The models did not load from Orbi Cloud. Check your internet and try again.", "Os modelos não carregaram do Orbi Cloud. Confira sua internet e tente de novo.", "Los modelos no cargaron desde Orbi Cloud. Revisa tu internet e inténtalo de nuevo.", "Les modèles ne se sont pas chargés depuis Orbi Cloud. Vérifiez votre connexion et réessayez."],
   ["We sent an email to {email}. Click its link, then sign in here (or type the code from the email below).", "Enviamos um e-mail para {email}. Clique no link e depois entre aqui (ou digite abaixo o código do e-mail).", "Enviamos un correo a {email}. Haz clic en el enlace y luego inicia sesión aquí (o escribe abajo el código del correo).", "Nous avons envoyé un e-mail à {email}. Cliquez sur le lien, puis connectez-vous ici (ou saisissez ci-dessous le code de l’e-mail)."],
   ["Update ready", "Atualização pronta", "Actualización lista", "Mise à jour prête"],
   ["no restart", "sem reiniciar", "sin reiniciar", "sans redémarrer"],

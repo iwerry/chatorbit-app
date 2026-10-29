@@ -1,6 +1,6 @@
 // Shared by the Creative studio and the chat composer: which image/video models exist, sizes and aspect ratios.
 import type { CloudCatalog, GenInfo, LocalStatus, ModelInfo } from './api'
-import { CLOUD_ONLY } from './cloud'
+import { CLOUD_ONLY, vendorLabel } from './cloud'
 import { t } from './i18n'
 
 export type CreativeMode = 'image' | 'video'
@@ -18,18 +18,20 @@ export const ASPECTS = [
 export const CLOUD_GEN: GenInfo = { presets: [0, 0, 0], fixedSteps: true, width: 1024, height: 1024, fps: 0, image: false, ref: false, end: false }
 export const snap = (n: number) => Math.max(256, Math.round(n / 64) * 64)
 
-const vendorName = (id: string) =>
-  ({ google: 'Google', openai: 'OpenAI', bytedance: 'ByteDance', 'bytedance-seed': 'ByteDance', alibaba: 'Alibaba', minimax: 'MiniMax', 'x-ai': 'xAI', heygen: 'HeyGen', 'black-forest-labs': 'Black Forest Labs', qwen: 'Qwen', recraft: 'Recraft', ideogram: 'Ideogram' })[id] || id.charAt(0).toUpperCase() + id.slice(1)
+// Popular models come first in their own group; the rest are grouped by maker.
+const groupFor = (vendor: string, featured?: boolean) => (featured ? t('Popular') : vendorLabel(vendor))
 
 export function creativeOptions(localStatus: LocalStatus | null, models: ModelInfo[], catalog?: CloudCatalog | null): CreativeOption[] {
   const out: CreativeOption[] = []
   if (CLOUD_ONLY) {
-    for (const m of models.filter((x) => x.image)) {
+    const order = new Map((catalog?.image ?? []).map((m, i) => [m.id, i]))
+    const images = models.filter((x) => x.image).sort((a, b) => (order.get(a.id) ?? 1e6) - (order.get(b.id) ?? 1e6))
+    for (const m of images) {
       const c = catalog?.image.find((x) => x.id === m.id)
-      out.push({ key: `cloud::${m.key}`, label: m.name.replace(/^[^:]+:\s*/, ''), group: vendorName(m.id.split('/')[0]), kind: 'image', local: false, providerId: m.provider, modelId: m.id, gen: CLOUD_GEN, price: c?.price })
+      out.push({ key: `cloud::${m.key}`, label: m.name.replace(/^[^:]+:\s*/, ''), group: groupFor(m.id.split('/')[0], c?.featured), kind: 'image', local: false, providerId: m.provider, modelId: m.id, gen: CLOUD_GEN, price: c?.price })
     }
     for (const v of catalog?.video ?? [])
-      out.push({ key: `cloudvideo::${v.id}`, label: v.name.replace(/^[^:]+:\s*/, ''), group: vendorName(v.vendor), kind: 'video', local: false, providerId: 'orbicloud', modelId: v.id, gen: CLOUD_GEN, video: { durations: v.durations, resolutions: v.resolutions, aspects: v.aspects, audio: v.audio, pricePerSecond: v.pricePerSecond } })
+      out.push({ key: `cloudvideo::${v.id}`, label: v.name.replace(/^[^:]+:\s*/, ''), group: groupFor(v.vendor, v.featured), kind: 'video', local: false, providerId: 'orbicloud', modelId: v.id, gen: CLOUD_GEN, video: { durations: v.durations, resolutions: v.resolutions, aspects: v.aspects, audio: v.audio, pricePerSecond: v.pricePerSecond } })
     return out
   }
   for (const m of localStatus?.models ?? []) {

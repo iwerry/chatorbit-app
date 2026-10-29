@@ -34,6 +34,35 @@ export function useCloud() {
   return { state, catalog, refresh: refreshCloud }
 }
 
+/** How people know each AI maker: the product name first (ChatGPT, Claude, Gemini, Kimi…). */
+const VENDOR_LABELS: Record<string, string> = {
+  openai: 'ChatGPT · OpenAI',
+  anthropic: 'Claude · Anthropic',
+  google: 'Gemini · Google',
+  deepseek: 'DeepSeek',
+  moonshotai: 'Kimi · Moonshot',
+  'x-ai': 'Grok · xAI',
+  qwen: 'Qwen · Alibaba',
+  'meta-llama': 'Llama · Meta',
+  mistralai: 'Mistral',
+  'z-ai': 'GLM · Z.ai',
+  minimax: 'MiniMax',
+  perplexity: 'Perplexity',
+  cohere: 'Cohere',
+  amazon: 'Nova · Amazon',
+  microsoft: 'Microsoft',
+  nvidia: 'NVIDIA',
+  'black-forest-labs': 'FLUX · Black Forest Labs',
+  bytedance: 'ByteDance',
+  'bytedance-seed': 'ByteDance',
+  alibaba: 'Alibaba',
+  kwaivgi: 'Kling',
+  recraft: 'Recraft',
+  ideogram: 'Ideogram',
+  heygen: 'HeyGen',
+}
+export const vendorLabel = (vendor: string) => VENDOR_LABELS[vendor] || vendor.charAt(0).toUpperCase() + vendor.slice(1)
+
 export const fmtCredits = (n: number) => new Intl.NumberFormat(undefined, { maximumFractionDigits: n < 10 ? 1 : 0 }).format(n)
 
 /** "720p" style label closest to a short side in pixels, within what the model supports. */

@@ -29,8 +29,7 @@ import {
   Wallet,
   Wand2,
   Workflow,
-  X,
-} from 'lucide-react'
+  X, RefreshCw } from 'lucide-react'
 import { api, on, type Board, type LocalStatus, type MediaItem, type ModelInfo } from '../lib/api'
 import { ASPECTS, CLOUD_GEN, creativeOptions, sizeFor, snap, type CreativeOption } from '../lib/creative'
 import { creativeBus, takePendingUse, type GenRequest } from '../lib/creativeBus'
@@ -676,7 +675,7 @@ export function CreativeStudio({
       )}
       <span className={`studio-thumb-kind kind-${m.kind}`}>{m.kind === 'video' ? <Video size={10} /> : <ImageIcon size={10} />}</span>
       <div className="media-tile-tools">
-        {m.kind === 'image' && (
+        {m.kind === 'image' && (!CLOUD_ONLY || hasUpscaler) && (
           <button
             title={hasUpscaler ? t('Upscale 4×') : t('Download an upscaler in Models to enlarge images')}
             onClick={() => (hasUpscaler ? upscale(m) : onOpenModels())}
@@ -953,12 +952,21 @@ export function CreativeStudio({
               </Section>
               <Section title={t('Model')}>
                 {!modeOptions.length ? (
-                  <div className="studio-empty">
-                    <p>{mode === 'video' ? t('No video model yet.') : t('No image models yet.')}</p>
-                    <button className="orbi-btn orbi-btn-primary" onClick={onOpenModels}>
-                      <Download size={13} /> {t('Get a model')}
-                    </button>
-                  </div>
+                  CLOUD_ONLY ? (
+                    <div className="studio-empty">
+                      <p>{cloud.state?.user ? t('The models did not load from Orbi Cloud. Check your internet and try again.') : t('Sign in to your Orbi account to see the models.')}</p>
+                      <button className="orbi-btn orbi-btn-primary" onClick={() => (cloud.state?.user ? cloud.refresh() : onOpenModels())}>
+                        <RefreshCw size={13} /> {cloud.state?.user ? t('Try again') : t('Open your account')}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="studio-empty">
+                      <p>{mode === 'video' ? t('No video model yet.') : t('No image models yet.')}</p>
+                      <button className="orbi-btn orbi-btn-primary" onClick={onOpenModels}>
+                        <Download size={13} /> {t('Get a model')}
+                      </button>
+                    </div>
+                  )
                 ) : (
                   <select className="ab-input" value={current?.key} onChange={(e) => setModelKeys((c) => ({ ...c, [mode]: e.target.value }))}>
                     {[...new Set(modeOptions.map((o) => o.group))].map((g) => (

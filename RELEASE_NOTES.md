@@ -1,4 +1,12 @@
-## Orbi 0.1.29-2
+## Orbi 0.1.29-3 (atualização rápida, sem reiniciar)
+
+- **Modelos populares primeiro:** o seletor do chat abre com ChatGPT, Claude, Gemini, DeepSeek, Kimi, Grok, Qwen e outros. Depois vem a lista completa, separada por empresa.
+- **Imagem e vídeo:** os modelos mais conhecidos aparecem primeiro no Creative.
+  - Imagem: Nano Banana (Gemini), GPT Image, FLUX, Seedream…
+  - Vídeo: Veo, Sora, Kling, Seedance, Wan…
+- Saíram do chat e do Creative os últimos botões de modelos locais e de provedores ("Local models", "Manage providers", "Get a model"). No lugar ficam **Conta e créditos** e **Tentar de novo**.
+
+## Orbi 0.1.29-2 (previous)
 
 - **Atualização rápida, sem reiniciar:** quando uma versão nova muda só a interface, o Orbi baixa um pacote pequeno (cerca de 2 MB) e aplica com **Aplicar agora**. A janela recarrega em um segundo e o Orbi continua aberto.
 - Quando a versão nova muda o próprio aplicativo, o Orbi continua baixando o instalador. Ele fecha, instala e abre de novo, sempre quando você mandar.

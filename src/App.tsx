@@ -92,7 +92,7 @@ import { startRecording, type Recording } from './lib/voice'
 import { loadAudioPrefs, routeAudio } from './lib/audioDevices'
 import { creativeBus, decodeChatMedia, encodeChatMedia, type ChatMediaMeta } from './lib/creativeBus'
 import { creativeOptions, resolutionsFor } from './lib/creative'
-import { CLOUD_ONLY, fmtCredits, refreshCloud, useCloud } from './lib/cloud'
+import { CLOUD_ONLY, fmtCredits, refreshCloud, useCloud, vendorLabel } from './lib/cloud'
 import { AccountGate } from './components/AccountPanel'
 import { enhancePrompt } from './lib/promptTools'
 import { DEFAULT_NEGATIVE, IDEAS } from './lib/ideas'
@@ -388,6 +388,12 @@ export default function App() {
       setModelsLoading(false)
     }
   }, [])
+
+  // Orbi Cloud: when the catalog arrives (sign-in, reconnect, "Try again") and the list is still empty, load it.
+  useEffect(() => {
+    if (CLOUD_ONLY && cloud.catalog && models.length === 0) loadModels()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cloud.catalog])
 
   const refreshLists = useCallback(async () => {
     api.teams().then(setTeams).catch(() => {})
@@ -1353,14 +1359,27 @@ export default function App() {
   const groupedModels = useMemo(() => {
     const q = modelSearch.toLowerCase()
     const groups = new Map<string, ModelInfo[]>()
-    for (const m of chatModels) {
-      if (q && !`${m.name} ${m.id} ${m.providerName}`.toLowerCase().includes(q)) continue
-      const g = groups.get(m.providerName) ?? []
+    const add = (name: string, m: ModelInfo) => {
+      const g = groups.get(name) ?? []
       g.push(m)
-      groups.set(m.providerName, g)
+      groups.set(name, g)
+    }
+    // Orbi Cloud: popular models first (ChatGPT, Claude, Gemini, DeepSeek, Kimi…), then every model by maker,
+    // in the catalog's order.
+    let list = chatModels
+    if (CLOUD_ONLY && cloud.catalog) {
+      const order = new Map(cloud.catalog.chat.map((m, i) => [m.id, i]))
+      const featured = new Set(cloud.catalog.chat.filter((m) => m.featured).map((m) => m.id))
+      list = [...chatModels].sort((a, b) => (order.get(a.id) ?? 1e6) - (order.get(b.id) ?? 1e6))
+      if (!q) for (const m of list) if (featured.has(m.id)) add(t('Popular'), m)
+    }
+    for (const m of list) {
+      const group = CLOUD_ONLY ? vendorLabel(m.id.split('/')[0]) : m.providerName
+      if (q && !`${m.name} ${m.id} ${group}`.toLowerCase().includes(q)) continue
+      add(group, m)
     }
     return [...groups.entries()]
-  }, [chatModels, modelSearch])
+  }, [chatModels, modelSearch, cloud.catalog])
 
   const suggestList: Suggest[] = useMemo(() => {
     const m = message.match(/(?:^|\s)([/@])([\w.-]*)$/)
@@ -1570,7 +1589,7 @@ export default function App() {
             }}
             models={models}
             localStatus={localStatus}
-            onOpenModels={() => setSettingsOpen('models')}
+            onOpenModels={() => setSettingsOpen(CLOUD_ONLY ? 'account' : 'models')}
             onMediaCreated={(m) => setMedia((cur) => (cur.some((x) => x.id === m.id) ? cur : [m, ...cur]))}
           />
         </Suspense>
@@ -1686,7 +1705,7 @@ export default function App() {
                                   {list.slice(0, modelSearch ? 200 : 60).map((model) => (
                                     <button
                                       className="config-option"
-                                      key={model.key}
+                                      key={`${provider}:${model.key}`}
                                       onClick={() => {
                                         setSelectedModel(model.key)
                                         setHeaderMenu(null)
@@ -1695,16 +1714,22 @@ export default function App() {
                                       <span className={`model-radio ${selectedModel === model.key ? 'model-radio-active' : ''}`} />
                                       <span className="min-w-0 flex-1 text-left">
                                         <strong className="block truncate">{model.name}</strong>
-                                        <small className="block truncate">
-                                          {model.id} · {model.mode}
-                                        </small>
+                                        <small className="block truncate">{CLOUD_ONLY ? model.id : `${model.id} · ${model.mode}`}</small>
                                       </span>
                                       {selectedModel === model.key && <Check size={14} />}
                                     </button>
                                   ))}
                                 </div>
                               ))}
-                              {!modelsLoading && chatModels.length === 0 && <p className="popover-empty">{t('No models yet. Connect a provider — OpenRouter gives you hundreds of models with one key — or download a local model.')}</p>}
+                              {!modelsLoading && chatModels.length === 0 && (
+                                <p className="popover-empty">
+                                  {CLOUD_ONLY
+                                    ? cloud.state?.user
+                                      ? t('The model list did not load from Orbi Cloud. Check your internet and press Refresh list.')
+                                      : t('Sign in to your Orbi account to see the models.')
+                                    : t('No models yet. Connect a provider — OpenRouter gives you hundreds of models with one key — or download a local model.')}
+                                </p>
+                              )}
                               {modelErrors.map((e) => (
                                 <p key={e.provider} className="popover-error">
                                   {e.provider}: {e.message.slice(0, 140)}
@@ -1712,24 +1737,38 @@ export default function App() {
                               ))}
                             </div>
                             <div className="config-connect-actions">
-                              <button
-                                onClick={() => {
-                                  setHeaderMenu(null)
-                                  setSettingsOpen('providers')
-                                }}
-                              >
-                                <Plug size={15} />
-                                <span>{t('Manage providers')}</span>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setHeaderMenu(null)
-                                  setSettingsOpen('models')
-                                }}
-                              >
-                                <Cpu size={15} />
-                                <span>{t('Local models')}</span>
-                              </button>
+                              {CLOUD_ONLY ? (
+                                <button
+                                  onClick={() => {
+                                    setHeaderMenu(null)
+                                    setSettingsOpen('account')
+                                  }}
+                                >
+                                  <Wallet size={15} />
+                                  <span>{t('Account & credits')}</span>
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setHeaderMenu(null)
+                                      setSettingsOpen('providers')
+                                    }}
+                                  >
+                                    <Plug size={15} />
+                                    <span>{t('Manage providers')}</span>
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setHeaderMenu(null)
+                                      setSettingsOpen('models')
+                                    }}
+                                  >
+                                    <Cpu size={15} />
+                                    <span>{t('Local models')}</span>
+                                  </button>
+                                </>
+                              )}
                               <button onClick={() => loadModels()}>
                                 <RotateCcw size={15} />
                                 <span>{t('Refresh list')}</span>

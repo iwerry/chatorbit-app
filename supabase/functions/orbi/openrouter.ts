@@ -50,7 +50,22 @@ const charge = (c: Caller, costUsd: number, model: string, note: string, ref = '
 // ---------------------------------------------------------------- catalog
 
 type OrModel = { id: string; name: string; created?: number; context_length?: number; architecture?: { input_modalities?: string[]; output_modalities?: string[] }; pricing?: Record<string, string | number> }
-const VENDORS = ['openai', 'anthropic', 'google', 'x-ai', 'deepseek', 'meta-llama', 'mistralai', 'qwen', 'moonshotai', 'z-ai', 'minimax', 'perplexity', 'cohere', 'amazon', 'microsoft', 'nvidia']
+// Vendors in the order people look for them (ChatGPT, Claude, Gemini, DeepSeek, Kimi, Grok…).
+const VENDORS = ['openai', 'anthropic', 'google', 'deepseek', 'moonshotai', 'x-ai', 'qwen', 'meta-llama', 'mistralai', 'z-ai', 'minimax', 'perplexity', 'cohere', 'amazon', 'microsoft', 'nvidia']
+// The newest general models of these vendors are shown first as "Popular" (two each).
+const POPULAR_CHAT = ['openai', 'anthropic', 'google', 'deepseek', 'moonshotai', 'x-ai', 'qwen', 'meta-llama', 'mistralai', 'z-ai']
+const NOT_GENERAL = /audio|image|embed|guard|tts|transcri|realtime|moderation|research|search|oss|codex|vl\b|-vl-|coder|instruct-\d|distill|safety|\bmini-?tts|lite-preview/i
+// Best-known image and video models first, in this order.
+const POPULAR_IMAGE = [/gemini.*image|nano.?banana/i, /gpt.*image/i, /flux/i, /seedream/i, /grok.*imag/i, /qwen.*image/i, /recraft/i, /ideogram/i, /imagen/i]
+const POPULAR_VIDEO = [/veo/i, /sora/i, /kling/i, /seedance/i, /wan/i, /hailuo|minimax/i, /runway|gen-?4/i, /ray|luma/i, /pixverse/i, /grok/i]
+const rankBy = (pats: RegExp[], id: string, name = '') => {
+  const i = pats.findIndex((p) => p.test(id) || p.test(name))
+  return i < 0 ? pats.length : i
+}
+const vendorRank = (id: string) => {
+  const i = VENDORS.indexOf(vendorOf(id))
+  return i < 0 ? VENDORS.length : i
+}
 const TTS = [
   { id: 'openai/gpt-4o-mini-tts-2025-12-15', name: 'OpenAI GPT-4o mini TTS', voices: ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse'] },
   { id: 'google/gemini-3.1-flash-tts-preview', name: 'Google Gemini 3.1 Flash TTS', voices: ['Kore', 'Puck', 'Charon', 'Zephyr', 'Fenrir', 'Leda', 'Aoede', 'Orus'] },
@@ -66,9 +81,10 @@ const num = (v: unknown) => (typeof v === 'number' ? v : Number(v || 0)) || 0
 const vendorOf = (id: string) => id.split('/')[0]
 const isFree = (m: OrModel) => m.id.endsWith(':free') || (num(m.pricing?.prompt) === 0 && num(m.pricing?.completion) === 0 && num(m.pricing?.request) === 0 && m.id !== 'openrouter/auto')
 
+// Model lists are public on OpenRouter, so they load even before the key is set on the server.
 async function listJson<T>(path: string): Promise<T[]> {
   try {
-    const r = await orFetch(path)
+    const r = await fetch(`${config.openrouterBase}${path}`, { headers: config.openrouterKey ? headers(false) : { 'HTTP-Referer': config.appUrl, 'X-Title': config.appName } })
     if (!r.ok) return []
     return ((await r.json()) as { data?: T[] }).data || []
   } catch {
@@ -95,20 +111,32 @@ async function buildCatalog() {
         return k < 8
       })
   }
+  // Popular: the two newest general models of each main vendor.
+  const popular = new Set<string>()
+  for (const v of POPULAR_CHAT)
+    chat
+      .filter((m) => vendorOf(m.id) === v && !NOT_GENERAL.test(m.id))
+      .sort((a, b) => (b.created || 0) - (a.created || 0))
+      .slice(0, 2)
+      .forEach((m) => popular.add(m.id))
+  chat = [...chat].sort((a, b) => vendorRank(a.id) - vendorRank(b.id) || Number(popular.has(b.id)) - Number(popular.has(a.id)) || (b.created || 0) - (a.created || 0))
   const imageRows = await listJson<OrModel & { supported_aspect_ratios?: string[]; supported_resolutions?: string[] }>('/images/models')
-  const images = imageRows.length ? imageRows : all.filter((m) => (m.architecture?.output_modalities || []).includes('image') && !m.id.endsWith(':free'))
-  const videoRows = await listJson<{ id: string; name?: string; supported_durations?: number[]; supported_resolutions?: string[]; supported_aspect_ratios?: string[]; pricing_skus?: unknown; allowed_passthrough_parameters?: string[] }>('/videos/models')
+  const images = (imageRows.length ? imageRows : all.filter((m) => (m.architecture?.output_modalities || []).includes('image') && !m.id.endsWith(':free'))).sort(
+    (a, b) => rankBy(POPULAR_IMAGE, a.id, a.name) - rankBy(POPULAR_IMAGE, b.id, b.name) || (b.created || 0) - (a.created || 0),
+  )
+  const videoRowsAll = await listJson<{ id: string; name?: string; supported_durations?: number[]; supported_resolutions?: string[]; supported_aspect_ratios?: string[]; pricing_skus?: unknown; allowed_passthrough_parameters?: string[] }>('/videos/models')
+  const videoRows = videoRowsAll.sort((a, b) => rankBy(POPULAR_VIDEO, a.id, a.name) - rankBy(POPULAR_VIDEO, b.id, b.name))
   const perSecond = (skus: unknown): number | undefined => {
     const list = Array.isArray(skus) ? skus : skus && typeof skus === 'object' ? Object.values(skus as object) : []
     const prices = list.map((s) => (typeof s === 'object' && s ? num((s as { price?: unknown; amount?: unknown }).price ?? (s as { amount?: unknown }).amount) : num(s))).filter((p) => p > 0)
     return prices.length ? Math.min(...prices) : undefined
   }
   return {
-    chat: chat.map((m) => ({ id: m.id, name: m.name, vendor: vendorOf(m.id), context: m.context_length || 0, input: m.architecture?.input_modalities || ['text'], image: (m.architecture?.output_modalities || []).includes('image'), price: { in: creditsFor(num(m.pricing?.prompt) * 1e6), out: creditsFor(num(m.pricing?.completion) * 1e6) } })),
-    image: images.map((m) => ({ id: m.id, name: m.name || m.id, vendor: vendorOf(m.id), price: num(m.pricing?.image) ? creditsFor(num(m.pricing?.image)) : undefined, aspects: (m as { supported_aspect_ratios?: string[] }).supported_aspect_ratios, resolutions: (m as { supported_resolutions?: string[] }).supported_resolutions })),
+    chat: chat.map((m) => ({ id: m.id, name: m.name, vendor: vendorOf(m.id), featured: popular.has(m.id), context: m.context_length || 0, input: m.architecture?.input_modalities || ['text'], image: (m.architecture?.output_modalities || []).includes('image'), price: { in: creditsFor(num(m.pricing?.prompt) * 1e6), out: creditsFor(num(m.pricing?.completion) * 1e6) } })),
+    image: images.map((m) => ({ id: m.id, name: m.name || m.id, vendor: vendorOf(m.id), featured: rankBy(POPULAR_IMAGE, m.id, m.name) < POPULAR_IMAGE.length, price: num(m.pricing?.image) ? creditsFor(num(m.pricing?.image)) : undefined, aspects: (m as { supported_aspect_ratios?: string[] }).supported_aspect_ratios, resolutions: (m as { supported_resolutions?: string[] }).supported_resolutions })),
     video: videoRows.map((m) => {
       const pps = perSecond(m.pricing_skus)
-      return { id: m.id, name: m.name || m.id, vendor: vendorOf(m.id), durations: m.supported_durations || [5], resolutions: m.supported_resolutions || ['720p'], aspects: m.supported_aspect_ratios || ['16:9', '9:16', '1:1'], audio: (m.allowed_passthrough_parameters || []).includes('generate_audio') || /veo|seedance|sora|wan|hailuo|grok/i.test(m.id), pricePerSecond: pps ? creditsFor(pps) : undefined, imageInput: true }
+      return { id: m.id, name: m.name || m.id, vendor: vendorOf(m.id), featured: rankBy(POPULAR_VIDEO, m.id, m.name) < POPULAR_VIDEO.length, durations: m.supported_durations || [5], resolutions: m.supported_resolutions || ['720p'], aspects: m.supported_aspect_ratios || ['16:9', '9:16', '1:1'], audio: (m.allowed_passthrough_parameters || []).includes('generate_audio') || /veo|seedance|sora|wan|hailuo|grok/i.test(m.id), pricePerSecond: pps ? creditsFor(pps) : undefined, imageInput: true }
     }),
     tts: TTS,
     stt: STT,
@@ -128,8 +156,8 @@ export async function modelList() {
   const c = await catalog()
   return {
     data: [
-      ...c.chat.map((m) => ({ id: m.id, name: m.name, context_length: m.context, architecture: { input_modalities: m.input, output_modalities: m.image ? ['text', 'image'] : ['text'] } })),
-      ...c.image.filter((m) => !c.chat.some((x) => x.id === m.id)).map((m) => ({ id: m.id, name: m.name, architecture: { output_modalities: ['image'] } })),
+      ...c.chat.map((m) => ({ id: m.id, name: m.name, featured: m.featured, context_length: m.context, architecture: { input_modalities: m.input, output_modalities: m.image ? ['text', 'image'] : ['text'] } })),
+      ...c.image.filter((m) => !c.chat.some((x) => x.id === m.id)).map((m) => ({ id: m.id, name: m.name, featured: m.featured, architecture: { output_modalities: ['image'] } })),
     ],
   }
 }
