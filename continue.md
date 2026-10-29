@@ -1,0 +1,100 @@
+# Orbi: continuar daqui
+
+Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trabalho sem perder contexto.
+Última versão publicada: **0.1.28-9** (GitHub Releases, `iwerry/chatorbit-app`).
+
+## Regras do projeto
+
+- Responder ao Daniel em **português**.
+- Versão no formato `0.1.DD-N` (DD = dia do mês). Cada push na `main` gera uma release, e o app instalado oferece a atualização.
+  - Para subir só documentação sem gerar release, use `[skip ci]` na mensagem do commit.
+- Commits como `Claude <noreply@anthropic.com>`, terminando com `Co-Authored-By` e `Claude-Session`.
+- **Nunca** colocar chaves (OpenRouter, Stripe, senha do banco) no código, no app ou no Git: o repositório é público.
+- Assinatura da marca: "Developed by Daniel Rodrigues · Draft Creative Studio Ltda".
+- Visual: Adaptive Soft UI com três temas (Orbi Dark, Orbi Light, Orbi Terminal). Ver `DESIGN.md` e `PRODUCT.md`.
+  - Antes de mexer em interface, rodar o detector do Impeccable.
+
+## Onde está cada coisa
+
+| Pasta / arquivo | O quê |
+| --- | --- |
+| `src/` | Front em React 19 + TypeScript + Tailwind 4 (Vite) |
+| `src/App.tsx` | Chat, caixa de mensagem (Conversar · Imagem · Vídeo), gate de login |
+| `src/components/ComposerKit.tsx` | Placeholder animado, guia de comandos, controle de esforço, mic/saída de áudio, controles de imagem/vídeo, card de mídia no chat |
+| `src/components/AccountPanel.tsx` | Login/cadastro, Conta e créditos, administração, voz na nuvem |
+| `src/components/CreativeStudio.tsx` · `NodeFlow.tsx` | Creative (Launchpad, Canvas, Workflows, Galeria) |
+| `src/components/MediaLibrary.tsx` · `Lightbox.tsx` | Media Library em tela cheia e o visualizador |
+| `src/lib/cloud.ts` | `CLOUD_ONLY = true`, estado da conta e catálogo |
+| `src/lib/creativeBus.ts` · `creative.ts` | Fila de renders entre chat, biblioteca e Creative; modelos e tamanhos |
+| `electron/main.cjs` | Processo principal (IPC) |
+| `electron/cloud.cjs` | Cliente do Orbi Cloud (Supabase Auth + função `orbi`) |
+| `supabase/` | Migração do banco e a Edge Function `orbi` (ver `supabase/README.md`) |
+| `library-imports/INDEX.md` | Lista de tarefas detalhada |
+| `RELEASE_NOTES.md` | O que mudou em cada versão |
+
+## O que foi feito nesta sessão
+
+1. **Caixa de mensagem nova**
+   - Placeholder que digita exemplos de `/skills` e `@agentes` (Tab usa o exemplo).
+   - Guia do comando escolhido e autocompletar.
+   - Slider de esforço (Instantâneo → Alto).
+   - Escolha de microfone e saída de áudio (USB, headset) e barra de gravação com onda.
+2. **Imagem e vídeo no chat:** botões Conversar · Imagem · Vídeo, com modelo, proporção, duração, resolução, áudio, melhorar prompt e quantidade. Roda na fila do Creative e aparece no chat.
+3. **Media Library em página cheia:** busca, filtros, gerar vídeo a partir da imagem, ampliar 4×, editar no Canvas.
+4. Removidos os botões Video/Image/Story da tela inicial.
+5. **Canvas do Creative:** só "Melhorar" e "Aleatório", que preenchem o prompt e o prompt negativo juntos.
+6. **Mudança de negócio: Orbi Cloud**
+   - Saíram os modelos gratuitos e locais e as chaves de API do usuário.
+   - O usuário paga com assinatura (Pro, Studio) mais créditos extras, via Stripe.
+   - Toda a IA vem do OpenRouter: chat, imagem, vídeo (`/api/v1/videos`), voz (`/audio/speech`) e transcrição (`/audio/transcriptions`).
+7. **Orbi Cloud no Supabase** (projeto `jtdkbtszyrqogmvznrig`, plano Free)
+   - Migração `orbi_cloud` aplicada: `profiles`, `ledger`, `video_jobs`, `stripe_events`, RLS, funções de crédito e 300 créditos de boas-vindas no cadastro.
+   - Edge Function `orbi` publicada (verify_jwt desligado; ela confere a sessão sozinha).
+   - O app entra com o Supabase Auth (e-mail e senha, com confirmação por e-mail).
+   - Administração para quem está em `ADMIN_EMAILS`.
+8. Dois documentos no Claude Docs: estrutura do projeto e o artigo crítico.
+
+## Créditos e preços (hipóteses iniciais)
+
+- 1 crédito = US$ 0,001 (`CREDIT_USD`). Margem de 25% sobre o custo do OpenRouter (`MARKUP`).
+- Pro: US$ 19/mês com 15.000 créditos. Studio: US$ 49/mês com 45.000 créditos.
+- Pacotes extras: 5.000 créditos por US$ 6 e 20.000 por US$ 22. Pacotes só para assinantes; os créditos extras não expiram.
+- Os créditos do plano renovam (sem acumular) a cada fatura paga e são usados antes dos extras.
+
+## Pendências: fazer primeiro
+
+- [ ] **Daniel:** em Supabase › Edge Functions › Secrets, criar `OPENROUTER_API_KEY` (chave **nova**; a antiga apareceu no chat e deve ser revogada) e `ADMIN_EMAILS` (`draftcs21@gmail.com`).
+- [ ] **Daniel:** em Authentication › URL Configuration, colocar em Site URL `https://jtdkbtszyrqogmvznrig.supabase.co/functions/v1/orbi/auth/done`.
+- [ ] Instalar a 0.1.28-9, criar a conta, confirmar o e-mail e testar com a IA de verdade:
+  - chat, imagem, vídeo, voz e ditado;
+  - conferir os logs da função pelo conector do Supabase (`query_logs`).
+- [ ] Conferir os IDs de modelo de voz e transcrição no OpenRouter. Estão fixos em `supabase/functions/orbi/openrouter.ts` (TTS/STT).
+
+## Pendências: depois
+
+- [ ] **Stripe:**
+  - criar os 4 preços em modo de teste e colocar os IDs nos segredos;
+  - webhook em `.../functions/v1/orbi/stripe/webhook`;
+  - ativar o portal do cliente;
+  - passar para o modo produção e definir os preços em BRL e USD.
+- [ ] **Recuperar senha** (página de redefinição) e **entrar com Google**.
+- [ ] **E-mail próprio (SMTP)** no Supabase antes de lançar; o envio padrão tem limite baixo.
+- [ ] **Licenças no instalador:** `LICENSE.electron.txt` e `LICENSES.chromium.html` aparecem na pasta do app; mover para `licenses/` ou mostrar em Sobre. Somem no Tauri.
+- [ ] Ampliar 4× na nuvem: hoje o upscale só funciona com o Real-ESRGAN local, que ficou escondido.
+- [ ] Apagar de vez o código dos motores locais (llama.cpp, sd.cpp, whisper, sherpa, Python). Hoje está só escondido por `CLOUD_ONLY`.
+- [ ] Próximas fases combinadas:
+  - SQLite nativo com WAL no app;
+  - **Tauri 2 com backend em Rust** (o front React continua; o `api.ts` é a única porta para trocar);
+  - site e app de celular usando o mesmo Supabase.
+
+## Como testar sem a nuvem (desenvolvimento)
+
+- No app, a configuração `cloudBackend` (`{ url, key }`) troca o Supabase por um servidor de teste.
+- As funções rodam no Deno com `deno run --allow-all supabase/functions/orbi/index.ts` e as variáveis `SUPABASE_URL`, `SUPABASE_DB_URL`, `OPENROUTER_API_KEY` etc.
+- Banco local de teste: PGlite (`pglite-server`), com um esquema `auth` simulado e a migração aplicada.
+
+## Para o Claude ao retomar
+
+- Ler este arquivo, `library-imports/INDEX.md`, `supabase/README.md`, `PRODUCT.md` e `DESIGN.md`.
+- O conector do Supabase pode estar ligado: use `list_tables`, `apply_migration`, `deploy_edge_function` e `query_logs` no projeto `jtdkbtszyrqogmvznrig`.
+- O ambiente do Claude não acessa `openrouter.ai` nem `supabase.co` direto. Teste com serviços simulados e confira o real pelos logs.
