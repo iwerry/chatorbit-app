@@ -30,6 +30,7 @@ function headersFor(p, cfg) {
   } else if (cfg.apiKey) {
     h.Authorization = `Bearer ${cfg.apiKey}`
   }
+  if (cfg.extraHeaders) Object.assign(h, cfg.extraHeaders)
   if (p.id === 'openrouter') {
     h['HTTP-Referer'] = 'https://orbix.com'
     h['X-Title'] = 'Orbi'

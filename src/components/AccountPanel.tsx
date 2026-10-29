@@ -10,32 +10,14 @@ const clean = (e: unknown) => String((e as Error)?.message ?? e).replace(/^Error
 
 function ServerField({ compact }: { compact?: boolean }) {
   const { state } = useCloud()
-  const [open, setOpen] = useState(false)
-  const [url, setUrl] = useState(state?.url || '')
-  useEffect(() => setUrl(state?.url || ''), [state?.url])
   const online = state?.online !== false && state?.code !== 'offline'
   return (
     <div className={`acct-server ${compact ? 'compact' : ''}`}>
-      <button type="button" className="acct-server-line" onClick={() => setOpen((v) => !v)}>
+      <p className="acct-server-line">
         <span className={`mcp-dot ${online ? 'mcp-dot-connected' : 'mcp-dot-error'}`} />
         <Server size={12} />
-        <span className="truncate">{online ? t('Orbi Cloud · {url}', { url: state?.url || '' }) : t('Orbi Cloud is offline · {url}', { url: state?.url || '' })}</span>
-      </button>
-      {open && (
-        <form
-          className="acct-server-form"
-          onSubmit={async (e) => {
-            e.preventDefault()
-            await api.cloudSetUrl(url)
-            await refreshCloud()
-          }}
-        >
-          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="http://127.0.0.1:8787" aria-label={t('Server address')} />
-          <button className="orbi-btn" type="submit">
-            {t('Connect')}
-          </button>
-        </form>
-      )}
+        <span className="truncate">{online ? t('Orbi Cloud online') : t('Orbi Cloud is not reachable')}</span>
+      </p>
     </div>
   )
 }
@@ -48,14 +30,21 @@ export function AccountGate({ onSignedIn }: { onSignedIn: () => void }) {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const { state } = useCloud()
+  const [confirmFor, setConfirmFor] = useState('')
+  const [resent, setResent] = useState(false)
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setBusy(true)
     setError('')
     try {
-      if (mode === 'signup') await api.cloudSignup({ email, password, name })
-      else await api.cloudLogin({ email, password })
+      if (mode === 'signup') {
+        const r = await api.cloudSignup({ email, password, name })
+        if (r.confirm) {
+          setConfirmFor(email)
+          setMode('login')
+          return
+        }
+      } else await api.cloudLogin({ email, password })
       await refreshCloud()
       onSignedIn()
     } catch (err) {
@@ -95,6 +84,26 @@ export function AccountGate({ onSignedIn }: { onSignedIn: () => void }) {
           <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} />
           {mode === 'signup' && <small>{t('At least 8 characters.')}</small>}
         </label>
+        {(confirmFor || /confirm/i.test(error)) && (
+          <div className="acct-note" role="status">
+            {confirmFor && <p>{t('We sent a confirmation link to {email}. Open it, then sign in here.', { email: confirmFor })}</p>}
+            <button
+              type="button"
+              className="acct-link"
+              disabled={resent}
+              onClick={async () => {
+                try {
+                  await api.cloudResend(confirmFor || email)
+                  setResent(true)
+                } catch (err) {
+                  setError(t(clean(err)))
+                }
+              }}
+            >
+              {resent ? t('Sent again') : t('Send the link again')}
+            </button>
+          </div>
+        )}
         {error && (
           <p className="acct-error" role="alert">
             <CircleAlert size={14} /> {error}
@@ -106,7 +115,6 @@ export function AccountGate({ onSignedIn }: { onSignedIn: () => void }) {
         </button>
         {mode === 'signup' && <p className="acct-fine">{t('New accounts get free credits to try Orbi.')}</p>}
         <ServerField compact />
-        {state?.code === 'offline' && <p className="acct-fine">{t('Start Orbi Cloud on this PC (cloud folder → npm start) or enter its address above.')}</p>}
       </form>
     </div>
   )
@@ -232,6 +240,8 @@ export function AccountPanel() {
 
       {note && <p className="acct-note">{note}</p>}
 
+      {user.admin && <AdminBox />}
+
       <p className="orbi-label mt-6">{t('Recent use')}</p>
       {usage.length === 0 ? (
         <p className="orbi-muted">{t('Nothing yet.')}</p>
@@ -328,6 +338,48 @@ export function CloudVoiceSettings() {
         </button>
       </div>
       {err && <p className="acct-error">{err}</p>}
+    </div>
+  )
+}
+
+/** Admins (ADMIN_EMAILS on the server): give credits and see totals. */
+function AdminBox() {
+  const [email, setEmail] = useState('')
+  const [credits, setCredits] = useState(1000)
+  const [msg, setMsg] = useState('')
+  const [stats, setStats] = useState<{ users: number; subscribers: number; usage30d: { cost: number; calls: number } } | null>(null)
+  useEffect(() => {
+    api.cloudStats().then(setStats).catch(() => {})
+  }, [])
+  return (
+    <div className="acct-admin">
+      <p className="orbi-label">{t('Administration')}</p>
+      {stats && (
+        <p className="orbi-muted num">
+          {t('{u} accounts · {s} subscribers · US$ {c} of AI in 30 days ({n} calls)', { u: stats.users, s: stats.subscribers, c: (stats.usage30d?.cost ?? 0).toFixed(2), n: stats.usage30d?.calls ?? 0 })}
+        </p>
+      )}
+      <form
+        className="acct-admin-form"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          setMsg('')
+          try {
+            const r = await api.cloudGrant({ email, credits })
+            setMsg(t('{email} now has {n} credits.', { email: r.email, n: fmtCredits(r.credits) }))
+            refreshCloud()
+          } catch (err) {
+            setMsg(t(clean(err)))
+          }
+        }}
+      >
+        <input type="email" required placeholder={t('Email')} value={email} onChange={(e) => setEmail(e.target.value)} aria-label={t('Email')} />
+        <input type="number" min={1} step={1} value={credits} onChange={(e) => setCredits(Number(e.target.value))} aria-label={t('Credits')} />
+        <button className="orbi-btn orbi-btn-primary" type="submit">
+          <Wallet size={13} /> {t('Give credits')}
+        </button>
+      </form>
+      {msg && <p className="orbi-muted">{msg}</p>}
     </div>
   )
 }

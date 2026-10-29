@@ -1,6 +1,18 @@
 // UI translations. English is the key; each row is [en, pt-BR, es, fr].
 // Missing keys fall back to English, so new strings never break the UI.
 const ROWS: [string, string, string, string][] = [
+  ["Orbi Cloud online", "Orbi Cloud online", "Orbi Cloud en línea", "Orbi Cloud en ligne"],
+  ["We sent a confirmation link to {email}. Open it, then sign in here.", "Enviamos um link de confirmação para {email}. Abra o link e depois entre aqui.", "Enviamos un enlace de confirmación a {email}. Ábrelo y luego inicia sesión aquí.", "Nous avons envoyé un lien de confirmation à {email}. Ouvrez-le, puis connectez-vous ici."],
+  ["Sent again", "Enviado de novo", "Enviado de nuevo", "Renvoyé"],
+  ["Send the link again", "Enviar o link de novo", "Enviar el enlace de nuevo", "Renvoyer le lien"],
+  ["Administration", "Administração", "Administración", "Administration"],
+  ["{u} accounts · {s} subscribers · US$ {c} of AI in 30 days ({n} calls)", "{u} contas · {s} assinantes · US$ {c} de IA em 30 dias ({n} chamadas)", "{u} cuentas · {s} suscriptores · US$ {c} de IA en 30 días ({n} llamadas)", "{u} comptes · {s} abonnés · {c} US$ d’IA en 30 jours ({n} appels)"],
+  ["{email} now has {n} credits.", "{email} agora tem {n} créditos.", "{email} ahora tiene {n} créditos.", "{email} a maintenant {n} crédits."],
+  ["Give credits", "Dar créditos", "Dar créditos", "Donner des crédits"],
+  ["Confirm your email first: open the link we sent you.", "Confirme seu e-mail primeiro: abra o link que enviamos.", "Confirma tu correo primero: abre el enlace que te enviamos.", "Confirmez d’abord votre e-mail : ouvrez le lien envoyé."],
+  ["Orbi Cloud is not reachable. Check your internet connection.", "O Orbi Cloud não respondeu. Confira sua conexão com a internet.", "Orbi Cloud no responde. Revisa tu conexión a internet.", "Orbi Cloud ne répond pas. Vérifiez votre connexion internet."],
+  ["Admin only.", "Só para administradores.", "Solo para administradores.", "Réservé aux administrateurs."],
+  ["No account with that email.", "Nenhuma conta com esse e-mail.", "No hay cuenta con ese correo.", "Aucun compte avec cet e-mail."],
   ["{plan} plan · open your account", "Plano {plan} · abrir sua conta", "Plan {plan} · abrir tu cuenta", "Forfait {plan} · ouvrir votre compte"],
   ["Open your account", "Abrir sua conta", "Abrir tu cuenta", "Ouvrir votre compte"],
   ["credits", "créditos", "créditos", "crédits"],

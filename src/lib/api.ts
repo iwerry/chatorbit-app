@@ -292,9 +292,11 @@ export const on = (channel: string, cb: (...args: any[]) => void) => bridge.on?.
 export const api = {
   // Orbi Cloud account and gateway
   cloudState: (): Promise<CloudState> => bridge.invoke('cloud:state'),
-  cloudSetUrl: (url: string): Promise<string> => bridge.invoke('cloud:setUrl', url),
-  cloudSignup: (p: { email: string; password: string; name?: string }): Promise<CloudUser> => bridge.invoke('cloud:signup', p),
-  cloudLogin: (p: { email: string; password: string }): Promise<CloudUser> => bridge.invoke('cloud:login', p),
+  cloudSignup: (p: { email: string; password: string; name?: string }): Promise<{ confirm: boolean; email?: string }> => bridge.invoke('cloud:signup', p),
+  cloudLogin: (p: { email: string; password: string }): Promise<boolean> => bridge.invoke('cloud:login', p),
+  cloudResend: (email: string) => bridge.invoke('cloud:resend', email),
+  cloudGrant: (p: { email: string; credits: number; bucket?: 'plan' | 'extra' }): Promise<{ email: string; credits: number }> => bridge.invoke('cloud:grant', p),
+  cloudStats: (): Promise<{ users: number; subscribers: number; usage30d: { cost: number; calls: number } }> => bridge.invoke('cloud:stats'),
   cloudLogout: () => bridge.invoke('cloud:logout'),
   cloudPlans: (): Promise<CloudPlans> => bridge.invoke('cloud:plans'),
   cloudUsage: (): Promise<{ items: CloudUsageItem[] }> => bridge.invoke('cloud:usage'),
@@ -507,6 +509,7 @@ export type CloudUser = {
   id: string
   email: string
   name: string
+  admin?: boolean
   plan: { id: string; name: string; status: string; renews: number | null; monthlyCredits: number } | null
   credits: { plan: number; extra: number; total: number }
   created: number

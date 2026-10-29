@@ -1,29 +1,94 @@
-// Orbi Cloud client: the signed-in account, credits and the AI gateway (chat, images, video, voice).
-// The OpenRouter key lives only on the Orbi Cloud server; this app holds just the user's session token.
-const DEFAULT_URL = 'http://127.0.0.1:8787'
+// Orbi Cloud client (Supabase): the signed-in account, credits and the AI gateway (chat, images, video, voice).
+// Sign-in uses Supabase Auth; everything else goes to the `orbi` Edge Function, which holds the OpenRouter key.
+// The publishable key below is public by design: the database is protected by Row Level Security.
+const SUPABASE_URL = 'https://jtdkbtszyrqogmvznrig.supabase.co'
+const PUBLISHABLE_KEY = 'sb_publishable_maAtOC_F27RQbWorjmbLdQ_dADUMJWK'
 
 function create({ getSetting, setSetting, encrypt, decrypt, appVersion }) {
-  const url = () => String(getSetting('cloudUrl', DEFAULT_URL) || DEFAULT_URL).replace(/\/+$/, '')
-  const token = () => decrypt(getSetting('cloudToken', ''))
+  // A different backend can be set for development (settings key `cloudBackend`).
+  const backend = () => {
+    const b = getSetting('cloudBackend', null) || {}
+    return { url: String(b.url || SUPABASE_URL).replace(/\/+$/, ''), key: b.key || PUBLISHABLE_KEY }
+  }
+  const fnUrl = () => `${backend().url}/functions/v1/orbi`
+  let session = null // { access, expires }
   let lastMe = null
 
+  const refreshToken = () => decrypt(getSetting('cloudRefresh', ''))
+  const saveSession = (s) => {
+    session = { access: s.access_token, expires: Date.now() + (Number(s.expires_in) || 3600) * 1000 }
+    setSetting('cloudRefresh', encrypt(s.refresh_token))
+  }
+  const clear = () => {
+    session = null
+    lastMe = null
+    setSetting('cloudRefresh', '')
+  }
+
+  async function authCall(path, body, token) {
+    const b = backend()
+    let res
+    try {
+      res = await fetch(`${b.url}/auth/v1${path}`, {
+        method: 'POST',
+        headers: { apikey: b.key, 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(body || {}),
+        signal: AbortSignal.timeout(20000),
+      })
+    } catch {
+      const err = new Error('Orbi Cloud is not reachable. Check your internet connection.')
+      err.code = 'offline'
+      throw err
+    }
+    const text = await res.text()
+    let j = {}
+    try {
+      j = text ? JSON.parse(text) : {}
+    } catch {
+      /* empty */
+    }
+    if (!res.ok) {
+      const raw = j.msg || j.error_description || j.message || j.error || `Sign-in error ${res.status}`
+      const map = {
+        'Invalid login credentials': 'Wrong email or password.',
+        'Email not confirmed': 'Confirm your email first: open the link we sent you.',
+        'User already registered': 'An account with this email already exists. Sign in instead.',
+      }
+      const err = new Error(map[raw] || raw)
+      err.code = j.error_code || j.code || String(res.status)
+      throw err
+    }
+    return j
+  }
+
+  /** A valid access token, refreshing it when it is about to expire. */
+  async function accessToken() {
+    if (session && session.expires - Date.now() > 60000) return session.access
+    const rt = refreshToken()
+    if (!rt) return ''
+    try {
+      saveSession(await authCall('/token?grant_type=refresh_token', { refresh_token: rt }))
+      return session.access
+    } catch (e) {
+      if (e.code !== 'offline') clear()
+      throw e
+    }
+  }
+
   async function call(path, { method, json, raw, timeout = 30000 } = {}) {
-    const headers = { 'X-Orbi-Device': `Orbi desktop ${appVersion} (${process.platform})` }
-    const t = token()
+    const headers = { apikey: backend().key, 'X-Orbi-Device': `Orbi desktop ${appVersion} (${process.platform})` }
+    const t = await accessToken().catch(() => '')
     if (t) headers.Authorization = `Bearer ${t}`
     if (json !== undefined) headers['Content-Type'] = 'application/json'
     let res
     try {
-      res = await fetch(url() + path, { method: method || (json !== undefined ? 'POST' : 'GET'), headers, body: json !== undefined ? JSON.stringify(json) : undefined, signal: AbortSignal.timeout(timeout) })
-    } catch (e) {
-      const err = new Error(`Orbi Cloud is not reachable at ${url()}. Is the server running?`)
+      res = await fetch(fnUrl() + path, { method: method || (json !== undefined ? 'POST' : 'GET'), headers, body: json !== undefined ? JSON.stringify(json) : undefined, signal: AbortSignal.timeout(timeout) })
+    } catch {
+      const err = new Error('Orbi Cloud is not reachable. Check your internet connection.')
       err.code = 'offline'
       throw err
     }
-    if (raw) {
-      if (!res.ok) await fail(res)
-      return res
-    }
+    if (raw && res.ok) return res
     const text = await res.text()
     let body = {}
     try {
@@ -32,84 +97,63 @@ function create({ getSetting, setSetting, encrypt, decrypt, appVersion }) {
       body = { error: { message: text } }
     }
     if (!res.ok) {
-      const err = new Error(body.error?.message || `Orbi Cloud error ${res.status}`)
+      const err = new Error(body.error?.message || body.message || `Orbi Cloud error ${res.status}`)
       err.code = body.error?.code || String(res.status)
-      if (res.status === 401) {
-        setSetting('cloudToken', '')
-        lastMe = null
-      }
+      if (res.status === 401 && err.code === 'signed_out') clear()
       throw err
     }
     return body
   }
-  async function fail(res) {
-    const text = await res.text().catch(() => '')
-    let msg = text
-    let code = String(res.status)
-    try {
-      const j = JSON.parse(text)
-      msg = j.error?.message || msg
-      code = j.error?.code || code
-    } catch {
-      /* text */
-    }
-    const err = new Error(msg || `Orbi Cloud error ${res.status}`)
-    err.code = code
-    throw err
-  }
 
-  const signedIn = () => !!token()
+  const signedIn = () => !!refreshToken()
 
   return {
-    url,
-    token,
     signedIn,
     call,
-    /** OpenAI-compatible provider settings used by the chat code. */
-    providerConfig: () => ({ enabled: signedIn(), baseUrl: `${url()}/v1`, apiKey: token() }),
+    accessToken,
+    /** OpenAI-compatible provider settings used by the chat code (needs a fresh token). */
+    async providerConfig() {
+      const t = await accessToken().catch(() => '')
+      return { enabled: !!t, baseUrl: `${fnUrl()}/v1`, apiKey: t, extraHeaders: { apikey: backend().key } }
+    },
+    providerConfigSync: () => ({ enabled: signedIn(), baseUrl: `${fnUrl()}/v1`, apiKey: session?.access || '', extraHeaders: { apikey: backend().key } }),
 
     async state() {
-      const base = { url: url(), signedIn: signedIn(), user: null, payments: false, error: null, code: null }
+      const base = { url: backend().url, signedIn: signedIn(), user: null, payments: false, error: null, code: null }
       if (!signedIn()) {
         try {
-          const h = await call('/health', { timeout: 4000 })
+          const h = await call('/health', { timeout: 8000 })
           return { ...base, online: true, configured: !!h.openrouter, payments: !!h.payments }
         } catch (e) {
-          return { ...base, online: false, error: e.message, code: e.code }
+          return { ...base, online: e.code !== 'offline', error: e.message, code: e.code }
         }
       }
       try {
-        const r = await call('/me', { timeout: 8000 })
+        const r = await call('/me', { timeout: 12000 })
         lastMe = r.user
         return { ...base, online: true, user: r.user, payments: !!r.payments }
       } catch (e) {
         return { ...base, signedIn: signedIn(), online: e.code !== 'offline', user: lastMe, error: e.message, code: e.code }
       }
     },
-    setUrl(u) {
-      setSetting('cloudUrl', String(u || DEFAULT_URL).trim() || DEFAULT_URL)
-      return url()
-    },
-    async signup(p) {
-      const r = await call('/auth/signup', { json: p })
-      setSetting('cloudToken', encrypt(r.token))
-      lastMe = r.user
-      return r.user
-    },
-    async login(p) {
-      const r = await call('/auth/login', { json: p })
-      setSetting('cloudToken', encrypt(r.token))
-      lastMe = r.user
-      return r.user
-    },
-    async logout() {
-      try {
-        await call('/auth/logout', { json: {} })
-      } catch {
-        /* offline is fine */
+    async signup({ email, password, name }) {
+      const r = await authCall(`/signup?redirect_to=${encodeURIComponent(`${fnUrl()}/auth/done`)}`, { email, password, data: { name: name || '' } })
+      // With email confirmation on, there is no session until the link is opened.
+      if (r.access_token) {
+        saveSession(r)
+        return { confirm: false }
       }
-      setSetting('cloudToken', '')
-      lastMe = null
+      return { confirm: true, email }
+    },
+    async login({ email, password }) {
+      saveSession(await authCall('/token?grant_type=password', { email, password }))
+      return true
+    },
+    resend: (email) => authCall('/resend', { type: 'signup', email }),
+    async logout() {
+      const t = session?.access
+      clear()
+      if (t) await authCall('/logout', {}, t).catch(() => {})
       return true
     },
     plans: () => call('/billing/plans'),
@@ -117,6 +161,8 @@ function create({ getSetting, setSetting, encrypt, decrypt, appVersion }) {
     catalog: () => call('/v1/catalog'),
     checkout: (item) => call('/billing/checkout', { json: { item } }),
     portal: () => call('/billing/portal', { json: {} }),
+    grant: (p) => call('/admin/grant', { json: p }),
+    stats: () => call('/admin/stats'),
 
     async image({ model, prompt, aspect, resolution, refImages }) {
       const body = { model, prompt, aspect_ratio: aspect || undefined, resolution: resolution || undefined }
@@ -167,4 +213,4 @@ function create({ getSetting, setSetting, encrypt, decrypt, appVersion }) {
   }
 }
 
-module.exports = { create, DEFAULT_URL }
+module.exports = { create, SUPABASE_URL }

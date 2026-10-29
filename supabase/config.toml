@@ -1,0 +1,6 @@
+# Supabase project settings used by the CLI (supabase link / functions deploy).
+project_id = "orbi"
+
+[functions.orbi]
+# The function checks the user's session itself (and Stripe calls it without one).
+verify_jwt = false

@@ -64,7 +64,7 @@ function decrypt(s) {
 let cloud = null
 const cloudApi = () => (cloud ||= cloudClient.create({ getSetting, setSetting, encrypt, decrypt, appVersion: app.getVersion() }))
 function providerConfig(id) {
-  if (id === 'orbicloud') return cloudApi().providerConfig()
+  if (id === 'orbicloud') return cloudApi().providerConfigSync()
   if (id === 'orbi') {
     const st = localAI.status()
     return { enabled: st.engineInstalled && st.models.some((m) => m.installed), baseUrl: st.running ? `http://127.0.0.1:${st.running.port}/v1` : '', apiKey: '' }
@@ -153,7 +153,7 @@ const api = {
     const errors = []
     await Promise.all(
       ai.PROVIDERS.filter((p) => !CLOUD_ONLY || p.id === 'orbicloud').map(async (p) => {
-        const c = providerConfig(p.id)
+        const c = p.id === 'orbicloud' ? await cloudApi().providerConfig() : providerConfig(p.id)
         if (!c.enabled) return
         try {
           const models = p.id === 'orbi' ? localAI.installedModels('text') : await ai.listModels(p.id, c)
@@ -429,7 +429,9 @@ const api = {
   // ---------- web search ----------
   // ---------- Orbi Cloud account ----------
   'cloud:state': () => cloudApi().state(),
-  'cloud:setUrl': (u) => cloudApi().setUrl(u),
+  'cloud:resend': (email) => cloudApi().resend(email),
+  'cloud:grant': (p) => cloudApi().grant(p),
+  'cloud:stats': () => cloudApi().stats(),
   'cloud:signup': (p) => cloudApi().signup(p),
   'cloud:login': (p) => cloudApi().login(p),
   'cloud:logout': () => cloudApi().logout(),
@@ -867,6 +869,7 @@ function aspectOf(w, h) {
 }
 
 async function configFor(providerId, model) {
+  if (providerId === 'orbicloud') return cloudApi().providerConfig()
   if (providerId === 'orbi') {
     const srv = await localAI.ensureRunning(model)
     return { enabled: true, apiKey: '', baseUrl: `http://127.0.0.1:${srv.port}/v1` }

@@ -1,4 +1,12 @@
-## Orbi 0.1.28-8 — Orbi Cloud
+## Orbi 0.1.28-9 — Orbi Cloud no Supabase
+
+- **Não precisa mais rodar servidor no seu PC.** A conta, os créditos e o acesso à IA agora ficam no Supabase. É só instalar o Orbi e entrar.
+- **Login pelo Supabase:** crie a conta com e-mail e senha e confirme pelo link que chega no e-mail. Se o e-mail não chegar, o app tem o botão "Enviar o link de novo".
+- **Administração:** as contas de administrador veem, em Conta e créditos, o total de contas, de assinantes e o gasto de IA dos últimos 30 dias, e podem dar créditos para qualquer conta.
+- **Segurança:** a chave do OpenRouter fica guardada como segredo no Supabase e nunca vai para o app. Cada usuário só enxerga os próprios dados (RLS), e só o servidor mexe em créditos.
+- O servidor local (`cloud/`) foi removido; o código agora está em `supabase/`.
+
+## Orbi 0.1.28-8 — Orbi Cloud (previous)
 
 **Orbi agora roda com uma conta Orbi e os principais modelos de mercado (via OpenRouter).**
 - **Conta Orbi:** crie sua conta ou entre ao abrir o app. Contas novas ganham créditos para testar.

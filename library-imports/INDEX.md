@@ -73,3 +73,13 @@ Business change requested on 2026-10-28: no free/local models, no user API keys,
 - [ ] Email verification, password reset, rate limits per plan.
 - [ ] Remove local engine code for good (with the Tauri migration).
 - [ ] Next phases: SQLite native in the app, Tauri 2 + Rust backend, website and mobile app on the same Orbi Cloud.
+
+## Next update — notes from Daniel (2026-10-28)
+- [ ] Installer shows `LICENSE.electron.txt` and `LICENSES.chromium.html` in the install folder (`%LOCALAPPDATA%\Programs\Orbi`). They are the Electron/Chromium licenses that must ship with the app; look at moving them into a `licenses/` subfolder (afterPack hook) or showing them in About instead. Goes away with the Tauri migration.
+
+## Orbi Cloud moved to Supabase (0.1.28-9)
+- [x] Project `jtdkbtszyrqogmvznrig`: migration `orbi_cloud` applied (profiles, ledger, video_jobs, stripe_events, RLS, credit functions, signup trigger with 300 welcome credits).
+- [x] Edge Function `orbi` deployed (verify_jwt off; checks the session itself). Code in `supabase/functions/orbi`.
+- [x] App signs in with Supabase Auth (email + password, email confirmation, resend) and calls the function; admin box for ADMIN_EMAILS.
+- [ ] Secrets to set by Daniel: OPENROUTER_API_KEY, ADMIN_EMAILS (Stripe later).
+- [ ] Auth Site URL → `.../functions/v1/orbi/auth/done`; custom SMTP before launch; password reset page; Google sign-in.

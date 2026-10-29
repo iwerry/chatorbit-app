@@ -5188,3 +5188,42 @@ form.composer {
   z-index: 390;
   padding-top: calc(var(--tb-h, 34px) + 32px);
 }
+.acct-link {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--neo-accent-ink, var(--neo-accent));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.acct-link:disabled {
+  color: var(--neo-faint);
+  text-decoration: none;
+}
+.acct-admin {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  border: 1px dashed color-mix(in srgb, var(--neo-accent) 45%, transparent);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.acct-admin-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.acct-admin-form input {
+  height: 34px;
+  min-width: 0;
+  flex: 1 1 160px;
+  border: 1px solid var(--neo-line);
+  border-radius: 10px;
+  background: var(--neo-surface-solid);
+  padding: 0 10px;
+  font-size: 12.5px;
+  color: var(--neo-text);
+}
+.acct-admin-form input[type='number'] {
+  flex: 0 1 110px;
+}
