@@ -1,7 +1,7 @@
 # Orbi: continuar daqui
 
 Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trabalho sem perder contexto.
-Última versão publicada: **0.1.29-3** (GitHub Releases, `iwerry/chatorbit-app`).
+Última versão publicada: **0.1.29-4** (GitHub Releases, `iwerry/chatorbit-app`).
 
 ## Regras do projeto
 
@@ -33,6 +33,10 @@ Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trab
 | `RELEASE_NOTES.md` | O que mudou em cada versão |
 
 ## 29/10: o que mudou
+
+- **0.1.29-4 (atualização rápida):** o painel de trabalho não abre mais sozinho. Puxadores "=" (terminal, embaixo) e "||" (painel, à direita).
+- **Conta draftcs21@gmail.com:** plano Studio ativo até 2036, com 45.000 créditos, liberado via SQL (equipe, sem Stripe).
+- **Segredos:** o conector do Supabase não salva segredos ("Storing keys is paused"). Use o painel: Edge Functions › Secrets.
 
 - **0.1.29-3 (atualização rápida):** modelos populares primeiro.
   - Na função `orbi` (versão 2 no Supabase): `featured` no catálogo e ordem por empresa.

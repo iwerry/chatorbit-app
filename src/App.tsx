@@ -612,6 +612,56 @@ export default function App() {
     window.addEventListener('pointerup', stop)
   }
 
+  // Grips: "=" at the bottom pulls the terminal up; "||" on the right pulls the workspace panel out.
+  // A click opens it too.
+  const startTermGrip = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    const startY = event.clientY
+    let dragged = false
+    const move = (ev: PointerEvent) => {
+      const up = startY - ev.clientY
+      if (!dragged && up < 8) return
+      if (!dragged) {
+        dragged = true
+        setTermMax(false)
+        openTerminal()
+      }
+      setTermHeight(Math.min(window.innerHeight - 160, Math.max(140, window.innerHeight - ev.clientY)))
+    }
+    const stop = () => {
+      document.body.classList.remove('panel-is-resizing')
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+      if (!dragged) openTerminal()
+    }
+    document.body.classList.add('panel-is-resizing')
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+  }
+  const startWorkspaceGrip = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault()
+    const startX = event.clientX
+    let dragged = false
+    const move = (ev: PointerEvent) => {
+      const left = startX - ev.clientX
+      if (!dragged && left < 8) return
+      if (!dragged) {
+        dragged = true
+        setContextOpen(true)
+      }
+      setRightPanelWidth(Math.min(420, Math.max(260, window.innerWidth - ev.clientX)))
+    }
+    const stop = () => {
+      document.body.classList.remove('panel-is-resizing')
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', stop)
+      if (!dragged) setContextOpen(true)
+    }
+    document.body.classList.add('panel-is-resizing')
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', stop)
+  }
+
   const systemPrompt = (target?: ModelInfo) => {
     // Tiny local models have small context windows and get confused by long instructions.
     if (target?.provider === 'orbi') {
@@ -826,7 +876,7 @@ export default function App() {
       setAttachments([])
       if (convId) await api.addMessage({ ...userMsg, attachments })
     }
-    if (!temporaryChat) setContextOpen(true)
+    // The workspace panel opens only when the person opens it (button, grip on the right or Ctrl+Alt+B).
 
     const team = !regenerate ? teams.find((x) => content.split(/\s+/).includes(x.handle) || activeAgents.includes(x.handle)) : undefined
     if (team) {
@@ -1148,7 +1198,6 @@ export default function App() {
     setConversationId(id)
     const msgs = await api.messages(id)
     setMessages(msgs)
-    setContextOpen(true)
     if (window.innerWidth < 1024) setPanelOpen(false)
     requestAnimationFrame(() => scrollRef.current && (scrollRef.current.scrollTop = scrollRef.current.scrollHeight))
   }
@@ -2718,6 +2767,18 @@ export default function App() {
       )}
     </div>
     </div>
+    {!termOpen && !(CLOUD_ONLY && cloud.state && !cloud.state.signedIn) && (
+      <button className="grip grip-term" onPointerDown={startTermGrip} title={t('Pull up to open the terminal (Ctrl+`)')} aria-label={t('Open the terminal')}>
+        <i />
+        <i />
+      </button>
+    )}
+    {!isPage(activeNav) && messages.length > 0 && !temporaryChat && !contextOpen && (
+      <button className="grip grip-workspace" onPointerDown={startWorkspaceGrip} title={t('Pull to open the workspace panel (Ctrl+Alt+B)')} aria-label={t('Open the workspace panel')}>
+        <i />
+        <i />
+      </button>
+    )}
     {termMounted && (
       <div className="term-dock" style={{ display: termOpen ? 'block' : 'none' }}>
         <Suspense fallback={null}>

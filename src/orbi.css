@@ -2117,3 +2117,56 @@ html[data-theme='terminal'] .ab-create {
 .media-file {
   color: var(--neo-muted);
 }
+
+/* Grips: "=" at the bottom pulls the terminal up, "||" on the right pulls the workspace panel out. */
+.grip {
+  position: fixed;
+  z-index: 290;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tb-muted);
+  opacity: 0.55;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  touch-action: none;
+}
+.grip i {
+  display: block;
+  border-radius: 2px;
+  background: currentColor;
+}
+.grip:hover,
+.grip:focus-visible {
+  opacity: 1;
+  background: var(--tb-hover);
+  color: var(--tb-fg);
+}
+.grip-term {
+  bottom: 2px;
+  left: 50%;
+  width: 56px;
+  height: 14px;
+  flex-direction: column;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+.grip-term i {
+  width: 22px;
+  height: 2px;
+}
+.grip-workspace {
+  top: calc(var(--tb-h) + (var(--app-h) / 2) - 28px);
+  right: 2px;
+  width: 14px;
+  height: 56px;
+  flex-direction: row;
+  cursor: ew-resize;
+}
+.grip-workspace i {
+  width: 2px;
+  height: 22px;
+}

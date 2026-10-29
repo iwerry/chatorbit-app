@@ -1,4 +1,11 @@
-## Orbi 0.1.29-3 (atualização rápida, sem reiniciar)
+## Orbi 0.1.29-4 (atualização rápida, sem reiniciar)
+
+- O painel de trabalho (à direita) não abre mais sozinho quando você manda uma mensagem ou abre uma conversa.
+- **Puxadores:**
+  - O **=** no centro, embaixo, abre o terminal: puxe para cima até a altura que quiser ou só clique.
+  - O **||** na borda direita do chat abre o painel de trabalho: puxe para a esquerda ou clique.
+
+## Orbi 0.1.29-3 (previous)
 
 - **Modelos populares primeiro:** o seletor do chat abre com ChatGPT, Claude, Gemini, DeepSeek, Kimi, Grok, Qwen e outros. Depois vem a lista completa, separada por empresa.
 - **Imagem e vídeo:** os modelos mais conhecidos aparecem primeiro no Creative.

@@ -1,6 +1,10 @@
 // UI translations. English is the key; each row is [en, pt-BR, es, fr].
 // Missing keys fall back to English, so new strings never break the UI.
 const ROWS: [string, string, string, string][] = [
+  ["Pull up to open the terminal (Ctrl+`)", "Puxe para cima para abrir o terminal (Ctrl+`)", "Tira hacia arriba para abrir la terminal (Ctrl+`)", "Tirez vers le haut pour ouvrir le terminal (Ctrl+`)"],
+  ["Open the terminal", "Abrir o terminal", "Abrir la terminal", "Ouvrir le terminal"],
+  ["Pull to open the workspace panel (Ctrl+Alt+B)", "Puxe para abrir o painel de trabalho (Ctrl+Alt+B)", "Tira para abrir el panel de trabajo (Ctrl+Alt+B)", "Tirez pour ouvrir le panneau de travail (Ctrl+Alt+B)"],
+  ["Open the workspace panel", "Abrir o painel de trabalho", "Abrir el panel de trabajo", "Ouvrir le panneau de travail"],
   ["Popular", "Populares", "Populares", "Populaires"],
   ["The model list did not load from Orbi Cloud. Check your internet and press Refresh list.", "A lista de modelos não carregou do Orbi Cloud. Confira sua internet e clique em Atualizar lista.", "La lista de modelos no cargó desde Orbi Cloud. Revisa tu internet y pulsa Actualizar lista.", "La liste des modèles ne s’est pas chargée depuis Orbi Cloud. Vérifiez votre connexion et cliquez sur Actualiser la liste."],
   ["Sign in to your Orbi account to see the models.", "Entre na sua conta Orbi para ver os modelos.", "Inicia sesión en tu cuenta Orbi para ver los modelos.", "Connectez-vous à votre compte Orbi pour voir les modèles."],
