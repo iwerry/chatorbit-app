@@ -18,6 +18,7 @@ try {
 import './figma.css'
 import './orbi.css'
 import './studio.css'
+import './workspace.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

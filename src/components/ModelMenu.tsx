@@ -33,6 +33,15 @@ export function usePriceText() {
 export function ModelMenu({ items, value, onPick, icon, empty }: { items: MenuItem[]; value?: string; onPick: (key: string) => void; icon?: ReactNode; empty?: string }) {
   const [q, setQ] = useState('')
   const price = usePriceText()
+  const [tipIndex, setTipIndex] = useState(0)
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const timer = setInterval(() => setTipIndex((i) => i + 1), 7000)
+    return () => clearInterval(timer)
+  }, [])
+  const lowest = useMemo(() => [...items].filter((m) => m.usd !== undefined && Number.isFinite(m.usd)).sort((a, b) => (a.usd! + (a.usdOut ?? 0)) - (b.usd! + (b.usdOut ?? 0)))[0], [items])
+  const quick = items.find((m) => /flash|lite|mini|turbo|haiku|instant|klein/i.test(`${m.key} ${m.name}`))
+  const tip = tipIndex % 2 && quick ? { model: quick, text: t('For quick drafts'), note: t('Suggested by model family; speed varies.') } : lowest ? { model: lowest, text: t('Lowest listed price'), note: lowest.unit ? price(lowest.usd, lowest.unit, lowest.usdOut) || t('Free') : '' } : null
   const tags = useMemo(() => modelTags(items.map((m) => ({ id: m.key, name: m.name, featured: m.featured, cost: m.usd !== undefined ? m.usd + (m.usdOut ?? 0) * 3 : undefined }))), [items])
   const shown = items.filter((m) => `${m.name} ${m.sub || ''} ${m.group}`.toLowerCase().includes(q.toLowerCase()))
   // "Popular" first, then companies in the order they arrive.
@@ -47,6 +56,9 @@ export function ModelMenu({ items, value, onPick, icon, empty }: { items: MenuIt
         <Search size={14} />
         <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Search {n} models', { n: items.length })} />
       </label>
+      {!q && tip && <button type="button" className="mm-advice" onClick={() => onPick(tip.model.key)} title={tip.note}>
+        <span key={`${tip.text}-${tip.model.key}`}><small>{tip.text}</small><strong>{tip.model.name}</strong><small>{tip.note}</small></span>
+      </button>}
       <div className="mm-list">
         {groups.map((g) => (
           <div key={g}>
@@ -98,10 +110,10 @@ export function ModelSelect({ items, value, onPick, icon, className = '', placeh
   const place = () => {
     const r = btn.current?.getBoundingClientRect()
     if (!r) return
-    const width = Math.min(420, Math.max(320, r.width))
+    const width = Math.min(440, Math.max(320, r.width), window.innerWidth - 24)
     const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8))
-    const below = window.innerHeight - r.bottom - 12
-    const above = r.top - 12
+    const below = Math.max(0, window.innerHeight - r.bottom - 20)
+    const above = Math.max(0, r.top - 20)
     if (below >= 320 || below >= above) setPos({ left, top: r.bottom + 6, width, maxH: Math.min(520, below) })
     else setPos({ left, bottom: window.innerHeight - r.top + 6, width, maxH: Math.min(520, above) })
   }
@@ -118,10 +130,13 @@ export function ModelSelect({ items, value, onPick, icon, className = '', placeh
     window.addEventListener('mousedown', down, true)
     window.addEventListener('keydown', key)
     window.addEventListener('resize', place)
+    const scroll = (e: Event) => { if (!panel.current?.contains(e.target as Node)) place() }
+    window.addEventListener('scroll', scroll, true)
     return () => {
       window.removeEventListener('mousedown', down, true)
       window.removeEventListener('keydown', key)
       window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', scroll, true)
     }
   }, [open])
   const p = current?.unit ? price(current.usd, current.unit, current.usdOut) : ''
@@ -136,7 +151,7 @@ export function ModelSelect({ items, value, onPick, icon, className = '', placeh
       {open &&
         pos &&
         createPortal(
-          <div ref={panel} className="mm-float" style={{ left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxH }} onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
+          <div ref={panel} className="mm-float" style={{ left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxH, height: pos.maxH }} onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
             <ModelMenu
               items={items}
               value={current?.key}

@@ -2,7 +2,8 @@
 // and every node really runs (text AI, image and video generation, voiceover, save to board).
 import { CLOUD_ONLY, nearestDuration, nearestRes, refreshCloud, useCloud, vendorLabel } from '../lib/cloud'
 import { aspectInfo, aspectsFor, nearestAspect, ratio, type CreativeOption } from '../lib/creative'
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type PointerEvent as RPointerEvent } from 'react'
+import { WorkflowTabs } from './WorkflowTabs'
 import {
   AudioLines,
   Ban,
@@ -283,7 +284,11 @@ const TEMPLATES = [
   { id: 'campaign', label: 'Campaign: image, video and voiceover' },
 ]
 
-export function NodeFlow({
+export function NodeFlow(props: Omit<ComponentProps<typeof WorkflowEditor>, 'storageKey' | 'onBusyChange'>) {
+  return <WorkflowTabs Editor={WorkflowEditor} editorProps={props} />
+}
+
+function WorkflowEditor({
   models,
   localStatus,
   onMediaCreated,
@@ -291,6 +296,8 @@ export function NodeFlow({
   visible = true,
   pendingTemplate,
   onTemplateLoaded,
+  storageKey = 'flow',
+  onBusyChange,
 }: {
   models: ModelInfo[]
   localStatus: LocalStatus | null
@@ -299,16 +306,25 @@ export function NodeFlow({
   visible?: boolean
   pendingTemplate?: { id: string; prompt: string; negative?: string } | null
   onTemplateLoaded?: () => void
+  storageKey?: string
+  onBusyChange?: (key: string, busy: boolean) => void
 }) {
   const [nodes, setNodes] = useState<FNode[]>([])
   const [edges, setEdges] = useState<FEdge[]>([])
   const [loaded, setLoaded] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
   const [view, setView] = useState({ x: 0, y: 0, z: 0.9 })
+  const savedRef = useRef({ nodes, edges, view, loaded })
+  savedRef.current = { nodes, edges, view, loaded }
+  useEffect(() => () => {
+    const snapshot = savedRef.current
+    if (snapshot.loaded) api.saveWorkflow(storageKey, 'Workflow', { nodes: snapshot.nodes.map((n) => ({ ...n, progress: undefined })), edges: snapshot.edges, view: snapshot.view }).catch(console.error)
+  }, [storageKey])
   const [wire, setWire] = useState<null | { from: string; fromPort: string; type: PortType; x: number; y: number }>(null)
   const [quickAdd, setQuickAdd] = useState<null | { sx: number; sy: number; wx: number; wy: number; q: string }>(null)
   const [libOpen, setLibOpen] = useState(false)
   const [running, setRunning] = useState(false)
+  useEffect(() => { onBusyChange?.(storageKey, running) }, [running, onBusyChange, storageKey])
   const [toast, setToast] = useState<string | null>(null)
   const [media, setMedia] = useState<MediaItem[]>([])
   const [boards, setBoards] = useState<Board[]>([])
@@ -371,7 +387,7 @@ export function NodeFlow({
 
   // load / save
   useEffect(() => {
-    api.getWorkflow('flow').then((w) => {
+    api.getWorkflow(storageKey).then((w) => {
       const saved = w as null | { nodes?: FNode[]; edges?: FEdge[]; view?: typeof view }
       if (saved?.nodes?.length) {
         setNodes(saved.nodes.map((n) => ({ ...n, status: n.status === 'running' ? 'idle' : n.status, progress: undefined })))
@@ -389,9 +405,9 @@ export function NodeFlow({
   }, [])
   useEffect(() => {
     if (!loaded) return
-    const tm = setTimeout(() => api.saveWorkflow('flow', 'Workflow', { nodes: nodes.map((n) => ({ ...n, progress: undefined })), edges, view }), 600)
+    const tm = setTimeout(() => api.saveWorkflow(storageKey, 'Workflow', { nodes: nodes.map((n) => ({ ...n, progress: undefined })), edges, view }), 600)
     return () => clearTimeout(tm)
-  }, [nodes, edges, view, loaded])
+  }, [nodes, edges, view, loaded, storageKey])
   useEffect(() => {
     if (!toast) return
     const tm = setTimeout(() => setToast(null), 4200)
@@ -452,6 +468,7 @@ export function NodeFlow({
     setSelected(c.id)
   }
   const loadTemplate = (id: string, prompt?: string, negative?: string) => {
+    if (running) { setToast(t('Stop this workflow before replacing its nodes.')); return false }
     if (nodesRef.current.length > 1 && !confirm(t('Replace the current workflow with this template?'))) return false
     const tpl = template(id)
     if (prompt) {
@@ -511,6 +528,7 @@ export function NodeFlow({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (!visible) return
       if ((e.target as HTMLElement).closest('textarea, input, select')) return
       if (!stageRef.current?.isConnected) return
       if ((e.key === 'Delete' || e.key === 'Backspace') && selected) removeNode(selected)
@@ -525,10 +543,11 @@ export function NodeFlow({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [selected])
+  }, [selected, visible])
 
   // ---------- pointer: pan, zoom, drag, wires ----------
   const onStageDown = (e: RPointerEvent<HTMLDivElement>) => {
+    if (e.button === 2) return
     if (e.target !== e.currentTarget && !(e.target as HTMLElement).classList.contains('flow-world')) return
     setSelected(null)
     setQuickAdd(null)
@@ -970,7 +989,7 @@ export function NodeFlow({
         </button>
         <label className="flow-select">
           <LayoutTemplate size={13} />
-          <select value="" onChange={(e) => e.target.value && loadTemplate(e.target.value)} aria-label={t('Templates')}>
+          <select value="" disabled={running} onChange={(e) => e.target.value && loadTemplate(e.target.value)} aria-label={t('Templates')}>
             <option value="">{t('Templates…')}</option>
             {TEMPLATES.map((tp) => (
               <option key={tp.id} value={tp.id}>
@@ -979,7 +998,7 @@ export function NodeFlow({
             ))}
           </select>
         </label>
-        <button className="orbi-btn" onClick={() => fileRef.current?.click()} title={t('Open an Orbi or ComfyUI workflow (.json)')}>
+        <button className="orbi-btn" disabled={running} onClick={() => fileRef.current?.click()} title={t('Open an Orbi or ComfyUI workflow (.json)')}>
           <FileUp size={13} /> {t('Import')}
         </button>
         <button className="orbi-btn" onClick={exportFile} title={t('Save this workflow as .json')}>
@@ -1016,11 +1035,18 @@ export function NodeFlow({
         ref={stageRef}
         onPointerDown={onStageDown}
         onWheel={onWheel}
+        onContextMenu={(e) => {
+          if ((e.target as HTMLElement).closest('input, textarea, select')) return
+          e.preventDefault()
+          const r = e.currentTarget.getBoundingClientRect()
+          const w = toWorld(e.clientX, e.clientY)
+          setQuickAdd({ sx: Math.max(8, Math.min(e.clientX - r.left, r.width - 296)), sy: Math.max(8, Math.min(e.clientY - r.top, r.height - 340)), wx: w.x, wy: w.y, q: '' })
+        }}
         onDoubleClick={(e) => {
           if (e.target !== e.currentTarget && !(e.target as HTMLElement).classList.contains('flow-world')) return
           const r = stageRef.current!.getBoundingClientRect()
           const w = toWorld(e.clientX, e.clientY)
-          setQuickAdd({ sx: e.clientX - r.left, sy: e.clientY - r.top, wx: w.x, wy: w.y, q: '' })
+          setQuickAdd({ sx: Math.max(8, Math.min(e.clientX - r.left, r.width - 296)), sy: Math.max(8, Math.min(e.clientY - r.top, r.height - 340)), wx: w.x, wy: w.y, q: '' })
         }}
         style={{ backgroundPosition: `${view.x}px ${view.y}px`, backgroundSize: `${22 * view.z}px ${22 * view.z}px` }}
       >

@@ -93,6 +93,9 @@ import { loadAudioPrefs, routeAudio } from './lib/audioDevices'
 import { creativeBus, decodeChatMedia, encodeChatMedia, type ChatMediaMeta } from './lib/creativeBus'
 import { creativeOptions, resolutionsFor } from './lib/creative'
 import { CLOUD_ONLY, fmtCredits, modelTags, priceLabel, refreshCloud, useCloud, vendorLabel } from './lib/cloud'
+import { ModelMenu } from './components/ModelMenu'
+import { ContextIdeas } from './components/ContextIdeas'
+import { chatItems, creativeItems } from './lib/menuItems'
 import { AccountGate } from './components/AccountPanel'
 import { enhancePrompt } from './lib/promptTools'
 import { DEFAULT_NEGATIVE, IDEAS } from './lib/ideas'
@@ -1493,12 +1496,18 @@ export default function App() {
           : { show: cmdInfo.kind === 'command' ? cmdInfo.usage.replace(/^\S+\s*/, '') : `"${t('what you need')}"`, insert: '' }
       : null
   const previewInfo = suggestList.length ? infoFor(suggestList[suggestIdx % suggestList.length].label) : null
+  const pricedModels = (composeMode === 'chat' ? chatItems(chatModels, cloud.catalog) : creativeItems(creativeOpts.filter((m) => m.kind === composeMode)))
+    .filter((m) => m.usd !== undefined && Number.isFinite(m.usd))
+    .sort((a, b) => (a.usd! + (a.usdOut ?? 0)) - (b.usd! + (b.usdOut ?? 0)))
+  const lowerPrice = pricedModels[0]
+  const catalogHint = lowerPrice ? t('Lower listed price: {model} · {price}', { model: lowerPrice.name, price: priceLabel(lowerPrice.usd, composeMode === 'chat' ? 'M' : composeMode === 'video' ? 's' : 'img', !!cloud.state?.user?.admin, cloud.catalog, lowerPrice.usdOut) || t('Free') }) : ''
   const hintLines =
     composeMode !== 'chat'
       ? [t('[Enter] to generate'), t('Saved to the Media Library'), t('[Shift]+[Enter] new line')]
       : message
         ? [t('[Enter] to send · [Shift]+[Enter] new line')]
         : [t('[/] commands and skills · [@] agents'), t('[Tab] uses the example'), t('Switch to Image or Video to create here')]
+  if (catalogHint && !message) hintLines.push(catalogHint)
 
   const lastAssistantIdx = messages.map((m) => m.role).lastIndexOf('assistant')
   const conversationSources = messages.flatMap((m) => parseAttachments(m.attachments))
@@ -1663,6 +1672,7 @@ export default function App() {
             models={models}
             localStatus={localStatus}
             onOpenModels={() => setSettingsOpen(CLOUD_ONLY ? 'account' : 'models')}
+            onOpenLibrary={() => { setActiveNav('media'); setPanelOpen(false) }}
             onMediaCreated={(m) => setMedia((cur) => (cur.some((x) => x.id === m.id) ? cur : [m, ...cur]))}
           />
         </Suspense>
@@ -1727,7 +1737,7 @@ export default function App() {
         </Suspense>
       ) : (
         <>
-          <main className={`min-w-0 flex-1 transition-[margin] duration-200 ${showContext ? 'main-context-open' : ''} ${panelOpen ? 'main-panel-open' : 'main-panel-closed'}`}>
+          <main className={`min-w-0 flex-1 transition-[margin] duration-200 ${emptyLanding ? 'chat-landing' : ''} ${showContext ? 'main-context-open' : ''} ${panelOpen ? 'main-panel-open' : 'main-panel-closed'}`}>
             <header className="chat-header">
               <div className="flex min-w-0 items-center gap-3">
                 <button className="icon-button panel-mobile-toggle" onClick={() => setPanelOpen((v) => !v)} aria-label="Toggle menu">
@@ -1743,12 +1753,12 @@ export default function App() {
                     <span className="config-label">{currentModel?.name ?? (models.length ? t('Choose model') : t('Connect a model'))}</span>
                     <ChevronDown size={13} />
                   </button>
-                  <button className={`config-trigger ${headerMenu === 'skills' ? 'config-trigger-active' : ''}`} onClick={() => toggleHeaderMenu('skills')} aria-expanded={headerMenu === 'skills'}>
+                  <button className={`config-trigger ${headerMenu === 'skills' ? 'config-trigger-active' : ''}`} onClick={() => toggleHeaderMenu('skills')} aria-label={t('Skills')} title={t('Skills')} aria-expanded={headerMenu === 'skills'}>
                     <Blocks size={16} />
                     <span className="config-label">{t('Skills')}</span>
                     {activeSkills.length > 0 && <span className="config-count">{activeSkills.length}</span>}
                   </button>
-                  <button className={`config-trigger ${headerMenu === 'agents' ? 'config-trigger-active' : ''}`} onClick={() => toggleHeaderMenu('agents')} aria-expanded={headerMenu === 'agents'}>
+                  <button className={`config-trigger ${headerMenu === 'agents' ? 'config-trigger-active' : ''}`} onClick={() => toggleHeaderMenu('agents')} aria-label={t('Agents')} title={t('Agents')} aria-expanded={headerMenu === 'agents'}>
                     <Bot size={16} />
                     <span className="config-label">{t('Agents')}</span>
                     {activeAgents.length > 0 && <span className="config-count">{activeAgents.length}</span>}
@@ -1777,62 +1787,8 @@ export default function App() {
                               </div>
                               <Cpu size={17} />
                             </div>
-                            {chatModels.length > 0 && (
-                              <label className="sidebar-search popover-search">
-                                <Search size={14} />
-                                <input autoFocus value={modelSearch} onChange={(e) => setModelSearch(e.target.value)} placeholder={t('Search {n} models', { n: chatModels.length })} />
-                              </label>
-                            )}
-                            <div className="config-options popover-scroll">
-                              {groupedModels.map(([provider, list]) => (
-                                <div key={provider}>
-                                  <p className="config-list-label">{provider}</p>
-                                  {list.slice(0, modelSearch ? 200 : 60).map((model) => (
-                                    <button
-                                      className="config-option"
-                                      key={`${provider}:${model.key}`}
-                                      onClick={() => {
-                                        setSelectedModel(model.key)
-                                        setHeaderMenu(null)
-                                      }}
-                                    >
-                                      <span className={`model-radio ${selectedModel === model.key ? 'model-radio-active' : ''}`} />
-                                      <span className="min-w-0 flex-1 text-left">
-                                        <strong className="block truncate">{model.name}</strong>
-                                        <small className="block truncate">{CLOUD_ONLY ? model.id : `${model.id} · ${model.mode}`}</small>
-                                      </span>
-                                      {CLOUD_ONLY && chatMeta.get(model.id) && (
-                                        <span className="model-meta">
-                                          <span className="model-tags">
-                                            {chatMeta.get(model.id)!.tags.map((tg) => (
-                                              <em key={tg} className={`model-tag model-tag-${tg.toLowerCase()}`}>
-                                                {t(tg)}
-                                              </em>
-                                            ))}
-                                          </span>
-                                          {chatMeta.get(model.id)!.price && <small className="num">{chatMeta.get(model.id)!.price}</small>}
-                                        </span>
-                                      )}
-                                      {selectedModel === model.key && <Check size={14} />}
-                                    </button>
-                                  ))}
-                                </div>
-                              ))}
-                              {!modelsLoading && chatModels.length === 0 && (
-                                <p className="popover-empty">
-                                  {CLOUD_ONLY
-                                    ? cloud.state?.user
-                                      ? t('The model list did not load from Orbi Cloud. Check your internet and press Refresh list.')
-                                      : t('Sign in to your Orbi account to see the models.')
-                                    : t('No models yet. Connect a provider — OpenRouter gives you hundreds of models with one key — or download a local model.')}
-                                </p>
-                              )}
-                              {modelErrors.map((e) => (
-                                <p key={e.provider} className="popover-error">
-                                  {e.provider}: {e.message.slice(0, 140)}
-                                </p>
-                              ))}
-                            </div>
+                            <ModelMenu items={chatItems(chatModels, cloud.catalog)} value={selectedModel} onPick={(key) => { setSelectedModel(key); setHeaderMenu(null) }} />
+                            {modelErrors.map((e) => <p key={e.provider} className="popover-error">{e.provider}: {e.message.slice(0, 140)}</p>)}
                             <div className="config-connect-actions">
                               {CLOUD_ONLY ? (
                                 <button
@@ -2064,7 +2020,7 @@ export default function App() {
                         <OrbiMark width={26} height={26} />
                       </div>
                       <h2>{themeMode === 'terminal' ? t('System ready, {name}.', { name: userName }) : `${t(greeting())}, ${userName}.`}</h2>
-                      <p>{themeMode === 'terminal' ? t('Initialize a multimodal workflow.') : t('Chat, search the web, and direct images and video — on your PC or in the cloud.')}</p>
+                      <p>{themeMode === 'terminal' ? t('Initialize a multimodal workflow.') : t('One workspace for your ideas. Chat, images, video and sound.')}</p>
                     </div>
                   )
                 ) : (
@@ -2497,6 +2453,7 @@ export default function App() {
                   </div>
                 )}
               </form>
+              {emptyLanding && catalogHint && <div className="composer-model-tip"><Sparkles size={13} /><RotatingHint lines={[catalogHint, t('Open the model menu to compare prices and choose.'), t('Use Image or Video to create without leaving the chat.')]} /></div>}
               {emptyLanding && !temporaryChat && !modelsLoading && models.length === 0 && (
                 CLOUD_ONLY ? (
                 <div className="connect-options connect-banner-below">
@@ -2548,15 +2505,7 @@ export default function App() {
               )}
               {emptyLanding && !temporaryChat && models.length > 0 && (
                 <div className="starter-prompts">
-                  {(() => {
-                    const a = activeAgentList()
-                    const st = a.length === 1 ? parseJSON<string[]>(a[0].starters, []).filter(Boolean) : []
-                    return st.length ? st : starterPrompts.map((x) => t(x))
-                  })().map((s) => (
-                    <button key={s} className="suggestion-chip" onClick={() => sendMessage(s)}>
-                      {s}
-                    </button>
-                  ))}
+                  <ContextIdeas topic={message || [...messages].reverse().find((m) => m.role === 'user')?.content || ''} onPick={(prompt) => { setMessage(prompt); textareaRef.current?.focus() }} />
                 </div>
               )}
               {!emptyLanding && (

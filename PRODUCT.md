@@ -69,3 +69,9 @@ Success: a professional opens Orbi instead of juggling separate chat, image, vid
 - WCAG AA contrast for text in all three themes; UI text never below 11px and sentences never below 12px.
 - Full keyboard use with visible focus; `prefers-reduced-motion` respected by every animation.
 - Four interface languages; layouts must survive longer Portuguese, Spanish and French strings.
+
+## Confirmed workflow refinements — 29 October 2026
+
+Daniel requested a focused refinement of the existing Adaptive Soft UI: readable spacing, one model-menu pattern, viewport-aware popovers, prompts that grow with their content, and compact Boards with full-screen viewing, library, download and delete actions. Contextual suggestions cover video, image and audio and respect reduced motion. Model prices use the refreshed catalog; speed suggestions must not imply measured live latency.
+
+Workflow tabs preserve separate graphs and running work. Chat, Canvas and Workflows must remain usable while other tasks run. Windows is the current test platform. Releases use GitHub Actions and the existing 0.1.DD-N version convention.

@@ -1,7 +1,22 @@
 # Orbi: continuar daqui
 
+Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
+
+Notas anteriores: [histórico da versão 0.1.27-2](docs/history/continuation-0.1.27-2.md). Esse histórico descreve uma versão antiga; para o estado atual, use as notas abaixo.
+
 Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trabalho sem perder contexto.
-Última versão publicada: **0.1.29-9** (GitHub Releases, `iwerry/chatorbit-app`).
+Versão desta revisão: **0.1.29-10** (publicação via GitHub Actions, `iwerry/chatorbit-app`).
+
+## 29/10: revisão do workspace com Codex
+
+- Impeccable: contexto inicial carregado, `init` aplicado ao registro existente em `PRODUCT.md`, preservando a identidade de `DESIGN.md`. Detector executado antes e depois; seus alertas sobre brilhos da marca não substituem a direção visual escolhida pelo Daniel.
+- `src/workspace.css`: ajustes dos três temas, espaçamento, menus e Boards. Menus do chat agora usam `ModelMenu`; popovers do composer saem do contêiner e se ajustam à janela. As proporções usam só a rolagem do painel externo.
+- `ContextIdeas.tsx`: sugestões locais de vídeo, imagem e áudio conforme o rascunho. Preços vêm do catálogo; sugestões de rapidez são por família de modelos, sem promessa de latência medida.
+- `AutoTextarea.tsx`: altura automática dos prompts do Canvas e do áudio.
+- `WorkflowTabs.tsx` e `NodeFlow.tsx`: cada aba mantém o próprio grafo e execução, salva em uma chave distinta e pode ser reaberta. O workflow antigo continua na chave `flow`. Abas em execução não podem ser fechadas. Botão direito abre a busca de nós na posição do cursor.
+- Corrigido o conflito de nomes no Windows: usar somente `continue.md`; o antigo `CONTINUE.md` está preservado integralmente em `docs/history/continuation-0.1.27-2.md`.
+- Supabase CLI autenticado e cópia local vinculada ao projeto OrbiX. Arquivos temporários do CLI estão ignorados pelo Git. Nenhuma migração ou função alterada nesta revisão.
+- Testes desta revisão: TypeScript e build de produção; navegador isolado com ponte simulada (sem gasto de créditos), menus, prompts longos, visualizador dos Boards, abas independentes, persistência e reabertura, três temas e janelas de 1366×900, 1000×700 e 800×600. Execução real dos provedores não foi usada na validação visual.
 
 ## Regras do projeto
 

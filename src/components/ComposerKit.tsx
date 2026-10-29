@@ -2,6 +2,7 @@
 // the thinking-effort slider, the microphone/speaker menu, the live recording bar,
 // the Image/Video create bar and the media card that shows renders inside the chat.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowUp,
   AudioLines,
@@ -85,7 +86,40 @@ export function PopPill({
   children: (close: () => void) => ReactNode
 }) {
   const [open, setOpen] = useState(false)
-  const ref = useDismiss(open, () => setOpen(false))
+  const ref = useRef<HTMLDivElement>(null)
+  const panel = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<React.CSSProperties>({ visibility: 'hidden' })
+  useLayoutEffect(() => {
+    if (!open) return
+    const place = () => {
+      const r = ref.current?.getBoundingClientRect()
+      if (!r) return
+      const width = Math.min(wide ? 440 : 320, window.innerWidth - 24)
+      const above = r.top - 20
+      const below = window.innerHeight - r.bottom - 20
+      const up = above > below
+      const maxHeight = Math.max(0, Math.min(480, up ? above : below))
+      setPosition({ position: 'fixed', width, minWidth: 0, left: Math.max(12, Math.min(align === 'right' ? r.right - width : r.left, window.innerWidth - width - 12)), top: up ? undefined : r.bottom + 8, bottom: up ? window.innerHeight - r.top + 8 : undefined, right: 'auto', maxHeight, height: wide ? maxHeight : undefined, zIndex: 650 })
+    }
+    place()
+    const down = (e: PointerEvent) => {
+      if (!ref.current?.contains(e.target as Node) && !panel.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); ref.current?.querySelector('button')?.focus() }
+    }
+    const scroll = (e: Event) => { if (!panel.current?.contains(e.target as Node)) place() }
+    document.addEventListener('pointerdown', down)
+    document.addEventListener('keydown', key, true)
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', scroll, true)
+    return () => {
+      document.removeEventListener('pointerdown', down)
+      document.removeEventListener('keydown', key, true)
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', scroll, true)
+    }
+  }, [open, wide, align])
   return (
     <div className={`cpill-wrap ${className}`} ref={ref}>
       <button type="button" className={`cpill ${open ? 'open' : ''} ${active ? 'on' : ''}`} onClick={() => setOpen((v) => !v)} aria-expanded={open} aria-haspopup="dialog" title={title}>
@@ -93,11 +127,11 @@ export function PopPill({
         <span className="cpill-label">{label}</span>
         <ChevronDown size={12} className="cpill-caret" />
       </button>
-      {open && (
-        <div className={`cpop ${wide ? 'cpop-wide' : ''} cpop-${align}`} role="dialog" aria-label={title}>
+      {open && createPortal(
+        <div ref={panel} style={position} className={`cpop cpop-viewport ${wide ? 'cpop-wide' : ''} cpop-${align}`} role="dialog" aria-label={title}>
           {children(() => setOpen(false))}
         </div>
-      )}
+      , document.body)}
     </div>
   )
 }
@@ -759,7 +793,7 @@ export function RotatingHint({ lines }: { lines: string[] }) {
   const key = lines.join('|')
   useEffect(() => setI(0), [key])
   useEffect(() => {
-    if (lines.length < 2) return
+    if (lines.length < 2 || reduced()) return
     const tm = setInterval(() => setI((n) => n + 1), 4200)
     return () => clearInterval(tm)
   }, [key])

@@ -7,6 +7,7 @@ import { fmtCredits, refreshCloud, useCloud } from '../lib/cloud'
 import { fmtDate, t } from '../lib/i18n'
 import { audioItems } from '../lib/menuItems'
 import { CostChip, ModelSelect, type MenuItem } from './ModelMenu'
+import { AutoTextarea } from './AutoTextarea'
 
 type Tab = 'voice' | 'music' | 'sfx'
 
@@ -109,7 +110,7 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount }: { 
           {tab === 'voice' && (
             <>
               <label className="audio-label">{t('Text to read')}</label>
-              <textarea className="studio-prompt" rows={8} value={script} onChange={(e) => setScript(e.target.value)} placeholder={t('Write the script. Tip: some voices understand directions in brackets, like [whispering] or [excited].')} />
+              <AutoTextarea className="studio-prompt" rows={8} value={script} onChange={(e) => setScript(e.target.value)} placeholder={t('Write the script. Tip: some voices understand directions in brackets, like [whispering] or [excited].')} />
               <div className="audio-ideas">
                 {VOICE_IDEAS.map((x) => (
                   <button key={x} onClick={() => setScript(x)}>
@@ -138,7 +139,7 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount }: { 
           {tab === 'music' && (
             <>
               <label className="audio-label">{t('Describe the music')}</label>
-              <textarea className="studio-prompt" rows={5} value={musicPrompt} onChange={(e) => setMusicPrompt(e.target.value)} placeholder={t('Genre, mood, instruments, tempo… e.g. calm lo-fi with soft piano, 80 bpm')} />
+              <AutoTextarea className="studio-prompt" rows={5} value={musicPrompt} onChange={(e) => setMusicPrompt(e.target.value)} placeholder={t('Genre, mood, instruments, tempo… e.g. calm lo-fi with soft piano, 80 bpm')} />
               <div className="audio-ideas">
                 {MUSIC_IDEAS.map((x) => (
                   <button key={x} onClick={() => setMusicPrompt(x)}>
@@ -152,7 +153,7 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount }: { 
               {!instrumental && (
                 <>
                   <label className="audio-label">{t('Lyrics (optional)')}</label>
-                  <textarea className="studio-prompt" rows={5} value={lyrics} onChange={(e) => setLyrics(e.target.value)} placeholder={t('Write the lyrics, or leave empty and the model writes them.')} />
+                  <AutoTextarea className="studio-prompt" rows={5} value={lyrics} onChange={(e) => setLyrics(e.target.value)} placeholder={t('Write the lyrics, or leave empty and the model writes them.')} />
                 </>
               )}
               <label className="audio-label">{t('Music model')}</label>
@@ -163,7 +164,7 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount }: { 
           {tab === 'sfx' && (
             <>
               <label className="audio-label">{t('Describe the sound')}</label>
-              <textarea className="studio-prompt" rows={5} value={sfxPrompt} onChange={(e) => setSfxPrompt(e.target.value)} placeholder={t('e.g. footsteps on gravel, slow, at night')} />
+              <AutoTextarea className="studio-prompt" rows={5} value={sfxPrompt} onChange={(e) => setSfxPrompt(e.target.value)} placeholder={t('e.g. footsteps on gravel, slow, at night')} />
               <div className="audio-ideas">
                 {SFX_IDEAS.map((x) => (
                   <button key={x} onClick={() => setSfxPrompt(x)}>

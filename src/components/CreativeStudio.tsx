@@ -42,6 +42,7 @@ import { fmtBytes, t } from '../lib/i18n'
 import { ThemeSwitcher, type ThemeMode } from './ThemeSwitcher'
 import { Lightbox } from './Lightbox'
 import { PromptTools } from './PromptTools'
+import { AutoTextarea } from './AutoTextarea'
 import { DEFAULT_NEGATIVE, IDEA_COVERS, IDEAS, IDEA_CATS, type Idea, type IdeaCat } from '../lib/ideas'
 
 const NodeFlow = lazy(() => import('./NodeFlow').then((m) => ({ default: m.NodeFlow })))
@@ -122,6 +123,7 @@ export function CreativeStudio({
   localStatus,
   onOpenModels,
   onMediaCreated,
+  onOpenLibrary,
   visible = true,
 }: {
   themeMode: ThemeMode
@@ -131,6 +133,7 @@ export function CreativeStudio({
   localStatus: LocalStatus | null
   onOpenModels: () => void
   onMediaCreated: (m: MediaItem) => void
+  onOpenLibrary: () => void
   visible?: boolean
 }) {
   const [tab, setTab] = useState<Tab>('canvas')
@@ -677,7 +680,7 @@ export function CreativeStudio({
   const coverOf = (idea: Idea) => IDEA_COVERS[idea.id] || media.find((m) => m.prompt === idea.prompt && (m.kind === 'image' || m.kind === 'video'))
 
   const Thumb = ({ m, big = false }: { m: MediaItem; big?: boolean }) => (
-    <div className={`studio-thumb ${base?.id === m.id ? 'active' : ''} ${big ? 'big' : ''}`} title={m.prompt || m.name}>
+    <div className={`studio-thumb ${base?.id === m.id ? 'active' : ''} ${big ? 'big' : ''}`}>
       {m.kind === 'video' ? (
         <video src={m.url} muted loop onMouseEnter={(e) => e.currentTarget.play()} onMouseLeave={(e) => e.currentTarget.pause()} onClick={() => (big ? openViewer(m) : (showInCanvas(m), setTab('canvas')))} onDoubleClick={() => openViewer(m)} />
       ) : (
@@ -695,6 +698,9 @@ export function CreativeStudio({
         )}
         <button title={t('View full screen')} onClick={() => openViewer(m)}>
           <Maximize size={12} />
+        </button>
+        <button title={t('Open Media Library')} aria-label={t('Open Media Library')} onClick={onOpenLibrary}>
+          <Images size={12} />
         </button>
         {m.prompt && (
           <button title={t('Use prompt')} onClick={() => usePromptOf(m)}>
@@ -943,7 +949,7 @@ export function CreativeStudio({
             </div>
             <div className="studio-scroll">
               <Section title={t('Prompt')}>
-                <textarea
+                <AutoTextarea
                   className="studio-prompt"
                   rows={5}
                   value={prompt}
@@ -964,7 +970,7 @@ export function CreativeStudio({
                 <div className="studio-prompt-label">
                   <span>{t('Negative prompt')}</span>
                 </div>
-                <textarea className="studio-prompt studio-negative" rows={2} value={negative} onChange={(e) => setNegative(e.target.value)} placeholder={t('Negative prompt (what to avoid)')} />
+                <AutoTextarea className="studio-prompt studio-negative" rows={2} value={negative} onChange={(e) => setNegative(e.target.value)} placeholder={t('Negative prompt (what to avoid)')} />
               </Section>
               <Section title={t('Model')}>
                 {!modeOptions.length ? (

@@ -8,3 +8,4 @@ build/pty/
 electron/build-info.json
 cloud/.env
 cloud/data/
+supabase/.temp/

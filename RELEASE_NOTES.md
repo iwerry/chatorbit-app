@@ -1,4 +1,15 @@
-## Orbi 0.1.29-9
+## Orbi 0.1.29-10
+
+- **Mais espaço para criar:** a tela inicial se ajusta à altura do conteúdo, sem esconder a caixa de mensagem. Textos, controles e sugestões têm espaçamento mais claro.
+- **Um padrão de modelos:** busca neutra, preços e recomendações no mesmo menu para chat, imagem, vídeo e áudio. Os menus se posicionam dentro da janela e têm uma única área de rolagem.
+- **Ideias que acompanham o assunto:** sugestões de vídeo, imagem e áudio usam o texto do rascunho. Dicas alternadas explicam como escolher modelos e mostram uma opção de menor preço no catálogo atual, sem consultas pagas adicionais.
+- **Prompts que crescem com o texto:** no Canvas e no estúdio de áudio, sem precisar redimensionar o campo manualmente.
+- **Boards legíveis:** miniaturas sem sobreposição e ações visíveis para ampliar, abrir a biblioteca, baixar, excluir e reutilizar o prompt.
+- **Vários workflows:** abas com nomes editáveis, salvamento independente e opção de reabrir abas fechadas. Execuções continuam ao trocar de aba ou visitar o Canvas. Uma aba em execução não pode ser fechada.
+- **Nós pelo botão direito:** clique no canvas do workflow, pesquise e adicione o nó no ponto escolhido. O clique duplo continua disponível.
+- Preservados os temas Claro, Escuro e Terminal, com os novos textos traduzidos e animações reduzidas quando essa preferência está ativa.
+
+## Orbi 0.1.29-9 (previous)
 
 - **Proporção da imagem por modelo:** cada modelo de imagem e vídeo mostra só as proporções que aceita, com o nome, o uso e um tamanho de exemplo.
   - Exemplos: 1:1 Quadrado (feed), 9:16 Vertical alto (Reels, TikTok, Shorts), 16:9 Horizontal panorâmico (YouTube), 21:9 Ultra largo (visual de cinema, ≈ 2,33:1), 4:5, 2:3, 9:21…
