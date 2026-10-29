@@ -1,4 +1,20 @@
-## Orbi 0.1.29-6 (atualização rápida, sem reiniciar)
+## Orbi 0.1.29-7 (atualização rápida, sem reiniciar)
+
+- **Voz só na nuvem:**
+  - Saíram as vozes baixadas no PC e as vozes do Windows, macOS e Linux.
+  - Leitura em voz alta, teste de alto-falante e narração dos Workflows usam os modelos de voz do OpenRouter, com a lista de vozes de cada um.
+  - Padrão: Gemini 3.8 Flash TTS, o mais bem avaliado.
+- **Ditado:** modelos de transcrição do OpenRouter, agrupados por empresa e com preço por minuto.
+- **Microfone e saída:** se o computador não tiver microfone, o menu avisa e você continua digitando. Interfaces USB e headsets aparecem assim que conectados.
+- **Preços em toda lista de modelos:** chat, imagem, vídeo, voz e ditado.
+  - Administradores veem o preço do OpenRouter em US$.
+  - Os demais usuários veem o preço em créditos.
+- **Etiquetas:** **Top**, **Rápido** e **Econômico** ajudam a escolher.
+- **Listas agrupadas por empresa:** ChatGPT, Claude, Gemini, DeepSeek, Kimi…
+- **Saldo do OpenRouter:** quando acaba, a mensagem agora diz isso, em vez de um erro genérico.
+- **Capas novas:** Jazz night in São Paulo e Cat doing yoga, mais um card novo, "Jellyfish in a flooded cathedral".
+
+## Orbi 0.1.29-6 (previous)
 
 - Novas capas no Launchpad do Creative: Pearl dragon knight, Neon cyborg profile e o vídeo do avião de papel sobre a cidade.
 

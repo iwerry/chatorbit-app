@@ -1,6 +1,11 @@
 // UI translations. English is the key; each row is [en, pt-BR, es, fr].
 // Missing keys fall back to English, so new strings never break the UI.
 const ROWS: [string, string, string, string][] = [
+  ["Top", "Top", "Top", "Top"],
+  ["Fast", "Rápido", "Rápido", "Rapide"],
+  ["Cheap", "Econômico", "Económico", "Économique"],
+  ["Voices and dictation…", "Vozes e ditado…", "Voces y dictado…", "Voix et dictée…"],
+  ["No microphone found. Plug one in (USB, headset or audio interface) and it shows up here. You can still type.", "Nenhum microfone encontrado. Conecte um (USB, headset ou interface de áudio) e ele aparece aqui. Você ainda pode digitar.", "No se encontró micrófono. Conecta uno (USB, auriculares o interfaz de audio) y aparecerá aquí. Puedes seguir escribiendo.", "Aucun micro trouvé. Branchez-en un (USB, casque ou interface audio) et il apparaîtra ici. Vous pouvez toujours écrire."],
   ["Pull up to open the terminal (Ctrl+`)", "Puxe para cima para abrir o terminal (Ctrl+`)", "Tira hacia arriba para abrir la terminal (Ctrl+`)", "Tirez vers le haut pour ouvrir le terminal (Ctrl+`)"],
   ["Open the terminal", "Abrir o terminal", "Abrir la terminal", "Ouvrir le terminal"],
   ["Pull to open the workspace panel (Ctrl+Alt+B)", "Puxe para abrir o painel de trabalho (Ctrl+Alt+B)", "Tira para abrir el panel de trabajo (Ctrl+Alt+B)", "Tirez pour ouvrir le panneau de travail (Ctrl+Alt+B)"],

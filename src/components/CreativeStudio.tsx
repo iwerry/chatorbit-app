@@ -33,7 +33,7 @@ import {
 import { api, on, type Board, type LocalStatus, type MediaItem, type ModelInfo } from '../lib/api'
 import { ASPECTS, CLOUD_GEN, creativeOptions, sizeFor, snap, type CreativeOption } from '../lib/creative'
 import { creativeBus, takePendingUse, type GenRequest } from '../lib/creativeBus'
-import { CLOUD_ONLY, fmtCredits, nearestDuration, nearestRes, useCloud } from '../lib/cloud'
+import { CLOUD_ONLY, fmtCredits, modelTags, nearestDuration, nearestRes, priceLabel, useCloud } from '../lib/cloud'
 import { resLabel, resolutionsFor } from '../lib/creative'
 import { activity } from '../lib/activity'
 import { fmtBytes, t } from '../lib/i18n'
@@ -253,6 +253,18 @@ export function CreativeStudio({
   const cloud = useCloud()
   const options: Option[] = useMemo(() => creativeOptions(localStatus, models, cloud.catalog), [localStatus, models, cloud.catalog])
   const modeOptions = options.filter((o) => o.kind === mode)
+  // Price and Fast / Cheap / Top in each model's name in the list.
+  const optionText = useMemo(() => {
+    const out = new Map<string, string>()
+    const tags = modelTags(modeOptions.map((o) => ({ id: o.key, name: o.label, featured: o.featured, cost: o.usd })))
+    const admin = !!cloud.state?.user?.admin
+    for (const o of modeOptions) {
+      const p = CLOUD_ONLY ? priceLabel(o.usd, o.kind === 'video' ? 's' : 'img', admin, cloud.catalog) : ''
+      const tg = (tags.get(o.key) || []).map((x) => t(x)).join(' · ')
+      out.set(o.key, [o.label, tg, p].filter(Boolean).join('  ·  '))
+    }
+    return out
+  }, [modeOptions, cloud.catalog, cloud.state?.user?.admin])
   const current = modeOptions.find((o) => o.key === modelKeys[mode]) ?? modeOptions[0]
   const gen = current?.gen ?? CLOUD_GEN
   // Cloud models: the provider sets steps and fps; you pick resolution, length and sound.
@@ -979,7 +991,7 @@ export function CreativeStudio({
                           .filter((o) => o.group === g)
                           .map((o) => (
                             <option key={o.key} value={o.key}>
-                              {o.label}
+                              {optionText.get(o.key) || o.label}
                             </option>
                           ))}
                       </optgroup>

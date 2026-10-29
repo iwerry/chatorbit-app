@@ -26,6 +26,10 @@ async function orError(res: Response): Promise<never> {
   } catch {
     /* text */
   }
+  if (res.status === 402) {
+    console.error(`[orbi] OpenRouter balance: ${msg}`)
+    throw new HttpError(503, 'Orbi Cloud ran out of AI balance (OpenRouter). An admin needs to add credits at openrouter.ai/settings/credits.', 'upstream_balance')
+  }
   throw new HttpError(res.status === 401 || res.status === 403 ? 502 : res.status, msg || `OpenRouter error ${res.status}`, 'upstream')
 }
 
@@ -66,17 +70,53 @@ const vendorRank = (id: string) => {
   const i = VENDORS.indexOf(vendorOf(id))
   return i < 0 ? VENDORS.length : i
 }
-const TTS = [
-  { id: 'openai/gpt-4o-mini-tts-2025-12-15', name: 'OpenAI GPT-4o mini TTS', voices: ['alloy', 'ash', 'ballad', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer', 'verse'] },
-  { id: 'google/gemini-3.1-flash-tts-preview', name: 'Google Gemini 3.1 Flash TTS', voices: ['Kore', 'Puck', 'Charon', 'Zephyr', 'Fenrir', 'Leda', 'Aoede', 'Orus'] },
-  { id: 'mistralai/voxtral-mini-tts-2603', name: 'Mistral Voxtral Mini TTS', voices: [] as string[] },
-]
-const STT = [
-  { id: 'openai/gpt-4o-mini-transcribe', name: 'OpenAI GPT-4o mini Transcribe' },
-  { id: 'openai/gpt-4o-transcribe', name: 'OpenAI GPT-4o Transcribe' },
-  { id: 'openai/whisper-large-v3', name: 'Whisper large v3' },
-  { id: 'google/chirp-3', name: 'Google Chirp 3' },
-]
+// Voice models in order of preference (best quality for the price first). The rest follow, newest first.
+const TTS_ORDER = ['google/gemini-3.8-flash-tts', 'microsoft/mai-voice-2.1', 'minimax/speech-2.8-hd', 'x-ai/grok-voice-tts-1.0', 'google/gemini-3.8-flash-lite-tts', 'microsoft/mai-voice-2.1-flash', 'qwen/qwen-audio-3.0-tts-plus', 'minimax/speech-2.8-turbo', 'mistralai/voxtral-mini-tts-3-0']
+const STT_ORDER = ['openai/gpt-4o-mini-transcribe', 'google/gemini-3.5-transcribe', 'openai/gpt-transcribe', 'openai/gpt-4o-transcribe', 'mistralai/voxtral-mini-transcribe-3-0', 'x-ai/grok-stt-1.0', 'openai/whisper-large-v3-turbo', 'openai/whisper-large-v3']
+const byOrder = (order: string[]) => (a: { id: string; created?: number }, b: { id: string; created?: number }) => {
+  const ia = order.indexOf(a.id)
+  const ib = order.indexOf(b.id)
+  return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib) || (b.created || 0) - (a.created || 0)
+}
+
+// USD per second of video at a resolution, from OpenRouter's price list (several formats exist).
+function videoUsdPerSecond(skus: unknown, res: string, audio = true): number | undefined {
+  if (!skus || typeof skus !== 'object') return undefined
+  const k = skus as Record<string, string>
+  const n = (key: string) => (k[key] !== undefined ? Number(k[key]) : undefined)
+  const a = audio ? 'with_audio' : 'without_audio'
+  const usd =
+    n(`duration_seconds_${a}_${res}`) ?? n(`duration_seconds_${a}`) ?? n(`duration_seconds_${res}`) ?? n(`text_to_video_duration_seconds_${res}`) ?? n('duration_seconds') ?? n(`duration_seconds_${a}_720p`)
+  if (usd !== undefined) return usd
+  const cents = n(`cents_per_video_output_second_${res}`) ?? n(`cents_per_second_output_${res}`) ?? n('cents_per_second_output') ?? n('cents_per_video_output_second_720p')
+  if (cents !== undefined) return cents / 100
+  // Token-priced (Seedance): about width × height × 24 fps / 1024 tokens per second.
+  const tok = n(`video_tokens_${res}`) ?? n('video_tokens')
+  if (tok !== undefined) {
+    const px = res === '1080p' ? 1920 * 1080 : res === '480p' ? 854 * 480 : 1280 * 720
+    return (tok * px * 24) / 1024
+  }
+  const vals = Object.values(k).map(Number).filter((x) => x > 0)
+  return vals.length ? Math.min(...vals) : undefined
+}
+
+// USD for one image, from the endpoint price list (per image, or per output token ≈ 1,120 tokens for a 1K image).
+async function imageUsd(id: string): Promise<number | undefined> {
+  try {
+    const r = await fetch(`${config.openrouterBase}/images/models/${id}/endpoints`)
+    if (!r.ok) return undefined
+    const j = (await r.json()) as { endpoints?: { pricing?: { billable: string; unit: string; cost_usd: number }[] }[] }
+    const prices = (j.endpoints || []).map((e) => {
+      const out = (e.pricing || []).filter((p) => /output/.test(p.billable) || p.unit === 'image')
+      if (!out.length) return undefined
+      return out.reduce((sum, p) => sum + (p.unit === 'token' ? p.cost_usd * 1120 : p.unit === 'megapixel' ? p.cost_usd : p.cost_usd), 0)
+    }).filter((x): x is number => typeof x === 'number' && x > 0)
+    return prices.length ? Math.min(...prices) : undefined
+  } catch {
+    return undefined
+  }
+}
+
 const num = (v: unknown) => (typeof v === 'number' ? v : Number(v || 0)) || 0
 const vendorOf = (id: string) => id.split('/')[0]
 const isFree = (m: OrModel) => m.id.endsWith(':free') || (num(m.pricing?.prompt) === 0 && num(m.pricing?.completion) === 0 && num(m.pricing?.request) === 0 && m.id !== 'openrouter/auto')
@@ -96,8 +136,9 @@ let cache: { at: number; data: Catalog } | null = null
 export type Catalog = Awaited<ReturnType<typeof buildCatalog>>
 
 async function buildCatalog() {
-  const all = await listJson<OrModel>('/models')
-  let chat = all.filter((m) => (m.architecture?.output_modalities || ['text']).includes('text') && !isFree(m))
+  const all = await listJson<OrModel & { supported_voices?: string[] | null }>('/models?output_modalities=all')
+  const outs = (m: OrModel) => m.architecture?.output_modalities || ['text']
+  let chat = all.filter((m) => outs(m).includes('text') && !isFree(m))
   if (config.chatModels.length) chat = config.chatModels.map((id) => chat.find((m) => m.id === id)).filter((m): m is OrModel => !!m)
   else {
     const per = new Map<string, number>()
@@ -124,22 +165,35 @@ async function buildCatalog() {
   const images = (imageRows.length ? imageRows : all.filter((m) => (m.architecture?.output_modalities || []).includes('image') && !m.id.endsWith(':free'))).sort(
     (a, b) => rankBy(POPULAR_IMAGE, a.id, a.name) - rankBy(POPULAR_IMAGE, b.id, b.name) || (b.created || 0) - (a.created || 0),
   )
+  // Real cost per image: the endpoint price list, then what Orbi actually paid in the last 30 days.
+  const paid = new Map<string, number>()
+  try {
+    const rows = await sql<{ model: string; avg: number }[]>`select model, avg(cost_usd)::float as avg from public.ledger where kind = 'usage' and note = 'Image' and cost_usd > 0 and created_at > now() - interval '30 days' group by model`
+    for (const r of rows) paid.set(r.model, r.avg)
+  } catch {
+    /* no history yet */
+  }
+  const imagePrice = new Map<string, number | undefined>(await Promise.all(images.map(async (m) => [m.id, paid.get(m.id) ?? (await imageUsd(m.id))] as const)))
   const videoRowsAll = await listJson<{ id: string; name?: string; supported_durations?: number[]; supported_resolutions?: string[]; supported_aspect_ratios?: string[]; pricing_skus?: unknown; allowed_passthrough_parameters?: string[] }>('/videos/models')
   const videoRows = videoRowsAll.sort((a, b) => rankBy(POPULAR_VIDEO, a.id, a.name) - rankBy(POPULAR_VIDEO, b.id, b.name))
-  const perSecond = (skus: unknown): number | undefined => {
-    const list = Array.isArray(skus) ? skus : skus && typeof skus === 'object' ? Object.values(skus as object) : []
-    const prices = list.map((s) => (typeof s === 'object' && s ? num((s as { price?: unknown; amount?: unknown }).price ?? (s as { amount?: unknown }).amount) : num(s))).filter((p) => p > 0)
-    return prices.length ? Math.min(...prices) : undefined
-  }
+  const tts = all.filter((m) => outs(m).includes('speech') && !m.id.endsWith(':free')).sort(byOrder(TTS_ORDER))
+  const stt = all.filter((m) => outs(m).includes('transcription') && !m.id.endsWith(':free')).sort(byOrder(STT_ORDER))
   return {
-    chat: chat.map((m) => ({ id: m.id, name: m.name, vendor: vendorOf(m.id), featured: popular.has(m.id), context: m.context_length || 0, input: m.architecture?.input_modalities || ['text'], image: (m.architecture?.output_modalities || []).includes('image'), price: { in: creditsFor(num(m.pricing?.prompt) * 1e6), out: creditsFor(num(m.pricing?.completion) * 1e6) } })),
-    image: images.map((m) => ({ id: m.id, name: m.name || m.id, vendor: vendorOf(m.id), featured: rankBy(POPULAR_IMAGE, m.id, m.name) < POPULAR_IMAGE.length, price: num(m.pricing?.image) ? creditsFor(num(m.pricing?.image)) : undefined, aspects: (m as { supported_aspect_ratios?: string[] }).supported_aspect_ratios, resolutions: (m as { supported_resolutions?: string[] }).supported_resolutions })),
+    chat: chat.map((m) => ({ id: m.id, name: m.name, vendor: vendorOf(m.id), featured: popular.has(m.id), created: m.created || 0, context: m.context_length || 0, input: m.architecture?.input_modalities || ['text'], image: (m.architecture?.output_modalities || []).includes('image'), price: { in: creditsFor(num(m.pricing?.prompt) * 1e6), out: creditsFor(num(m.pricing?.completion) * 1e6) }, usd: { in: num(m.pricing?.prompt) * 1e6, out: num(m.pricing?.completion) * 1e6 } })),
+    image: images.map((m) => ({ id: m.id, name: m.name || m.id, vendor: vendorOf(m.id), featured: rankBy(POPULAR_IMAGE, m.id, m.name) < POPULAR_IMAGE.length, usd: imagePrice.get(m.id), price: imagePrice.get(m.id) ? creditsFor(imagePrice.get(m.id)!) : undefined, aspects: (m as { supported_aspect_ratios?: string[] }).supported_aspect_ratios, resolutions: (m as { supported_resolutions?: string[] }).supported_resolutions })),
     video: videoRows.map((m) => {
-      const pps = perSecond(m.pricing_skus)
-      return { id: m.id, name: m.name || m.id, vendor: vendorOf(m.id), featured: rankBy(POPULAR_VIDEO, m.id, m.name) < POPULAR_VIDEO.length, durations: m.supported_durations || [5], resolutions: m.supported_resolutions || ['720p'], aspects: m.supported_aspect_ratios || ['16:9', '9:16', '1:1'], audio: (m.allowed_passthrough_parameters || []).includes('generate_audio') || /veo|seedance|sora|wan|hailuo|grok/i.test(m.id), pricePerSecond: pps ? creditsFor(pps) : undefined, imageInput: true }
+      const pps = videoUsdPerSecond(m.pricing_skus, '720p')
+      const usdBySecond: Record<string, number> = {}
+      for (const r of m.supported_resolutions || ['720p']) {
+        const v = videoUsdPerSecond(m.pricing_skus, r)
+        if (v !== undefined) usdBySecond[r] = v
+      }
+      return { id: m.id, usdPerSecond: pps, usdBySecond, name: m.name || m.id, vendor: vendorOf(m.id), featured: rankBy(POPULAR_VIDEO, m.id, m.name) < POPULAR_VIDEO.length, durations: m.supported_durations || [5], resolutions: m.supported_resolutions || ['720p'], aspects: m.supported_aspect_ratios || ['16:9', '9:16', '1:1'], audio: (m.allowed_passthrough_parameters || []).includes('generate_audio') || /veo|seedance|sora|wan|hailuo|grok/i.test(m.id), pricePerSecond: pps ? creditsFor(pps) : undefined, imageInput: true }
     }),
-    tts: TTS,
-    stt: STT,
+    // Voices: OpenRouter lists each model's voices. Price is per 1,000 characters (≈).
+    tts: tts.map((m) => ({ id: m.id, name: m.name, vendor: vendorOf(m.id), voices: m.supported_voices || [], usd: num(m.pricing?.prompt) * 1000 + num(m.pricing?.completion) * 1000 })),
+    // Dictation: price per minute of audio (≈; some models charge per token).
+    stt: stt.map((m) => ({ id: m.id, name: m.name, vendor: vendorOf(m.id), usd: num(m.pricing?.completion) ? num(m.pricing?.prompt) * 1500 + num(m.pricing?.completion) * 200 : num(m.pricing?.prompt) * 60 })),
     credits: { usd: config.creditUsd, markup: config.markup },
     _ok: all.length > 0,
   }
@@ -274,6 +328,14 @@ export async function videoContent(c: Caller, id: string, index: number): Promis
 
 export async function speech(c: Caller, body: Record<string, unknown>): Promise<Response> {
   requireCredits(c.profile, 1)
+  // Older apps may ask for a voice model that no longer exists: use the best one and its first voice.
+  const cat = await catalog()
+  let model = cat.tts.find((m) => m.id === body.model)
+  if (!model && cat.tts.length) model = cat.tts[0]
+  if (model) {
+    body.model = model.id
+    if (model.voices.length && !model.voices.includes(String(body.voice || ''))) body.voice = model.voices[0]
+  }
   const up = await orFetch('/audio/speech', { method: 'POST', body: JSON.stringify(body) })
   if (!up.ok) await orError(up)
   const buf = new Uint8Array(await up.arrayBuffer())
@@ -285,6 +347,8 @@ export async function speech(c: Caller, body: Record<string, unknown>): Promise<
 
 export async function transcribe(c: Caller, body: Record<string, unknown>) {
   requireCredits(c.profile, 1)
+  const cat = await catalog()
+  if (cat.stt.length && !cat.stt.some((m) => m.id === body.model)) body.model = cat.stt[0].id
   const up = await orFetch('/audio/transcriptions', { method: 'POST', body: JSON.stringify(body) })
   if (!up.ok) await orError(up)
   const genId = up.headers.get('x-generation-id') || ''

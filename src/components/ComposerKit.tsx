@@ -35,7 +35,7 @@ import { api, type MediaItem } from '../lib/api'
 import { t } from '../lib/i18n'
 import { ASPECTS, resLabel, type CreativeOption } from '../lib/creative'
 import { creativeBus, type ChatMediaMeta, type GenUpdate } from '../lib/creativeBus'
-import { fmtCredits, nearestDuration } from '../lib/cloud'
+import { CLOUD_ONLY, fmtCredits, nearestDuration } from '../lib/cloud'
 import { setAudioPref, useAudioDevices } from '../lib/audioDevices'
 import type { Recording } from '../lib/voice'
 import { Lightbox } from './Lightbox'
@@ -330,7 +330,11 @@ export function AudioMenu({ onVoiceSettings, onTest }: { onVoiceSettings: () => 
           <p className="cpop-head">
             <Mic size={12} /> {t('Microphone')}
           </p>
-          <DeviceList list={dev.inputs} value={dev.prefs.input} onPick={(id) => setAudioPref('input', id)} />
+          {dev.inputs.length ? (
+            <DeviceList list={dev.inputs} value={dev.prefs.input} onPick={(id) => setAudioPref('input', id)} />
+          ) : (
+            <p className="cpop-note">{t('No microphone found. Plug one in (USB, headset or audio interface) and it shows up here. You can still type.')}</p>
+          )}
           <p className="cpop-head">
             <Speaker size={12} /> {t('Speaker')}
           </p>
@@ -353,7 +357,7 @@ export function AudioMenu({ onVoiceSettings, onTest }: { onVoiceSettings: () => 
                 onVoiceSettings()
               }}
             >
-              <Settings2 size={12} /> {t('Dictation engine…')}
+              <Settings2 size={12} /> {CLOUD_ONLY ? t('Voices and dictation…') : t('Dictation engine…')}
             </button>
           </div>
         </div>

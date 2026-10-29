@@ -53,6 +53,8 @@ export const IDEAS: Idea[] = [
     prompt: 'A ginger cat stretching in a perfect yoga pose on a mint green mat, sunny pastel pink room with arched windows, potted plants, soft morning light, playful whimsical interior photography' },
   { id: 'brutalist-moon', model: 'x-ai/grok-imagine-image-2.0', modelName: 'Grok Imagine 2.0', title: 'Brutalist moon pavilion', cat: 'popular', mode: 'image', tags: ['Text to image', 'Architecture'], aspect: '16:9', hue: [220, 260],
     prompt: 'Circular concrete pavilion with a round opening in the roof showing the full moon at night, a dancer standing on a low round platform in a beam of moonlight, minimalist brutalist architecture, long exposure, calm and surreal' },
+  { id: 'jelly-cathedral', model: 'black-forest-labs/flux-3-image', modelName: 'FLUX 3', title: 'Jellyfish in a flooded cathedral', cat: 'popular', mode: 'image', tags: ['Text to image', 'Surreal'], aspect: '1:1', hue: [190, 270],
+    prompt: 'A giant translucent jellyfish glowing with tiny cyan and violet lights floats inside a flooded gothic cathedral, schools of small fish swirl around it, light beams through a rose window, broken wooden pews and puddles on the stone floor, cinematic surreal fantasy, ultra detailed' },
 
   // Product & ads
   { id: 'perfume-still', model: 'google/gemini-nano-banana-2.1', modelName: 'Nano Banana 2.1', title: 'Perfume still life', cat: 'product', mode: 'image', tags: ['Product', 'Ads'], aspect: '3:4', hue: [30, 270],

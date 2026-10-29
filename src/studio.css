@@ -5265,3 +5265,45 @@ form.composer {
   font-weight: 600;
   color: var(--neo-accent-ink);
 }
+
+/* Model lists: price and Fast / Cheap / Top chips (Orbi Cloud). */
+.model-meta {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  margin-left: 8px;
+}
+.model-meta small {
+  font-size: 10.5px;
+  color: var(--neo-muted);
+  white-space: nowrap;
+}
+.model-tags {
+  display: flex;
+  gap: 3px;
+}
+.model-tag {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.5;
+  border: 1px solid var(--neo-line);
+  color: var(--neo-muted);
+}
+.model-tag-top {
+  color: var(--neo-accent-ink);
+  border-color: color-mix(in srgb, var(--neo-accent-ink) 40%, transparent);
+}
+.model-tag-fast {
+  color: #4aa3d8;
+  border-color: rgba(74, 163, 216, 0.35);
+}
+.model-tag-cheap {
+  color: #d39b3a;
+  border-color: rgba(211, 155, 58, 0.35);
+}

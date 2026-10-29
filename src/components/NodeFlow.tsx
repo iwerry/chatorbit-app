@@ -30,7 +30,8 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
-import { api, on, type Board, type LocalStatus, type MediaItem, type ModelInfo, type TtsChoice } from '../lib/api'
+import { api, on, type Board, type CloudCatalog, type LocalStatus, type MediaItem, type ModelInfo, type TtsChoice } from '../lib/api'
+import { GroupedOptions } from './AccountPanel'
 import { VoiceButton } from './VoiceLibrary'
 import { getLang, t } from '../lib/i18n'
 import { activity } from '../lib/activity'
@@ -787,6 +788,12 @@ export function NodeFlow({
       case 'voice': {
         const text = firstText('text')
         if (!text) throw new Error(t('Connect a script to this node.'))
+        if (CLOUD_ONLY) {
+          const cv = parseCloudVoice(n.data.voice, cloud.catalog)
+          const item = await api.speech({ text, model: cv.model || undefined, voice: cv.voice || undefined })
+          onMediaCreated(item)
+          return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
+        }
         const v = parseVoice(n.data.voice, ttsVoices)
         const item =
           v.type === 'local'
@@ -1101,7 +1108,7 @@ export function NodeFlow({
                     media={media}
                     boards={boards}
                     onOpenModels={onOpenModels}
-                    extra={{ editChoices, localImageChoices, upscalers, ttsVoices, onPaintMask: () => setMaskFor(n.id), hasInputImage: !!inputImageOf(n.id), localStatus, models, promptContext }}
+                    extra={{ editChoices, localImageChoices, upscalers, ttsVoices, onPaintMask: () => setMaskFor(n.id), hasInputImage: !!inputImageOf(n.id), localStatus, models, promptContext, catalog: cloud.catalog, admin: !!cloud.state?.user?.admin }}
                   />
                   {n.status === 'running' && n.progress !== undefined && (
                     <div className="local-bar">
@@ -1229,6 +1236,16 @@ type Extra = {
   localStatus: LocalStatus | null
   models: ModelInfo[]
   promptContext: (id: string) => { mode: 'image' | 'video'; positive: string }
+  catalog: CloudCatalog | null
+  admin: boolean
+}
+
+// Orbi Cloud voice node value: 'cloud:<model>#<voice>'.
+function parseCloudVoice(raw: unknown, catalog: CloudCatalog | null) {
+  const s = String(raw || '')
+  const [model, voice] = s.startsWith('cloud:') ? s.slice(6).split('#') : ['', '']
+  const m = catalog?.tts.find((x) => x.id === model) ?? catalog?.tts[0]
+  return { model: m?.id || '', voice: m && m.voices.includes(voice) ? voice : m?.voices[0] || '', spec: m }
 }
 
 // Voice node value: 'local:<model>#<voice>' (offline) or 'openai:<voice>'.
@@ -1456,6 +1473,26 @@ function NodeBody({
         </>
       )
     case 'voice': {
+      if (CLOUD_ONLY) {
+        const cv = parseCloudVoice(n.data.voice, extra.catalog)
+        return (
+          <>
+            <select className="ab-input" value={cv.model} onChange={(e) => setData({ voice: `cloud:${e.target.value}#${extra.catalog?.tts.find((x) => x.id === e.target.value)?.voices[0] || ''}` })}>
+              <GroupedOptions list={extra.catalog?.tts ?? []} unit="k" admin={extra.admin} catalog={extra.catalog} />
+            </select>
+            {!!cv.spec?.voices.length && (
+              <select className="ab-input" value={cv.voice} onChange={(e) => setData({ voice: `cloud:${cv.model}#${e.target.value}` })}>
+                {cv.spec.voices.map((x) => (
+                  <option key={x} value={x}>
+                    {x.replace(/:.*$/, '')}
+                  </option>
+                ))}
+              </select>
+            )}
+            {preview}
+          </>
+        )
+      }
       const v = parseVoice(n.data.voice, extra.ttsVoices)
       const value: TtsChoice | null = v.type === 'local' ? { type: 'local', modelId: v.modelId, voice: v.voice, rate: 1 } : v.type === 'native' ? { type: 'native', id: v.id, name: v.name, rate: 1 } : null
       return (

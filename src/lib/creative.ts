@@ -5,7 +5,7 @@ import { t } from './i18n'
 
 export type CreativeMode = 'image' | 'video'
 export type CloudVideoSpec = { durations: number[]; resolutions: string[]; aspects: string[]; audio: boolean; pricePerSecond?: number }
-export type CreativeOption = { key: string; label: string; group: string; kind: CreativeMode; local: boolean; providerId?: string; modelId: string; gen?: GenInfo | null; isNew?: boolean; video?: CloudVideoSpec; price?: number }
+export type CreativeOption = { key: string; label: string; group: string; kind: CreativeMode; local: boolean; providerId?: string; modelId: string; gen?: GenInfo | null; isNew?: boolean; video?: CloudVideoSpec; price?: number; usd?: number; featured?: boolean }
 
 export const ASPECTS = [
   { id: '1:1', w: 1, h: 1 },
@@ -28,10 +28,10 @@ export function creativeOptions(localStatus: LocalStatus | null, models: ModelIn
     const images = models.filter((x) => x.image).sort((a, b) => (order.get(a.id) ?? 1e6) - (order.get(b.id) ?? 1e6))
     for (const m of images) {
       const c = catalog?.image.find((x) => x.id === m.id)
-      out.push({ key: `cloud::${m.key}`, label: m.name.replace(/^[^:]+:\s*/, ''), group: groupFor(m.id.split('/')[0], c?.featured), kind: 'image', local: false, providerId: m.provider, modelId: m.id, gen: CLOUD_GEN, price: c?.price })
+      out.push({ key: `cloud::${m.key}`, label: m.name.replace(/^[^:]+:\s*/, ''), group: groupFor(m.id.split('/')[0], c?.featured), kind: 'image', local: false, providerId: m.provider, modelId: m.id, gen: CLOUD_GEN, price: c?.price, usd: c?.usd, featured: c?.featured })
     }
     for (const v of catalog?.video ?? [])
-      out.push({ key: `cloudvideo::${v.id}`, label: v.name.replace(/^[^:]+:\s*/, ''), group: groupFor(v.vendor, v.featured), kind: 'video', local: false, providerId: 'orbicloud', modelId: v.id, gen: CLOUD_GEN, video: { durations: v.durations, resolutions: v.resolutions, aspects: v.aspects, audio: v.audio, pricePerSecond: v.pricePerSecond } })
+      out.push({ key: `cloudvideo::${v.id}`, label: v.name.replace(/^[^:]+:\s*/, ''), group: groupFor(v.vendor, v.featured), kind: 'video', local: false, providerId: 'orbicloud', modelId: v.id, gen: CLOUD_GEN, usd: v.usdPerSecond, featured: v.featured, video: { durations: v.durations, resolutions: v.resolutions, aspects: v.aspects, audio: v.audio, pricePerSecond: v.pricePerSecond } })
     return out
   }
   for (const m of localStatus?.models ?? []) {

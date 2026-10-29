@@ -528,10 +528,10 @@ export type CloudPlans = {
 }
 export type CloudUsageItem = { created_at: number; kind: string; amount: number; model: string; note: string }
 export type CloudCatalog = {
-  chat: { id: string; name: string; vendor: string; featured?: boolean; context: number; input: string[]; image: boolean; price: { in: number; out: number } }[]
-  image: { id: string; name: string; vendor: string; featured?: boolean; price?: number; aspects?: string[]; resolutions?: string[] }[]
-  video: { id: string; name: string; vendor: string; featured?: boolean; durations: number[]; resolutions: string[]; aspects: string[]; audio: boolean; pricePerSecond?: number; imageInput: boolean }[]
-  tts: { id: string; name: string; voices: string[] }[]
-  stt: { id: string; name: string }[]
+  chat: { id: string; name: string; vendor: string; featured?: boolean; created?: number; context: number; input: string[]; image: boolean; price: { in: number; out: number }; usd?: { in: number; out: number } }[]
+  image: { id: string; name: string; vendor: string; featured?: boolean; price?: number; usd?: number; aspects?: string[]; resolutions?: string[] }[]
+  video: { id: string; name: string; vendor: string; featured?: boolean; durations: number[]; resolutions: string[]; aspects: string[]; audio: boolean; pricePerSecond?: number; usdPerSecond?: number; usdBySecond?: Record<string, number>; imageInput: boolean }[]
+  tts: { id: string; name: string; vendor?: string; voices: string[]; usd?: number }[]
+  stt: { id: string; name: string; vendor?: string; usd?: number }[]
   credits: { usd: number; markup: number }
 }

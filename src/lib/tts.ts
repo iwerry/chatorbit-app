@@ -44,7 +44,8 @@ export async function speak(text: string, choice: TtsChoice | null, lang: string
   stopSpeaking()
   const clean = text.replace(/```[\s\S]*?```/g, ' ').replace(/\]\([^)]*\)/g, ']').replace(/[#*_>`~[\]]/g, '')
   // Orbi Cloud voices are the default now; system voices remain only as an explicit choice.
-  if (CLOUD_ONLY && (!choice || isLocalChoice(choice))) choice = { type: 'cloud', model: '', voice: '' }
+  // Orbi Cloud: voices come only from the cloud (no downloaded or operating-system voices).
+  if (CLOUD_ONLY && choice?.type !== 'cloud') choice = { type: 'cloud', model: '', voice: '' }
   if (isLocalChoice(choice) || choice?.type === 'native' || choice?.type === 'cloud') {
     let stopped = false
     let audio: HTMLAudioElement | null = null

@@ -1,8 +1,8 @@
 // Orbi account: sign in / create account, plan and credits, buying, usage, and the cloud voice settings.
 import { useEffect, useState, type FormEvent } from 'react'
 import { ArrowRight, Check, CircleAlert, CreditCard, ExternalLink, Loader2, LogOut, Mic, RefreshCw, Server, Sparkles, Volume2, Wallet } from 'lucide-react'
-import { api, type CloudPlans, type CloudUsageItem } from '../lib/api'
-import { fmtCredits, refreshCloud, useCloud } from '../lib/cloud'
+import { api, type CloudCatalog, type CloudPlans, type CloudUsageItem } from '../lib/api'
+import { fmtCredits, modelTags, priceLabel, refreshCloud, useCloud, vendorLabel } from '../lib/cloud'
 import { fmtDate, t } from '../lib/i18n'
 import { OrbiMark } from './Logo'
 
@@ -325,7 +325,8 @@ export function AccountPanel() {
 
 /** Settings → Voice, when Orbi runs on Orbi Cloud. */
 export function CloudVoiceSettings() {
-  const { catalog } = useCloud()
+  const { catalog, state } = useCloud()
+  const admin = !!state?.user?.admin
   const [voice, setVoice] = useState<{ model?: string; voice?: string }>({})
   const [stt, setStt] = useState('')
   const [testing, setTesting] = useState(false)
@@ -346,12 +347,8 @@ export function CloudVoiceSettings() {
       <p className="orbi-label">
         <Mic size={13} /> {t('Dictation (microphone)')}
       </p>
-      <select className="ab-input" value={stt || catalog?.stt[0]?.id || ''} onChange={(e) => (setStt(e.target.value), api.setSetting('cloudStt', e.target.value))}>
-        {(catalog?.stt ?? []).map((m) => (
-          <option key={m.id} value={m.id}>
-            {m.name}
-          </option>
-        ))}
+      <select className="ab-input" value={(catalog?.stt ?? []).some((m) => m.id === stt) ? stt : catalog?.stt[0]?.id || ''} onChange={(e) => (setStt(e.target.value), api.setSetting('cloudStt', e.target.value))}>
+        <GroupedOptions list={catalog?.stt ?? []} unit="min" admin={admin} catalog={catalog} />
       </select>
       <p className="orbi-muted">{t('Pick the microphone with the arrow next to the mic button in the chat.')}</p>
       <p className="orbi-label mt-6">
@@ -359,14 +356,10 @@ export function CloudVoiceSettings() {
       </p>
       <div className="flex gap-2">
         <select className="ab-input flex-1" value={model?.id || ''} onChange={(e) => save({ model: e.target.value, voice: tts.find((m) => m.id === e.target.value)?.voices[0] })}>
-          {tts.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
+          <GroupedOptions list={tts} unit="k" admin={admin} catalog={catalog} />
         </select>
         {!!model?.voices.length && (
-          <select className="ab-input" value={voice.voice || model.voices[0]} onChange={(e) => save({ model: model.id, voice: e.target.value })}>
+          <select className="ab-input" value={model.voices.includes(voice.voice || '') ? voice.voice : model.voices[0]} onChange={(e) => save({ model: model.id, voice: e.target.value })}>
             {model.voices.map((v) => (
               <option key={v} value={v}>
                 {v}
@@ -395,6 +388,29 @@ export function CloudVoiceSettings() {
       </div>
       {err && <p className="acct-error">{err}</p>}
     </div>
+  )
+}
+
+/** Models in a <select>, grouped by company, with price and Fast / Cheap chips. */
+export function GroupedOptions({ list, unit, admin, catalog }: { list: { id: string; name: string; vendor?: string; usd?: number }[]; unit: 'k' | 'min'; admin: boolean; catalog: CloudCatalog | null }) {
+  const tags = modelTags(list.map((m, i) => ({ id: m.id, name: m.name, featured: i < 3, cost: m.usd })))
+  const groups = new Map<string, typeof list>()
+  for (const m of list) {
+    const g = vendorLabel(m.vendor || m.id.split('/')[0])
+    groups.set(g, [...(groups.get(g) || []), m])
+  }
+  return (
+    <>
+      {[...groups.entries()].map(([g, items]) => (
+        <optgroup key={g} label={g}>
+          {items.map((m) => (
+            <option key={m.id} value={m.id}>
+              {[m.name.replace(/^[^:]+:\s*/, ''), (tags.get(m.id) || []).map((x) => t(x)).join(' · '), priceLabel(m.usd, unit, admin, catalog)].filter(Boolean).join('  ·  ')}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </>
   )
 }
 

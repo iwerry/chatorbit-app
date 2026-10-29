@@ -92,7 +92,7 @@ import { startRecording, type Recording } from './lib/voice'
 import { loadAudioPrefs, routeAudio } from './lib/audioDevices'
 import { creativeBus, decodeChatMedia, encodeChatMedia, type ChatMediaMeta } from './lib/creativeBus'
 import { creativeOptions, resolutionsFor } from './lib/creative'
-import { CLOUD_ONLY, fmtCredits, refreshCloud, useCloud, vendorLabel } from './lib/cloud'
+import { CLOUD_ONLY, fmtCredits, modelTags, priceLabel, refreshCloud, useCloud, vendorLabel } from './lib/cloud'
 import { AccountGate } from './components/AccountPanel'
 import { enhancePrompt } from './lib/promptTools'
 import { DEFAULT_NEGATIVE, IDEAS } from './lib/ideas'
@@ -1430,6 +1430,17 @@ export default function App() {
     return [...groups.entries()]
   }, [chatModels, modelSearch, cloud.catalog])
 
+  // Orbi Cloud: price (OpenRouter US$ for admins, credits for everyone else) and Fast / Cheap / Top chips.
+  const chatMeta = useMemo(() => {
+    const out = new Map<string, { price: string; tags: string[] }>()
+    const cat = cloud.catalog
+    if (!CLOUD_ONLY || !cat) return out
+    const admin = !!cloud.state?.user?.admin
+    const tags = modelTags(cat.chat.map((m) => ({ id: m.id, name: m.name, featured: m.featured, cost: m.usd ? m.usd.in + m.usd.out * 3 : undefined })))
+    for (const m of cat.chat) out.set(m.id, { price: m.usd ? priceLabel(m.usd.in, 'M', admin, cat, m.usd.out) : '', tags: tags.get(m.id) || [] })
+    return out
+  }, [cloud.catalog, cloud.state?.user?.admin])
+
   const suggestList: Suggest[] = useMemo(() => {
     const m = message.match(/(?:^|\s)([/@])([\w.-]*)$/)
     if (!m || suggestClosed) return []
@@ -1765,6 +1776,18 @@ export default function App() {
                                         <strong className="block truncate">{model.name}</strong>
                                         <small className="block truncate">{CLOUD_ONLY ? model.id : `${model.id} · ${model.mode}`}</small>
                                       </span>
+                                      {CLOUD_ONLY && chatMeta.get(model.id) && (
+                                        <span className="model-meta">
+                                          <span className="model-tags">
+                                            {chatMeta.get(model.id)!.tags.map((tg) => (
+                                              <em key={tg} className={`model-tag model-tag-${tg.toLowerCase()}`}>
+                                                {t(tg)}
+                                              </em>
+                                            ))}
+                                          </span>
+                                          {chatMeta.get(model.id)!.price && <small className="num">{chatMeta.get(model.id)!.price}</small>}
+                                        </span>
+                                      )}
                                       {selectedModel === model.key && <Check size={14} />}
                                     </button>
                                   ))}
@@ -2144,7 +2167,7 @@ export default function App() {
                                     <button title={speaking === item.id ? t('Stop reading') : t('Read aloud')} onClick={() => speak(item)} className={speaking === item.id ? 'meta-active' : ''}>
                                       {speaking === item.id ? <VolumeX size={12} /> : <Volume2 size={12} />}
                                     </button>
-                                    <button title={t('Choose a voice')} aria-label={t('Choose a voice')} onClick={() => setVoiceOutFor(item)}>
+                                    <button title={t('Choose a voice')} aria-label={t('Choose a voice')} onClick={() => (CLOUD_ONLY ? setSettingsOpen('voice') : setVoiceOutFor(item))}>
                                       <ChevronDown size={11} />
                                     </button>
                                   </span>
@@ -2412,7 +2435,7 @@ export default function App() {
                       {composeMode === 'chat' && <EffortControl value={effortStop} onChange={setEffortStop} model={currentModel?.name} />}
                       {!transcribing && (
                         <AudioMenu
-                          onVoiceSettings={() => setVoicePicker('menu')}
+                          onVoiceSettings={() => (CLOUD_ONLY ? setSettingsOpen('voice') : setVoicePicker('menu'))}
                           onTest={async () => {
                             const choice = await api.getSetting<TtsChoice | null>('ttsVoice', null)
                             speak_(t('This is how Orbi sounds on this speaker.'), choice, lang).catch((e) => setNotice(cleanError(e)))

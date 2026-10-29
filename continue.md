@@ -1,7 +1,7 @@
 # Orbi: continuar daqui
 
 Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trabalho sem perder contexto.
-Última versão publicada: **0.1.29-6** (GitHub Releases, `iwerry/chatorbit-app`).
+Última versão publicada: **0.1.29-7** (GitHub Releases, `iwerry/chatorbit-app`).
 
 ## Regras do projeto
 
@@ -33,6 +33,19 @@ Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trab
 | `RELEASE_NOTES.md` | O que mudou em cada versão |
 
 ## 29/10: o que mudou
+
+- **0.1.29-7 + função v8:**
+  - O catálogo vem de `/models?output_modalities=all`.
+    - TTS = saída `speech`, com `supported_voices`.
+    - STT = saída `transcription`.
+  - Preços em US$:
+    - chat: por 1M tokens;
+    - imagem: pelos `/images/models/<id>/endpoints`, ou pela média real paga no `ledger`;
+    - vídeo: por segundo, a partir dos `pricing_skus`.
+  - Admin vê US$; os demais usuários veem créditos (`priceLabel` em `cloud.ts`).
+  - Sem vozes locais nem nativas no modo nuvem.
+  - Um 402 do OpenRouter vira "saldo acabou".
+- **Gastos de teste em 29/10:** cerca de US$ 5,80 no OpenRouter. O Veo 3.1 de 8 s custa US$ 3,20. Manter o saldo do OpenRouter com folga.
 
 - **0.1.29-5 (atualização rápida):** cada ideia tem `model` e `modelName` (`src/lib/ideas.ts`, IDs reais do OpenRouter em 29/10).
   - Os workflows escolhem os melhores modelos (`BEST` e `UPSCALE_MODELS` em `NodeFlow.tsx`), e o upscale 4× funciona na nuvem.
