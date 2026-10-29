@@ -1,7 +1,7 @@
 # Orbi: continuar daqui
 
 Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trabalho sem perder contexto.
-Última versão publicada: **0.1.29-5** (GitHub Releases, `iwerry/chatorbit-app`).
+Última versão publicada: **0.1.29-6** (GitHub Releases, `iwerry/chatorbit-app`).
 
 ## Regras do projeto
 

@@ -1,4 +1,8 @@
-## Orbi 0.1.29-5 (atualização rápida, sem reiniciar)
+## Orbi 0.1.29-6 (atualização rápida, sem reiniciar)
+
+- Novas capas no Launchpad do Creative: Pearl dragon knight, Neon cyborg profile e o vídeo do avião de papel sobre a cidade.
+
+## Orbi 0.1.29-5 (previous)
 
 - **Cada ideia do Creative abre com um modelo da moda,** e o nome dele aparece no card:
   - Imagem: Nano Banana Pro, Nano Banana 2.1, GPT Image 2 / 2.5, FLUX.2 Max, FLUX 3, Seedream 5.0 Pro, Grok Imagine 2.0, Qwen Image 3 Pro, Krea 2, MAI-Image 2.6, Meta Muse, Recraft V4.1.
