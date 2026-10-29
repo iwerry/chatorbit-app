@@ -1,7 +1,7 @@
 # Orbi: continuar daqui
 
 Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trabalho sem perder contexto.
-Última versão publicada: **0.1.29-8** (GitHub Releases, `iwerry/chatorbit-app`).
+Última versão publicada: **0.1.29-9** (GitHub Releases, `iwerry/chatorbit-app`).
 
 ## Regras do projeto
 
@@ -33,6 +33,12 @@ Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trab
 | `RELEASE_NOTES.md` | O que mudou em cada versão |
 
 ## 29/10: o que mudou
+
+- **0.1.29-9 + função v10:** proporções e resoluções por modelo.
+  - Imagens: `supported_parameters.aspect_ratio` e `.resolution` do `/images/models`.
+  - Vídeos: `supported_aspect_ratios`.
+  - `aspectsFor`, `nearestAspect`, `aspectInfo` e `ratio` em `creative.ts`.
+  - `image:generate` aceita `aspect` exato (`main.cjs`).
 
 - **0.1.29-8 + função v9:**
   - Estúdio de Áudio (`AudioStudio.tsx`):

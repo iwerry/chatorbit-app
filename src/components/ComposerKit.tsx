@@ -33,7 +33,7 @@ import {
 } from 'lucide-react'
 import { api, type MediaItem } from '../lib/api'
 import { t } from '../lib/i18n'
-import { ASPECTS, estimateUsd, resLabel, type CreativeOption } from '../lib/creative'
+import { aspectInfo, aspectsFor, estimateUsd, imageResValue, nearestAspect, ratio, resLabel, type CreativeOption } from '../lib/creative'
 import { creativeBus, type ChatMediaMeta, type GenUpdate } from '../lib/creativeBus'
 import { CLOUD_ONLY, fmtCredits, nearestDuration } from '../lib/cloud'
 import { setAudioPref, useAudioDevices } from '../lib/audioDevices'
@@ -481,7 +481,7 @@ export function ModeSwitch({ mode, onMode }: { mode: ComposeMode; onMode: (m: Co
 }
 
 function AspectIcon({ id }: { id: string }) {
-  const a = ASPECTS.find((x) => x.id === id) ?? ASPECTS[0]
+  const a = ratio(id)
   const k = 12 / Math.max(a.w, a.h)
   return <span className="aspect-ico" style={{ width: Math.max(5, a.w * k), height: Math.max(5, a.h * k) }} />
 }
@@ -509,24 +509,19 @@ export function CreateControls({
   const current = list.find((o) => o.key === settings.modelKey[mode]) ?? list[0]
   const res = settings.res[mode] && resolutions.includes(settings.res[mode]) ? settings.res[mode] : resolutions[Math.min(1, resolutions.length - 1)]
   const set = <K extends keyof CreateSettings>(k: K, v: CreateSettings[K]) => setSettings((s) => ({ ...s, [k]: v }))
+  // Each model has its own aspect ratios: switching models keeps the closest shape.
+  const aspects = aspectsFor(current)
+  const aspect = nearestAspect(aspects, settings.aspect[mode])
+  useEffect(() => {
+    if (aspect !== settings.aspect[mode]) setSettings((s) => ({ ...s, aspect: { ...s.aspect, [mode]: aspect } }))
+  }, [aspect, mode])
   return (
     <div className="create-controls">
       <PopPill label={current?.label ?? t('No model')} icon={mode === 'video' ? <Film size={13} /> : <ImageIcon size={13} />} title={t('Change model')} wide className="model-pill">
         {(close) => <ModelPickerPop list={list} current={current?.key} mode={mode} onPick={(k) => (set('modelKey', { ...settings.modelKey, [mode]: k }), close())} onOpenModels={() => (close(), onOpenModels())} />}
       </PopPill>
-      <PopPill label={settings.aspect[mode]} icon={<AspectIcon id={settings.aspect[mode]} />} title={t('Aspect ratio')}>
-        {(close) => (
-          <div className="cpop-list">
-            <p className="cpop-head">{t('Aspect ratio')}</p>
-            {ASPECTS.map((a) => (
-              <button type="button" key={a.id} className={a.id === settings.aspect[mode] ? 'on' : ''} onClick={() => (set('aspect', { ...settings.aspect, [mode]: a.id }), close())}>
-                <AspectIcon id={a.id} />
-                <span className="num">{a.id}</span>
-                {a.id === settings.aspect[mode] && <Check size={13} />}
-              </button>
-            ))}
-          </div>
-        )}
+      <PopPill label={aspect} icon={<AspectIcon id={aspect} />} title={t('Aspect ratio')}>
+        {(close) => <AspectList list={aspects} value={aspect} onPick={(a) => (set('aspect', { ...settings.aspect, [mode]: a }), close())} />}
       </PopPill>
       {mode === 'video' && current?.video && (
         <PopPill label={`${nearestDuration(current.video.durations, settings.duration)}s`} icon={<Clock3 size={13} />} title={t('Duration')}>
@@ -562,7 +557,7 @@ export function CreateControls({
             <p className="cpop-head">{t('Resolution')}</p>
             {resolutions.map((r) => (
               <button type="button" key={r} className={r === res ? 'on' : ''} onClick={() => (set('res', { ...settings.res, [mode]: r }), close())}>
-                <span className="num">{resLabel(r)}</span>
+                <span className="num">{mode === 'image' ? imageResValue(r) : resLabel(r)}</span>
                 {r === res && <Check size={13} />}
               </button>
             ))}
@@ -594,6 +589,32 @@ export function CreateControls({
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+/** Aspect ratios a model accepts: shape, ratio, what it is for and an example size. */
+export function AspectList({ list, value, onPick }: { list: string[]; value: string; onPick: (a: string) => void }) {
+  return (
+    <div className="cpop-list aspect-list">
+      <p className="cpop-head">{t('Aspect ratio')} · {t('this model')}</p>
+      {list.map((a) => {
+        const info = aspectInfo(a)
+        return (
+          <button type="button" key={a} className={a === value ? 'on' : ''} onClick={() => onPick(a)}>
+            <span className="aspect-ico-box">
+              <AspectIcon id={a} />
+            </span>
+            <span className="num aspect-id">{a}</span>
+            <span className="aspect-text">
+              <strong>{t(info.name)}</strong>
+              {info.use && <small>{t(info.use)}</small>}
+            </span>
+            {info.px && <small className="num aspect-px">{info.px}</small>}
+            {a === value && <Check size={13} />}
+          </button>
+        )
+      })}
     </div>
   )
 }

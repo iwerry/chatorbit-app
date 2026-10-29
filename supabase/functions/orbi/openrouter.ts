@@ -117,6 +117,13 @@ async function imageUsd(id: string): Promise<number | undefined> {
   }
 }
 
+// Image models list their options under supported_parameters (aspect_ratio, resolution, input_references).
+type ImgRow = { supported_parameters?: Record<string, { values?: string[]; max?: number } | undefined> }
+const imageParam = (m: unknown, key: string): string[] | undefined => {
+  const v = (m as ImgRow).supported_parameters?.[key]?.values
+  return Array.isArray(v) && v.length ? v.filter((x) => x !== 'auto') : undefined
+}
+
 const num = (v: unknown) => (typeof v === 'number' ? v : Number(v || 0)) || 0
 const vendorOf = (id: string) => id.split('/')[0]
 const isFree = (m: OrModel) => m.id.endsWith(':free') || (num(m.pricing?.prompt) === 0 && num(m.pricing?.completion) === 0 && num(m.pricing?.request) === 0 && m.id !== 'openrouter/auto')
@@ -180,7 +187,7 @@ async function buildCatalog() {
   const stt = all.filter((m) => outs(m).includes('transcription') && !m.id.endsWith(':free')).sort(byOrder(STT_ORDER))
   return {
     chat: chat.map((m) => ({ id: m.id, name: m.name, vendor: vendorOf(m.id), featured: popular.has(m.id), created: m.created || 0, context: m.context_length || 0, input: m.architecture?.input_modalities || ['text'], image: (m.architecture?.output_modalities || []).includes('image'), price: { in: creditsFor(num(m.pricing?.prompt) * 1e6), out: creditsFor(num(m.pricing?.completion) * 1e6) }, usd: { in: num(m.pricing?.prompt) * 1e6, out: num(m.pricing?.completion) * 1e6 } })),
-    image: images.map((m) => ({ id: m.id, name: m.name || m.id, vendor: vendorOf(m.id), featured: rankBy(POPULAR_IMAGE, m.id, m.name) < POPULAR_IMAGE.length, usd: imagePrice.get(m.id), price: imagePrice.get(m.id) ? creditsFor(imagePrice.get(m.id)!) : undefined, aspects: (m as { supported_aspect_ratios?: string[] }).supported_aspect_ratios, resolutions: (m as { supported_resolutions?: string[] }).supported_resolutions })),
+    image: images.map((m) => ({ id: m.id, name: m.name || m.id, vendor: vendorOf(m.id), featured: rankBy(POPULAR_IMAGE, m.id, m.name) < POPULAR_IMAGE.length, usd: imagePrice.get(m.id), price: imagePrice.get(m.id) ? creditsFor(imagePrice.get(m.id)!) : undefined, aspects: imageParam(m, 'aspect_ratio') ?? (m as { supported_aspect_ratios?: string[] }).supported_aspect_ratios, resolutions: imageParam(m, 'resolution') ?? (m as { supported_resolutions?: string[] }).supported_resolutions, refs: (m as ImgRow).supported_parameters?.input_references?.max })),
     video: videoRows.map((m) => {
       const pps = videoUsdPerSecond(m.pricing_skus, '720p')
       const usdBySecond: Record<string, number> = {}

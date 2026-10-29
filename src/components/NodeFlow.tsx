@@ -1,6 +1,7 @@
 // Node workflows in the spirit of ComfyUI: typed ports, drag a wire from an output to an input,
 // and every node really runs (text AI, image and video generation, voiceover, save to board).
 import { CLOUD_ONLY, nearestDuration, nearestRes, refreshCloud, useCloud, vendorLabel } from '../lib/cloud'
+import { aspectInfo, aspectsFor, nearestAspect, ratio, type CreativeOption } from '../lib/creative'
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import {
   AudioLines,
@@ -181,6 +182,10 @@ const PRESETS: Record<string, { label: string; system: string }> = {
   custom: { label: 'Custom instruction', system: '' },
 }
 const ASPECTS: Record<string, [number, number]> = { '1:1': [1, 1], '4:3': [4, 3], '3:4': [3, 4], '16:9': [16, 9], '9:16': [9, 16] }
+const ratioOf = (id: string): [number, number] => {
+  const r = ratio(id)
+  return [r.w, r.h]
+}
 const VOICES = ['alloy', 'ash', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer']
 
 const NODE_W = 280
@@ -647,7 +652,7 @@ export function NodeFlow({
         if (!prompt) throw new Error(t('Connect a prompt to this node.'))
         const choice = String(n.data.model || imageChoices[0]?.key || '')
         if (!choice) throw new Error(t('No image model yet — download one in Models or connect a provider.'))
-        const [w0, h0] = ASPECTS[String(n.data.aspect || '1:1')] || [1, 1]
+        const [w0, h0] = ratioOf(String(n.data.aspect || '1:1'))
         const base = 768
         const width = snap64(Math.sqrt((base * base * w0) / h0))
         const height = snap64((width * h0) / w0)
@@ -674,7 +679,9 @@ export function NodeFlow({
             if (!m) throw new Error(t('That image model is not connected anymore.'))
             const ref = init && init.kind === 'image' ? (await api.mediaDataUrl(init.id)) || undefined : undefined
             const neg = negativeText()
-            return await api.generateImage({ providerId: m.provider, model: m.id, prompt: neg ? `${prompt}\n\nAvoid: ${neg}` : prompt, width, height, refImages: ref ? [ref] : undefined, source: 'creative' })
+            const spec = cloud.catalog?.image.find((x) => x.id === m.id)
+            const list = aspectsFor({ aspects: spec?.aspects } as CreativeOption)
+            return await api.generateImage({ providerId: m.provider, model: m.id, prompt: neg ? `${prompt}\n\nAvoid: ${neg}` : prompt, width, height, aspect: nearestAspect(list, String(n.data.aspect || '1:1')), refImages: ref ? [ref] : undefined, source: 'creative' })
           } finally {
             activeMediaNode.current = null
           }
@@ -701,7 +708,7 @@ export function NodeFlow({
                 prompt: neg ? `${prompt}\n\nAvoid: ${neg}` : prompt,
                 duration: nearestDuration(spec?.durations ?? [5], Math.round((Number(n.data.frames) || 81) / (Number(n.data.fps) || 16))),
                 resolution: nearestRes(spec?.resolutions ?? ['720p'], Number(n.data.res) || 720),
-                aspect: spec?.aspects.includes('16:9') ? '16:9' : spec?.aspects[0],
+                aspect: nearestAspect(spec?.aspects?.length ? spec.aspects : ['16:9'], String(n.data.aspect || '16:9')),
                 frameImage: initImage,
                 source: 'creative',
               })
@@ -1296,6 +1303,13 @@ function NodeBody({
       return { key: c.key, name: c.label.replace(/ · [^·]*$/, '').replace(/^[^:]+:\s*/, ''), sub: id, group: e?.featured ? t('Popular') : vendorLabel(id.split('/')[0]), featured: e?.featured, usd, unit: kind === 'video' ? 's' : 'img' }
     })
   const imgIcon = <ImageIcon size={14} />
+  // The aspect ratios the chosen model accepts.
+  const nodeAspects = (kind: 'image' | 'video', key: string) => {
+    if (!CLOUD_ONLY) return Object.keys(ASPECTS)
+    const id = key.split('::').pop()
+    const spec = kind === 'video' ? cat?.video.find((v) => v.id === id) : cat?.image.find((v) => v.id === id)
+    return aspectsFor({ aspects: spec?.aspects } as CreativeOption)
+  }
   const nodeUsd = (kind: 'image' | 'video', key: string) => {
     const id = key.split('::').pop()
     if (kind === 'image') return cat?.image.find((v) => v.id === id)?.usd
@@ -1393,8 +1407,10 @@ function NodeBody({
           )}
           <div className="flow-row">
             <select className="ab-input" value={String(n.data.aspect || '1:1')} onChange={(e) => setData({ aspect: e.target.value })} aria-label={t('Aspect')}>
-              {Object.keys(ASPECTS).map((a) => (
-                <option key={a}>{a}</option>
+              {nodeAspects('image', String(n.data.model || imageChoices[0]?.key || '')).map((a) => (
+                <option key={a} value={a}>
+                  {a} · {t(aspectInfo(a).name)}
+                </option>
               ))}
             </select>
             <input className="ab-input num" type="number" min={0} max={50} value={Number(n.data.steps) || 0} onChange={(e) => setData({ steps: Number(e.target.value) })} title={t('Steps (0 = model default)')} />
@@ -1421,6 +1437,18 @@ function NodeBody({
             </select>
           ) : (
             missing(t('Download a video model'))
+          )}
+          {CLOUD_ONLY && (
+            <label className="flow-row flow-label">
+              <span>{t('Aspect ratio')}</span>
+              <select className="ab-input" value={nearestAspect(nodeAspects('video', String(n.data.model || videoChoices[0]?.key || '')), String(n.data.aspect || '16:9'))} onChange={(e) => setData({ aspect: e.target.value })}>
+                {nodeAspects('video', String(n.data.model || videoChoices[0]?.key || '')).map((a) => (
+                  <option key={a} value={a}>
+                    {a} · {t(aspectInfo(a).name)}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
           <label className="flow-row flow-label">
             <span>{t('Frames')}</span>

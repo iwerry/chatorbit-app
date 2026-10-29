@@ -361,7 +361,7 @@ const api = {
   'image:generate': async (payload) => {
     const { buffer, mime } =
       payload.providerId === 'orbicloud'
-        ? await cloudApi().image({ model: payload.model, prompt: payload.prompt, aspect: aspectOf(payload.width, payload.height), resolution: payload.resolution, refImages: payload.refImages })
+        ? await cloudApi().image({ model: payload.model, prompt: payload.prompt, aspect: payload.aspect || aspectOf(payload.width, payload.height), resolution: payload.resolution, refImages: payload.refImages })
         : await ai.generateImage(payload, providerConfig(payload.providerId))
     const short = payload.prompt.slice(0, 40).replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'image'
     return saveMedia({ buffer, mime, kind: 'image', name: `${short}.${mime.includes('jpeg') ? 'jpg' : 'png'}`, prompt: payload.prompt, model: payload.model, source: payload.source || 'creative', board: payload.board, params: { width: payload.width, height: payload.height } })
@@ -885,7 +885,7 @@ const cloudVideoJobs = new Map()
 // Nearest standard aspect ratio for a width × height.
 function aspectOf(w, h) {
   if (!w || !h) return undefined
-  const list = [['1:1', 1], ['4:3', 4 / 3], ['3:4', 3 / 4], ['16:9', 16 / 9], ['9:16', 9 / 16], ['21:9', 21 / 9], ['3:2', 1.5], ['2:3', 2 / 3]]
+  const list = [['1:1', 1], ['4:3', 4 / 3], ['3:4', 3 / 4], ['16:9', 16 / 9], ['9:16', 9 / 16], ['21:9', 21 / 9], ['9:21', 9 / 21], ['3:2', 1.5], ['2:3', 2 / 3], ['4:5', 0.8], ['5:4', 1.25], ['2:1', 2], ['1:2', 0.5]]
   const r = w / h
   return list.reduce((a, b) => (Math.abs(Math.log(b[1] / r)) < Math.abs(Math.log(a[1] / r)) ? b : a))[0]
 }

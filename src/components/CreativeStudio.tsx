@@ -36,7 +36,7 @@ import { creativeBus, takePendingUse, type GenRequest } from '../lib/creativeBus
 import { CLOUD_ONLY, fmtCredits, nearestDuration, nearestRes, useCloud } from '../lib/cloud'
 import { CostChip, ModelSelect } from './ModelMenu'
 import { creativeItems } from '../lib/menuItems'
-import { estimateUsd, resLabel, resolutionsFor } from '../lib/creative'
+import { aspectInfo, aspectsFor, estimateUsd, imageResValue, nearestAspect, ratio, resLabel, resolutionsFor } from '../lib/creative'
 import { activity } from '../lib/activity'
 import { fmtBytes, t } from '../lib/i18n'
 import { ThemeSwitcher, type ThemeMode } from './ThemeSwitcher'
@@ -263,6 +263,12 @@ export function CreativeStudio({
   const cloudResList = isCloud ? resolutionsFor(current, mode) : []
   const cloudShort = cloudResList.includes(cloudRes[mode]) ? cloudRes[mode] : cloudResList[Math.min(1, cloudResList.length - 1)] ?? 720
   const cloudDur = spec ? nearestDuration(spec.durations, duration) : duration
+  // Only the aspect ratios this model accepts; switching models keeps the closest shape.
+  const modelAspects = aspectsFor(current)
+  useEffect(() => {
+    if (isCloud && !modelAspects.includes(aspect)) applyAspect(nearestAspect(modelAspects, aspect))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.key])
   const estimateUsdNow = isCloud ? estimateUsd(current, { count, seconds: cloudDur, res: cloudShort }) : undefined
   const withAvoid = (p: string, neg?: string) => (neg && neg.trim() ? `${p}\n\nAvoid: ${neg.trim()}` : p)
   const cloudRender = (jobId: string, o: Option, r: { prompt: string; negative?: string; aspect: string; short: number; duration: number; init?: string; audio: boolean; source?: string }) =>
@@ -280,7 +286,7 @@ export function CreativeStudio({
           board,
           source: r.source,
         })
-      : api.generateImage({ providerId: o.providerId!, model: o.modelId, prompt: withAvoid(r.prompt, r.negative), board, ...((({ w, h }) => ({ width: w, height: h }))(sizeFor(r.aspect, 1024))), resolution: resLabel(r.short), refImages: r.init ? [r.init] : undefined, source: r.source || 'creative' })
+      : api.generateImage({ providerId: o.providerId!, model: o.modelId, prompt: withAvoid(r.prompt, r.negative), board, ...((({ w, h }) => ({ width: w, height: h }))(sizeFor(r.aspect, 1024))), aspect: r.aspect, resolution: imageResValue(r.short), refImages: r.init ? [r.init] : undefined, source: r.source || 'creative' })
   const steps = gen.fixedSteps ? gen.presets[0] : quality === 3 ? customSteps : gen.presets[quality]
   const frames = Math.max(5, Math.round((duration * fps) / 4) * 4 + 1)
   const width = size.w
@@ -292,7 +298,7 @@ export function CreativeStudio({
     const cpuOnly = !hw?.gpuAccel
     const base = Math.min(gen.width, gen.height) || 768
     const target = cpuOnly && current.local ? Math.min(base, 512) : base
-    const a = ASPECTS.find((x) => x.id === aspect) ?? ASPECTS[0]
+    const a = ratio(aspect)
     const area = mode === 'video' ? gen.width * gen.height : target * target
     const w = snap(Math.sqrt((area * a.w) / a.h))
     setSize({ w, h: snap((w * a.h) / a.w) })
@@ -325,8 +331,7 @@ export function CreativeStudio({
 
   const applyAspect = (id: string) => {
     setAspect(id)
-    const a = ASPECTS.find((x) => x.id === id)
-    if (!a) return
+    const a = ratio(id)
     const area = width * height
     const w = snap(Math.sqrt((area * a.w) / a.h))
     setSize({ w, h: snap((w * a.h) / a.w) })
@@ -985,18 +990,27 @@ export function CreativeStudio({
               {isCloud ? (
                 <Section title={t('Size')}>
                   <div className="studio-aspects">
-                    {ASPECTS.filter((a) => !spec || spec.aspects.includes(a.id)).map((a) => (
-                      <button key={a.id} className={aspect === a.id ? 'active' : ''} onClick={() => applyAspect(a.id)}>
-                        <i style={{ aspectRatio: `${a.w}/${a.h}` }} />
-                        {a.id}
-                      </button>
-                    ))}
+                    {modelAspects.map((id) => {
+                      const a = ratio(id)
+                      const info = aspectInfo(id)
+                      return (
+                        <button key={id} className={aspect === id ? 'active' : ''} onClick={() => applyAspect(id)} title={[t(info.name), t(info.use), info.px].filter(Boolean).join(' · ')}>
+                          <i style={{ aspectRatio: `${a.w}/${a.h}` }} />
+                          {id}
+                        </button>
+                      )
+                    })}
                   </div>
+                  {aspectInfo(aspect).use && (
+                    <p className="studio-hint">
+                      <b>{t(aspectInfo(aspect).name)}</b> · {t(aspectInfo(aspect).use)} · <span className="num">{aspectInfo(aspect).px}</span>
+                    </p>
+                  )}
                   <div className="studio-count">
                     <span>{t('Resolution')}</span>
                     {cloudResList.map((r) => (
                       <button key={r} className={cloudShort === r ? 'active' : ''} onClick={() => setCloudRes((c) => ({ ...c, [mode]: r }))}>
-                        {resLabel(r)}
+                        {mode === 'image' ? imageResValue(r) : resLabel(r)}
                       </button>
                     ))}
                   </div>

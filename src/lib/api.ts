@@ -473,7 +473,7 @@ export const api = {
   revealMedia: (id: string) => bridge.invoke('media:reveal', id),
   saveMediaAs: (id: string) => bridge.invoke('media:saveAs', id),
   importMedia: (file: { name: string; dataUrl: string }): Promise<MediaItem | null> => bridge.invoke('media:import', file),
-  generateImage: (p: { providerId: string; model: string; prompt: string; size?: string; source?: string; board?: string; width?: number; height?: number; resolution?: string; refImages?: string[] }): Promise<MediaItem> =>
+  generateImage: (p: { providerId: string; model: string; prompt: string; aspect?: string; size?: string; source?: string; board?: string; width?: number; height?: number; resolution?: string; refImages?: string[] }): Promise<MediaItem> =>
     bridge.invoke('image:generate', p),
 
   getWorkflow: (id: string) => bridge.invoke('workflows:get', id),

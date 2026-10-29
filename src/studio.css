@@ -5585,3 +5585,48 @@ form.composer {
     border-right: 0;
   }
 }
+
+/* Aspect ratios a model accepts: shape, ratio, what it is for, example size. */
+.aspect-list {
+  width: 340px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.aspect-list button {
+  gap: 9px;
+}
+.aspect-list .aspect-id {
+  width: 44px;
+  flex: none;
+  font-weight: 700;
+  color: var(--neo-text);
+}
+.aspect-list .aspect-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  line-height: 1.25;
+}
+.aspect-list .aspect-text strong {
+  font-size: 12.5px;
+  color: var(--neo-text);
+}
+.aspect-list .aspect-text small,
+.aspect-list .aspect-px {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--neo-faint);
+}
+.aspect-list .aspect-px {
+  flex: none;
+}
+.aspect-list button > svg:last-child {
+  margin-left: 0;
+}
+.aspect-ico-box {
+  display: flex;
+  width: 16px;
+  flex: none;
+  justify-content: center;
+}

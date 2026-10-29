@@ -1,4 +1,14 @@
-## Orbi 0.1.29-8
+## Orbi 0.1.29-9
+
+- **Proporção da imagem por modelo:** cada modelo de imagem e vídeo mostra só as proporções que aceita, com o nome, o uso e um tamanho de exemplo.
+  - Exemplos: 1:1 Quadrado (feed), 9:16 Vertical alto (Reels, TikTok, Shorts), 16:9 Horizontal panorâmico (YouTube), 21:9 Ultra largo (visual de cinema, ≈ 2,33:1), 4:5, 2:3, 9:21…
+  - Veo só aceita 16:9 e 9:16. Seedream vai de 21:9 a 9:21. GPT-5 Image aceita 1:1, 3:2 e 2:3.
+  - Ao trocar de modelo, o Orbi pula para a proporção mais parecida que o novo modelo aceita.
+- **Vale em todo lugar:** chat (Imagem e Vídeo), Canvas do Creative e nós de imagem e vídeo dos Workflows. Os nós de vídeo ganharam a escolha de proporção.
+- **Resolução por modelo:** as imagens mostram as resoluções que cada modelo aceita (512, 1K, 1,5K, 2K, 4K…).
+- A proporção escolhida vai exata para o modelo. Antes, algumas eram arredondadas para a mais próxima.
+
+## Orbi 0.1.29-8 (previous)
 
 - **Áudio:** novo estúdio no menu lateral, logo abaixo do Creative.
   - **Locução:** texto para voz com Gemini 3.8 Flash TTS, ElevenLabs v4, Fish Audio, Microsoft MAI-Voice, MiniMax e outros, cada um com as suas vozes.
