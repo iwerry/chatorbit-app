@@ -11,6 +11,7 @@ import {
   Volume2,
   VolumeX,
   ShieldCheck,
+  Wallet,
   Wrench,
   Check,
   ChevronDown,
@@ -91,6 +92,8 @@ import { startRecording, type Recording } from './lib/voice'
 import { loadAudioPrefs, routeAudio } from './lib/audioDevices'
 import { creativeBus, decodeChatMedia, encodeChatMedia, type ChatMediaMeta } from './lib/creativeBus'
 import { creativeOptions, resolutionsFor } from './lib/creative'
+import { CLOUD_ONLY, fmtCredits, refreshCloud, useCloud } from './lib/cloud'
+import { AccountGate } from './components/AccountPanel'
 import { enhancePrompt } from './lib/promptTools'
 import { DEFAULT_NEGATIVE, IDEAS } from './lib/ideas'
 import {
@@ -280,6 +283,12 @@ export default function App() {
     }
   }
   // Chat · Image · Video in the same box.
+  const cloud = useCloud()
+  useEffect(() => {
+    const open = () => setSettingsOpen('account')
+    window.addEventListener('orbi:open-account', open)
+    return () => window.removeEventListener('orbi:open-account', open)
+  }, [])
   const [composeMode, setComposeMode] = useState<ComposeMode>('chat')
   const [createSet, setCreateSetState] = useState<CreateSettings>(DEFAULT_CREATE)
   const setCreateSet = (f: (s: CreateSettings) => CreateSettings) =>
@@ -345,6 +354,8 @@ export default function App() {
     () =>
       activity.onDone((a) => {
         // Only announce when the user is somewhere else.
+        // Every answer or render spends credits: refresh the balance.
+        if (CLOUD_ONLY) setTimeout(() => refreshCloud(), 400)
         // Renders asked from the chat already show their result in the chat.
         if (activeNavRef.current !== a.area && !(a.from && activeNavRef.current === a.from)) setDoneToast(a)
       }),
@@ -370,7 +381,7 @@ export default function App() {
       setModelErrors(r.errors)
       setSelectedModel((cur) => {
         if (cur && r.models.some((m) => m.key === cur)) return cur
-        const preferred = r.models.find((m) => /gpt-4\.1|gpt-4o-mini|claude.*sonnet|gemini.*flash/i.test(m.id) && !m.image) ?? r.models.find((m) => !m.image) ?? r.models[0]
+        const preferred = r.models.find((m) => /claude.*sonnet|gpt-5|gpt-4\.1|gemini.*flash/i.test(m.id) && !m.image) ?? r.models.find((m) => !m.image) ?? r.models[0]
         return preferred?.key ?? ''
       })
     } finally {
@@ -434,7 +445,7 @@ export default function App() {
       const savedTheme = await api.getSetting<ThemeMode | null>('theme', null)
       if (savedTheme) setThemeMode(savedTheme)
       setThemeReady(true)
-      if (!(await api.getSetting('onboarded', false))) setSetupOpen(0)
+      if (!CLOUD_ONLY && !(await api.getSetting('onboarded', false))) setSetupOpen(0)
       const l = await api.getSetting<Lang>('language', 'en')
       applyLang(l)
       setLangState(l)
@@ -922,7 +933,9 @@ export default function App() {
   }
   const startVoice = async (mode = voiceMode) => {
     if (recording) return finishVoice(false)
+    if (!mode && CLOUD_ONLY) mode = { type: 'cloud' }
     if (!mode) return setVoicePicker('auto')
+    if (!voiceMode) setVoiceMode(mode)
     try {
       const rec = await startRecording()
       setRecording({ rec, started: Date.now() })
@@ -970,7 +983,7 @@ export default function App() {
   }
 
   // ---------- images and videos made from the chat ----------
-  const creativeOpts = useMemo(() => creativeOptions(localStatus, models), [localStatus, models])
+  const creativeOpts = useMemo(() => creativeOptions(localStatus, models, cloud.catalog), [localStatus, models, cloud.catalog])
   const submitComposer = (text: string) => {
     if (composeMode === 'chat' || /^\s*\//.test(text)) return sendMessage(text)
     return askRender({ mode: composeMode, prompt: text.trim() })
@@ -1020,6 +1033,7 @@ export default function App() {
       aspect,
       res,
       duration: createSet.duration,
+      audio: createSet.audio !== false,
       count,
       initMediaId: req.initMediaId,
       initDataUrl: img?.dataUrl,
@@ -1217,7 +1231,7 @@ export default function App() {
     { id: 'file.import', category: 'File', label: 'Import to Media Library…', run: () => goNav('media') },
     { id: 'file.export', category: 'File', label: 'Export Chat as Markdown…', shortcut: 'Ctrl+S', enabled: !!conversationId, run: () => conversationId && api.exportConversation(conversationId).then((ok) => ok && setNotice(t('Chat exported.'))) },
     { id: 'file.settings', category: 'File', label: 'Settings', shortcut: 'Ctrl+,', run: () => setSettingsOpen('general') },
-    { id: 'file.localAI', category: 'File', label: 'Local AI Models…', run: () => setSettingsOpen('models') },
+    CLOUD_ONLY ? { id: 'file.account', category: 'File', label: 'Account & credits…', run: () => setSettingsOpen('account') } : { id: 'file.localAI', category: 'File', label: 'Local AI Models…', run: () => setSettingsOpen('models') },
     { id: 'file.closeChat', category: 'File', label: 'Close Chat', shortcut: 'Ctrl+F4', run: () => startNewChat() },
     { id: 'file.closeWindow', category: 'File', label: 'Close Window', shortcut: 'Alt+F4', run: () => api.win.close() },
     { id: 'file.exit', category: 'File', label: 'Exit', run: () => api.win.quit() },
@@ -1265,7 +1279,7 @@ export default function App() {
     { id: 'term.workspace', category: 'Terminal', label: 'Open Workspace Folder in Terminal', run: async () => { const dir = await api.workspaceDir(); runInTerminal(`cd "${dir}"`) } },
     // Help
     { id: 'help.welcome', category: 'Help', label: 'Welcome', run: () => { setTemporaryChat(false); startNewChat(); setActiveNav('chats') } },
-    { id: 'help.setup', category: 'Help', label: 'Setup Assistant…', run: () => setSetupOpen(0) },
+    ...(CLOUD_ONLY ? [] : [{ id: 'help.setup', category: 'Help', label: 'Setup Assistant…', run: () => setSetupOpen(0) }]),
     { id: 'help.commands', category: 'Help', label: 'Show All Commands', shortcut: 'Ctrl+Shift+P', run: () => setPalette('commands') },
     { id: 'help.docs', category: 'Help', label: 'Documentation', run: () => api.openExternal('https://github.com/iwerry/chatorbit-app#readme') },
     { id: 'help.issue', category: 'Help', label: 'Report Issue', run: () => api.openExternal('https://github.com/iwerry/chatorbit-app/issues/new') },
@@ -1277,13 +1291,13 @@ export default function App() {
   ]
   const commands = Object.fromEntries(commandList.map((c) => [c.id, c]))
   const menus: MenuDef[] = [
-    { label: 'File', items: ['file.newChat', 'file.newTemp', 'file.newWindow', 'file.newProject', '-', 'file.openFile', 'file.import', '-', 'file.export', '-', 'file.settings', 'file.localAI', '-', 'file.closeChat', 'file.closeWindow', '-', 'file.exit'] },
+    { label: 'File', items: ['file.newChat', 'file.newTemp', 'file.newWindow', 'file.newProject', '-', 'file.openFile', 'file.import', '-', 'file.export', '-', 'file.settings', CLOUD_ONLY ? 'file.account' : 'file.localAI', '-', 'file.closeChat', 'file.closeWindow', '-', 'file.exit'] },
     { label: 'Edit', items: ['edit.undo', 'edit.redo', '-', 'edit.cut', 'edit.copy', 'edit.paste', '-', 'edit.find', 'edit.searchChats', '-', 'edit.copyAnswer', 'edit.clearComposer'] },
     { label: 'Selection', items: ['sel.all', 'sel.lastAnswer', '-', 'sel.copy', 'sel.quote', '-', 'sel.runTerminal', 'sel.clear'] },
     { label: 'View', items: ['view.palette', '-', 'go.chats', 'go.creative', 'go.explore', 'go.agents', 'go.skills', 'go.mcp', 'go.media', '-', 'view.sidebar', 'view.workspace', 'view.terminal', '-', { label: 'Appearance', submenu: ['view.light', 'view.dark', 'view.terminalTheme'] }, 'view.zoomIn', 'view.zoomOut', 'view.zoomReset', 'view.fullscreen'] },
     { label: 'Go', items: ['go.chats', 'go.creative', 'go.explore', 'go.agents', 'go.skills', 'go.mcp', 'go.scheduled', 'go.memory', 'go.bookmarks', 'go.media', '-', 'go.nextChat', 'go.prevChat', '-', 'go.chat'] },
     { label: 'Terminal', items: ['term.new', 'term.toggle', '-', 'term.runSelection', 'term.runLastCode', 'term.workspace', '-', 'term.clear', 'term.kill'] },
-    { label: 'Help', items: ['help.welcome', 'help.setup', 'help.commands', 'help.docs', '-', 'help.issue', '-', 'help.devtools', 'help.reload', 'help.data', '-', 'help.updates', 'help.about'] },
+    { label: 'Help', items: ['help.welcome', ...(CLOUD_ONLY ? [] : ['help.setup']), 'help.commands', 'help.docs', '-', 'help.issue', '-', 'help.devtools', 'help.reload', 'help.data', '-', 'help.updates', 'help.about'] },
   ]
 
   // keyboard shortcuts (native editing keys stay with the browser)
@@ -1862,6 +1876,17 @@ export default function App() {
                     {t('New')}
                   </button>
                 )}
+                {CLOUD_ONLY && cloud.state?.user && (
+                  <button
+                    className={`credits-chip ${cloud.state.user.credits.total < 50 ? 'low' : ''}`}
+                    onClick={() => setSettingsOpen('account')}
+                    title={cloud.state.user.plan ? t('{plan} plan · open your account', { plan: cloud.state.user.plan.name }) : t('Open your account')}
+                  >
+                    <Wallet size={14} />
+                    <span className="num">{fmtCredits(cloud.state.user.credits.total)}</span>
+                    <small>{t('credits')}</small>
+                  </button>
+                )}
                 <ThemeSwitcher themeMode={themeMode} setThemeMode={setThemeMode} />
                 <button
                   className={`temporary-header ${temporaryChat ? 'temporary-header-active' : ''}`}
@@ -2004,6 +2029,11 @@ export default function App() {
                             <div className={`message-bubble message-${item.role} ${item.error ? 'message-error' : ''}`}>
                               {item.role === 'assistant' && !item.error ? <Markdown text={item.content} /> : <span className="whitespace-pre-wrap">{item.content}</span>}
                               {item.streaming && <span className="stream-caret" />}
+                              {item.error && CLOUD_ONLY && /credit/i.test(item.content) && (
+                                <button className="orbi-btn orbi-btn-primary mt-2" onClick={() => setSettingsOpen('account')}>
+                                  <Wallet size={13} /> {t('Plans and credits')}
+                                </button>
+                              )}
                             </div>
                           )}
                           {item.streaming && !item.content && !item.reasoning && (
@@ -2331,6 +2361,18 @@ export default function App() {
                 )}
               </form>
               {emptyLanding && !temporaryChat && !modelsLoading && models.length === 0 && (
+                CLOUD_ONLY ? (
+                <div className="connect-options connect-banner-below">
+                  <button className="connect-banner" onClick={() => (setSettingsOpen('account'), loadModels())}>
+                    <Wallet size={16} />
+                    <span>
+                      <strong>{cloud.state?.online === false ? t('Orbi Cloud is offline') : t('No models from Orbi Cloud yet')}</strong>
+                      <small>{cloud.state?.online === false ? t('Start the Orbi Cloud server, then open your account to reconnect.') : t('The server needs its OpenRouter key. Open your account to check the connection.')}</small>
+                    </span>
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+                ) : (
                 <div className="connect-options connect-banner-below">
                 <button
                   className="connect-banner"
@@ -2365,6 +2407,7 @@ export default function App() {
                   <ChevronRight size={16} />
                 </button>
                 </div>
+                )
               )}
               {emptyLanding && !temporaryChat && models.length > 0 && (
                 <div className="starter-prompts">
@@ -2516,6 +2559,14 @@ export default function App() {
             }}
           />
         </Suspense>
+      )}
+      {CLOUD_ONLY && cloud.state && !cloud.state.signedIn && (
+        <AccountGate
+          onSignedIn={() => {
+            loadModels()
+            refreshLists()
+          }}
+        />
       )}
       {setupOpen !== null && (
         <Suspense fallback={null}>

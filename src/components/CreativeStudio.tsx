@@ -26,6 +26,7 @@ import {
   Square,
   Trash2,
   Video,
+  Wallet,
   Wand2,
   Workflow,
   X,
@@ -33,6 +34,8 @@ import {
 import { api, on, type Board, type LocalStatus, type MediaItem, type ModelInfo } from '../lib/api'
 import { ASPECTS, CLOUD_GEN, creativeOptions, sizeFor, snap, type CreativeOption } from '../lib/creative'
 import { creativeBus, takePendingUse, type GenRequest } from '../lib/creativeBus'
+import { CLOUD_ONLY, fmtCredits, nearestDuration, nearestRes, useCloud } from '../lib/cloud'
+import { resLabel, resolutionsFor } from '../lib/creative'
 import { activity } from '../lib/activity'
 import { fmtBytes, t } from '../lib/i18n'
 import { ThemeSwitcher, type ThemeMode } from './ThemeSwitcher'
@@ -158,6 +161,8 @@ export function CreativeStudio({
   const [strength, setStrength] = useState(0.65)
   const [useInit, setUseInit] = useState(false)
   const [duration, setDuration] = useState(2)
+  const [cloudRes, setCloudRes] = useState<Record<Mode, number>>({ image: 1024, video: 720 })
+  const [audio, setAudio] = useState(true)
   const [fps, setFps] = useState(16)
 
   // canvas
@@ -246,10 +251,35 @@ export function CreativeStudio({
   }, [jobs])
 
   // ---------- models ----------
-  const options: Option[] = useMemo(() => creativeOptions(localStatus, models), [localStatus, models])
+  const cloud = useCloud()
+  const options: Option[] = useMemo(() => creativeOptions(localStatus, models, cloud.catalog), [localStatus, models, cloud.catalog])
   const modeOptions = options.filter((o) => o.kind === mode)
   const current = modeOptions.find((o) => o.key === modelKeys[mode]) ?? modeOptions[0]
   const gen = current?.gen ?? CLOUD_GEN
+  // Cloud models: the provider sets steps and fps; you pick resolution, length and sound.
+  const isCloud = !!current && !current.local
+  const spec = current?.video
+  const cloudResList = isCloud ? resolutionsFor(current, mode) : []
+  const cloudShort = cloudResList.includes(cloudRes[mode]) ? cloudRes[mode] : cloudResList[Math.min(1, cloudResList.length - 1)] ?? 720
+  const cloudDur = spec ? nearestDuration(spec.durations, duration) : duration
+  const estimate = !isCloud ? null : spec ? (spec.pricePerSecond ? spec.pricePerSecond * cloudDur : null) : current?.price ? current.price * count : null
+  const withAvoid = (p: string, neg?: string) => (neg && neg.trim() ? `${p}\n\nAvoid: ${neg.trim()}` : p)
+  const cloudRender = (jobId: string, o: Option, r: { prompt: string; negative?: string; aspect: string; short: number; duration: number; init?: string; audio: boolean; source?: string }) =>
+    o.video
+      ? api.cloudVideo({
+          jobId,
+          model: o.modelId,
+          prompt: withAvoid(r.prompt, r.negative),
+          negative: r.negative,
+          duration: nearestDuration(o.video.durations, r.duration),
+          resolution: nearestRes(o.video.resolutions, r.short),
+          aspect: o.video.aspects.includes(r.aspect) ? r.aspect : o.video.aspects[0],
+          frameImage: r.init,
+          audio: o.video.audio ? r.audio : undefined,
+          board,
+          source: r.source,
+        })
+      : api.generateImage({ providerId: o.providerId!, model: o.modelId, prompt: withAvoid(r.prompt, r.negative), board, ...((({ w, h }) => ({ width: w, height: h }))(sizeFor(r.aspect, 1024))), resolution: resLabel(r.short), refImages: r.init ? [r.init] : undefined, source: r.source || 'creative' })
   const steps = gen.fixedSteps ? gen.presets[0] : quality === 3 ? customSteps : gen.presets[quality]
   const frames = Math.max(5, Math.round((duration * fps) / 4) * 4 + 1)
   const width = size.w
@@ -444,13 +474,14 @@ export function CreativeStudio({
               fps: mode === 'video' ? fps : undefined,
               board,
             })
-          : api.generateImage({ providerId: current.providerId!, model: current.modelId, prompt: p, board, width, height, source: 'creative' })
+          : cloudRender(jobId, current, { prompt: p, negative: negative.trim() || undefined, aspect, short: cloudShort, duration: cloudDur, init, audio })
       created.push({ id: Math.random().toString(36).slice(2, 10), mode, label, prompt: p, status: 'queued', run, local: current.local })
     }
     setJobs((cur) => [...cur.filter((j) => j.status === 'queued' || j.status === 'running' || Date.now() - (j.ended || 0) < 10 * 60000).slice(-30), ...created])
   }
   const cancelJob = (j: Job) => {
     if (j.status === 'queued') setJobs((cur) => cur.filter((x) => x.id !== j.id))
+    else if (!j.local && j.mode === 'video') api.cloudCancelVideo(j.id)
     else api.cancelLocalGenerate(j.id)
   }
   const upscale = (m: MediaItem) => {
@@ -492,7 +523,7 @@ export function CreativeStudio({
         const run = (jobId: string) =>
           o.local
             ? api.generateLocal({ jobId, modelId: o.modelId, prompt: r.prompt, negative: r.negative?.trim() || undefined, width: w, height: h, steps: stepsN || undefined, seed: s, initImage: init, strength: init && mode === 'image' ? 0.65 : undefined, frames: mode === 'video' ? framesN : undefined, fps: mode === 'video' ? fpsN : undefined, board, source: r.source })
-            : api.generateImage({ providerId: o.providerId!, model: o.modelId, prompt: r.prompt, board, width: w, height: h, source: r.source || 'creative' })
+            : cloudRender(jobId, o, { prompt: r.prompt, negative: r.negative, aspect: r.aspect || '1:1', short: r.res || resolutionsFor(o, mode)[0], duration: r.duration || 5, init, audio: r.audio !== false, source: r.source })
         created.push({ id: Math.random().toString(36).slice(2, 10), origin: r.id, from: r.source === 'chat' ? 'chats' : undefined, mode, label, prompt: r.prompt, status: 'queued', run, local: o.local })
       }
       setJobs((cur) => [...cur, ...created])
@@ -694,7 +725,13 @@ export function CreativeStudio({
       ? t('Waiting in line')
       : j.status === 'running'
         ? !j.local
-          ? t('Generating…')
+          ? j.mode === 'video'
+            ? j.phase === 'decoding'
+              ? t('Downloading…')
+              : j.phase === 'cloud'
+                ? t('Rendering in the cloud…')
+                : t('Waiting at the provider…')
+            : t('Generating…')
           : j.total
           ? t('Step {s} of {n}', { s: j.step || 0, n: j.total })
           : j.phase === 'decoding'
@@ -728,9 +765,15 @@ export function CreativeStudio({
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          <button className="orbi-btn" onClick={onOpenModels}>
-            <Sparkles size={13} /> {t('Models')}
-          </button>
+          {CLOUD_ONLY ? (
+            <button className="orbi-btn" onClick={onOpenModels} title={t('Open your account')}>
+              <Wallet size={13} /> <span className="num">{fmtCredits(cloud.state?.user?.credits.total ?? 0)}</span> {t('credits')}
+            </button>
+          ) : (
+            <button className="orbi-btn" onClick={onOpenModels}>
+              <Sparkles size={13} /> {t('Models')}
+            </button>
+          )}
           <ThemeSwitcher themeMode={themeMode} setThemeMode={setThemeMode} />
         </div>
       </header>
@@ -744,6 +787,30 @@ export function CreativeStudio({
                 <em className="num">{c.id === 'all' ? IDEAS.length : IDEAS.filter((x) => x.cat === c.id).length}</em>
               </button>
             ))}
+            {CLOUD_ONLY ? (
+            <div className="launchpad-status">
+              <p>
+                <strong>{t('Orbi Cloud')}</strong>
+              </p>
+              <ul>
+                <li>
+                  <span className={`mcp-dot ${cloud.state?.user ? 'mcp-dot-connected' : ''}`} /> {cloud.state?.user ? t('Signed in as {email}', { email: cloud.state.user.email }) : t('Not signed in')}
+                </li>
+                <li>
+                  <span className={`mcp-dot ${options.some((o) => o.kind === 'image') ? 'mcp-dot-connected' : ''}`} /> {t('Image models')} · <span className="num">{options.filter((o) => o.kind === 'image').length}</span>
+                </li>
+                <li>
+                  <span className={`mcp-dot ${options.some((o) => o.kind === 'video') ? 'mcp-dot-connected' : ''}`} /> {t('Video models')} · <span className="num">{options.filter((o) => o.kind === 'video').length}</span>
+                </li>
+                <li>
+                  <span className="mcp-dot mcp-dot-connected" /> {t('Credits')} · <span className="num">{fmtCredits(cloud.state?.user?.credits.total ?? 0)}</span>
+                </li>
+              </ul>
+              <button className="orbi-btn orbi-btn-primary mt-3" onClick={onOpenModels}>
+                <Wallet size={13} /> {t('Plans and credits')}
+              </button>
+            </div>
+            ) : (
             <div className="launchpad-status">
             <p>
               <strong>{t('Ready on this PC')}</strong>
@@ -766,6 +833,7 @@ export function CreativeStudio({
               <Download size={13} /> {t('Get image & video models')}
             </button>
           </div>
+            )}
           </nav>
           <div className="launchpad-main">
             <h2>{t('What do you want to create?')}</h2>
@@ -789,7 +857,7 @@ export function CreativeStudio({
             >
               <Video size={20} />
               <strong>{t('Generate a video')}</strong>
-              <span>{localVideo ? t('Short clips with Wan on this PC.') : t('Install a video model first.')}</span>
+              <span>{CLOUD_ONLY ? t('Veo, Seedance, Wan and more — with sound.') : localVideo ? t('Short clips with Wan on this PC.') : t('Install a video model first.')}</span>
             </button>
             <button
               onClick={() => {
@@ -907,6 +975,26 @@ export function CreativeStudio({
                   </select>
                 )}
               </Section>
+              {isCloud ? (
+                <Section title={t('Size')}>
+                  <div className="studio-aspects">
+                    {ASPECTS.filter((a) => !spec || spec.aspects.includes(a.id)).map((a) => (
+                      <button key={a.id} className={aspect === a.id ? 'active' : ''} onClick={() => applyAspect(a.id)}>
+                        <i style={{ aspectRatio: `${a.w}/${a.h}` }} />
+                        {a.id}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="studio-count">
+                    <span>{t('Resolution')}</span>
+                    {cloudResList.map((r) => (
+                      <button key={r} className={cloudShort === r ? 'active' : ''} onClick={() => setCloudRes((c) => ({ ...c, [mode]: r }))}>
+                        {resLabel(r)}
+                      </button>
+                    ))}
+                  </div>
+                </Section>
+              ) : (
               <Section title={t('Size')}>
                 <div className="studio-aspects">
                   {ASPECTS.map((a) => (
@@ -919,6 +1007,42 @@ export function CreativeStudio({
                 <Slider label={t('Width')} value={width} min={256} max={1536} step={64} onChange={(v) => setSize((c) => ({ ...c, w: snap(v) }))} />
                 <Slider label={t('Height')} value={height} min={256} max={1536} step={64} onChange={(v) => setSize((c) => ({ ...c, h: snap(v) }))} />
               </Section>
+              )}
+              {isCloud ? (
+                <Section title={mode === 'video' ? t('Length & sound') : t('Images')}>
+                  {spec ? (
+                    <>
+                      <div className="studio-count">
+                        <span>{t('Seconds')}</span>
+                        {spec.durations.map((d) => (
+                          <button key={d} className={cloudDur === d ? 'active' : ''} onClick={() => setDuration(d)}>
+                            {d}s
+                          </button>
+                        ))}
+                      </div>
+                      {spec.audio && (
+                        <label className="studio-check">
+                          <input type="checkbox" checked={audio} onChange={(e) => setAudio(e.target.checked)} />
+                          {t('Generate sound with the video')}
+                        </label>
+                      )}
+                    </>
+                  ) : (
+                    <div className="studio-count">
+                      <span>{t('Images')}</span>
+                      {[1, 2, 3, 4].map((n) => (
+                        <button key={n} className={count === n ? 'active' : ''} onClick={() => setCount(n)}>
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <p className="studio-hint num">
+                    {estimate ? t('About {n} credits', { n: fmtCredits(Math.ceil(estimate)) }) : t('Charged by what the provider bills, in credits.')}
+                    {cloud.state?.user ? ` · ${t('You have {n}', { n: fmtCredits(cloud.state.user.credits.total) })}` : ''}
+                  </p>
+                </Section>
+              ) : (
               <Section title={mode === 'video' ? t('Motion & quality') : t('Quality')}>
                 {!current ? null : gen.fixedSteps ? (
                   <p className="studio-hint">{current?.local ? t('This model always renders in {n} step — quality is already set.', { n: gen.presets[0] }) : t('The provider decides the quality of cloud images.')}</p>
@@ -977,16 +1101,17 @@ export function CreativeStudio({
                   </p>
                 )}
               </Section>
+              )}
               {mode === 'image' ? (
                 <Section title={t('Start from an image')} open={useInit || maskDirty}>
                   <label className="studio-check">
                     <input type="checkbox" checked={useInit} onChange={(e) => setUseInit(e.target.checked)} disabled={!base || base.kind !== 'image'} />
                     {t('Use the canvas image as the starting point')}
                   </label>
-                  {useInit && <Slider label={t('Change')} value={strength} min={0.1} max={1} step={0.05} onChange={setStrength} />}
-                  <p className="studio-hint">{current && !current.local ? t('Image editing works with local models.') : useInit ? t('Low = keep the original, high = reimagine it. Paint a mask to change only one area.') : t('Pick an image in the gallery, then turn this on to edit it.')}</p>
+                  {useInit && !isCloud && <Slider label={t('Change')} value={strength} min={0.1} max={1} step={0.05} onChange={setStrength} />}
+                  <p className="studio-hint">{current && !current.local ? (useInit ? t('The model uses this image as a reference for the new one.') : t('Pick an image in the gallery, then turn this on to edit it.')) : useInit ? t('Low = keep the original, high = reimagine it. Paint a mask to change only one area.') : t('Pick an image in the gallery, then turn this on to edit it.')}</p>
                 </Section>
-              ) : gen.image ? (
+              ) : gen.image || spec ? (
                 <Section title={t('First frame')} open={useInit}>
                   <label className="studio-check">
                     <input type="checkbox" checked={useInit} onChange={(e) => setUseInit(e.target.checked)} disabled={!base || base.kind !== 'image'} />
@@ -1031,8 +1156,7 @@ export function CreativeStudio({
                 {mode === 'video' ? <Video size={12} /> : <ImageIcon size={12} />} {mode === 'video' ? t('Video') : t('Image')}
               </span>
               <span className="studio-size num">
-                {width} × {height}
-                {mode === 'video' ? ` · ${frames}f` : ''}
+                {isCloud ? `${aspect} · ${resLabel(cloudShort)}${mode === 'video' ? ` · ${cloudDur}s` : ''}` : `${width} × ${height}${mode === 'video' ? ` · ${frames}f` : ''}`}
               </span>
             </div>
             <div className="studio-stage" ref={stageRef}>

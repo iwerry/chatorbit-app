@@ -4778,3 +4778,413 @@ form.composer {
 .studio-tab-count {
   color: var(--neo-muted);
 }
+
+/* =====================================================================
+   Orbi Cloud account (0.1.29): sign-in gate, account panel, credits chip
+   ===================================================================== */
+.acct-gate {
+  position: fixed;
+  inset: var(--tb-h, 0px) 0 0 0;
+  z-index: 250;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  background:
+    radial-gradient(circle at 78% 10%, color-mix(in srgb, var(--neo-accent) 10%, transparent), transparent 28rem),
+    radial-gradient(circle at 12% 90%, color-mix(in srgb, var(--neo-purple) 10%, transparent), transparent 26rem),
+    var(--neo-bg);
+  padding: 32px 16px;
+  animation: lightbox-in 240ms var(--ease-out);
+}
+.acct-card {
+  display: flex;
+  width: min(420px, 100%);
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--neo-border);
+  border-radius: 22px;
+  background: var(--neo-surface-strong);
+  padding: 30px 28px 22px;
+  box-shadow:
+    18px 18px 40px var(--neo-shadow-dark),
+    -12px -12px 32px var(--neo-shadow-light);
+}
+.acct-mark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  margin: 0 auto 2px;
+  border-radius: 16px;
+  background: var(--neo-accent);
+  color: var(--neo-accent-text);
+}
+.acct-card h2 {
+  text-align: center;
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--neo-text);
+}
+.acct-lead {
+  margin-top: -4px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--neo-muted);
+}
+.acct-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--neo-bg) 70%, transparent);
+  padding: 3px;
+  box-shadow: inset 1px 1px 3px var(--neo-inset-dark);
+}
+.acct-tabs button {
+  height: 32px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--neo-faint);
+}
+.acct-tabs button.on {
+  background: var(--neo-surface-solid);
+  color: var(--neo-text);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+.acct-field {
+  display: grid;
+  gap: 5px;
+}
+.acct-field span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--neo-muted);
+}
+.acct-field input,
+.acct-server-form input {
+  height: 40px;
+  border: 1px solid var(--neo-line);
+  border-radius: 11px;
+  background: var(--neo-surface-solid);
+  padding: 0 12px;
+  font-size: 13.5px;
+  color: var(--neo-text);
+  outline: none;
+  transition: border-color var(--dur-1) var(--ease-out);
+}
+.acct-field input:focus,
+.acct-server-form input:focus {
+  border-color: color-mix(in srgb, var(--neo-accent) 60%, transparent);
+}
+.acct-field small,
+.acct-fine {
+  font-size: 11.5px;
+  color: var(--neo-faint);
+}
+.acct-fine {
+  text-align: center;
+}
+.acct-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #d94848 12%, transparent);
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: var(--neo-text);
+}
+.acct-submit {
+  justify-content: center;
+  height: 42px;
+  font-size: 13.5px;
+}
+.acct-server {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+.acct-server-line {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--neo-faint);
+}
+.acct-server:not(.compact) .acct-server-line {
+  justify-content: flex-start;
+  margin-top: 20px;
+}
+.acct-server-form {
+  display: flex;
+  gap: 6px;
+}
+.acct-server-form input {
+  min-width: 0;
+  flex: 1;
+  height: 34px;
+  font-size: 12.5px;
+}
+
+.acct-panel {
+  display: grid;
+  gap: 12px;
+}
+.acct-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.acct-head strong,
+.acct-head small {
+  display: block;
+}
+.acct-head strong {
+  font-size: 14px;
+  color: var(--neo-text);
+}
+.acct-head small {
+  font-size: 12px;
+  color: var(--neo-faint);
+}
+.acct-avatar {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--neo-accent) 22%, var(--neo-surface-solid));
+  font-weight: 700;
+  color: var(--neo-accent-ink, var(--neo-accent));
+}
+.acct-balance {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.acct-balance > div {
+  border: 1px solid var(--neo-line);
+  border-radius: 14px;
+  background: var(--neo-surface);
+  padding: 14px;
+}
+.acct-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--neo-faint);
+}
+.acct-big {
+  margin: 2px 0;
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--neo-text);
+}
+.acct-balance small {
+  font-size: 12px;
+  color: var(--neo-muted);
+}
+.acct-plan-name {
+  margin: 4px 0 2px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--neo-text);
+}
+.acct-meter {
+  height: 6px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--neo-muted) 18%, transparent);
+}
+.acct-meter span {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  background: var(--neo-accent);
+  transition: width 500ms var(--ease-out);
+}
+.acct-warn,
+.acct-note {
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--neo-text);
+}
+.acct-warn {
+  background: color-mix(in srgb, #e0a43a 14%, transparent);
+}
+.acct-note {
+  background: color-mix(in srgb, var(--neo-accent) 14%, transparent);
+}
+.acct-plans {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+.acct-plan-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--neo-line);
+  border-radius: 14px;
+  background: var(--neo-surface);
+  padding: 14px;
+  font-size: 12.5px;
+  color: var(--neo-muted);
+}
+.acct-plan-card strong {
+  font-size: 15px;
+  color: var(--neo-text);
+}
+.acct-price {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--neo-text);
+}
+.acct-plan-card ul {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+.acct-plan-card li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.acct-plan-card li svg {
+  color: var(--neo-accent-ink, var(--neo-accent));
+}
+.acct-plan-card .orbi-btn {
+  justify-content: center;
+}
+.acct-packs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+.acct-pack {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--neo-line);
+  border-radius: 12px;
+  background: var(--neo-surface);
+  padding: 10px 12px;
+  text-align: left;
+  color: var(--neo-muted);
+  transition: border-color var(--dur-1) var(--ease-out), transform 120ms var(--ease-out);
+}
+.acct-pack:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--neo-accent) 55%, transparent);
+  transform: translateY(-1px);
+}
+.acct-pack:disabled {
+  opacity: 0.55;
+}
+.acct-pack strong,
+.acct-pack small {
+  display: block;
+}
+.acct-pack strong {
+  font-size: 12.5px;
+  color: var(--neo-text);
+}
+.acct-pack small {
+  font-size: 12px;
+}
+.acct-usage {
+  display: grid;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--neo-line);
+  border-radius: 12px;
+}
+.acct-usage li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--neo-line);
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: var(--neo-text);
+}
+.acct-usage li:last-child {
+  border-bottom: 0;
+}
+.acct-usage li small {
+  font-size: 11.5px;
+  color: var(--neo-faint);
+}
+.acct-usage em {
+  font-style: normal;
+  font-weight: 650;
+}
+.acct-usage em.pos {
+  color: var(--neo-accent-ink, var(--neo-accent));
+}
+.acct-voice .orbi-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.credits-chip {
+  display: inline-flex;
+  height: 34px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--neo-border);
+  border-radius: 11px;
+  background: var(--neo-surface);
+  padding: 0 11px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--neo-text);
+  transition: border-color var(--dur-1) var(--ease-out);
+}
+.credits-chip svg {
+  color: var(--neo-accent-ink, var(--neo-accent));
+}
+.credits-chip small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--neo-faint);
+}
+.credits-chip:hover {
+  border-color: color-mix(in srgb, var(--neo-accent) 55%, transparent);
+}
+.credits-chip.low {
+  border-color: color-mix(in srgb, #e0a43a 70%, transparent);
+}
+@media (max-width: 640px) {
+  .acct-balance {
+    grid-template-columns: 1fr;
+  }
+  .credits-chip small {
+    display: none;
+  }
+}
+/* Brand mark sits free above the title (no icon tile). */
+.acct-mark {
+  width: auto;
+  height: auto;
+  background: none;
+  color: var(--neo-accent-ink, var(--neo-accent));
+}
+.acct-fine,
+.acct-field small {
+  font-size: 12px;
+}
+.acct-gate {
+  inset: 0;
+  z-index: 390;
+  padding-top: calc(var(--tb-h, 34px) + 32px);
+}

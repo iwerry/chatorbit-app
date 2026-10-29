@@ -63,3 +63,13 @@ Requested on 2026-10-28, inspired by open-higgsfield (wide-trace/open-higgsfield
 - [x] Chat · Image · Video in the composer: model, aspect, duration, resolution, enhance, count; runs via the Creative queue (`src/lib/creativeBus.ts`) and renders in the chat.
 - [x] Media Library as a full page with search, filters, upscale, make-video, edit; lightbox portaled to the window.
 - [ ] Audio toggle and MP4/MOV output (needs engine support / ffmpeg).
+
+## Orbi Cloud (done in 0.1.28-8)
+Business change requested on 2026-10-28: no free/local models, no user API keys, users pay (subscription + extra credits via Stripe), all AI through OpenRouter.
+- [x] `cloud/` server (Node 22, node:sqlite WAL, TypeScript): accounts, sessions, plan + extra credit buckets, Stripe checkout/portal/webhooks, OpenRouter proxy for chat (streaming), images, video jobs, TTS, STT, cost metering with markup, admin grant. 8 e2e tests with fake OpenRouter/Stripe.
+- [x] Desktop: sign-in gate, Account & credits (plans, packs, portal, usage), credits chip, cloud chat models, cloud image/video in Creative, chat composer and Workflows, cloud voice (read-aloud + dictation), local engines and provider keys hidden (`CLOUD_ONLY`).
+- [ ] Deploy Orbi Cloud on the internet (VPS/Railway/Fly) with HTTPS and switch the app default URL.
+- [ ] Stripe live mode, real prices in BRL/USD, taxes/invoices.
+- [ ] Email verification, password reset, rate limits per plan.
+- [ ] Remove local engine code for good (with the Tauri migration).
+- [ ] Next phases: SQLite native in the app, Tauri 2 + Rust backend, website and mobile app on the same Orbi Cloud.

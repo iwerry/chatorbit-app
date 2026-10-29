@@ -156,6 +156,7 @@ export type Hardware = {
 }
 // 'piper' is the old name for a downloaded voice; 'local' covers every downloaded voice (voice = speaker inside a pack).
 export type TtsChoice =
+  | { type: 'cloud'; model: string; voice: string; rate?: number }
   | { type: 'piper' | 'local'; modelId: string; voice?: number | string; rate: number }
   | { type: 'system'; name: string; rate: number }
   | { type: 'native'; id: string; name: string; rate: number }
@@ -196,7 +197,7 @@ export type LibraryLink = { id: string; repo: string; profession: string; name: 
 export type LibraryAgent = { id: string; profession: string; handle: string; name: string; description: string; instructions: string; starters: string[]; category: string; installed: boolean; author: string; kind?: 'own' | 'official' | 'community' | 'orbi'; source?: string; license?: string; rating: number; signals: SkillSignals }
 export type LibraryKit = { id: string; profession: string; name: string; description: string; servers: string[]; skills: string[]; agents: string[]; installed: boolean }
 export type Library = { professions: { id: string; name: string; icon: string; description: string }[]; skills: LibrarySkill[]; agents: LibraryAgent[]; kits: LibraryKit[]; links: LibraryLink[]; directories: { repo: string; description: string; source: string }[] }
-export type VoiceMode = { type: 'local'; modelId: string } | { type: 'api'; provider: 'openai' | 'groq' }
+export type VoiceMode = { type: 'local'; modelId: string } | { type: 'api'; provider: 'openai' | 'groq' } | { type: 'cloud'; model?: string }
 
 export function parseJSON<T>(v: unknown, fallback: T): T {
   if (Array.isArray(v)) return v as T
@@ -289,6 +290,21 @@ export const platform = window.orbi?.platform ?? 'web'
 export const on = (channel: string, cb: (...args: any[]) => void) => bridge.on?.(channel, cb) ?? (() => {})
 
 export const api = {
+  // Orbi Cloud account and gateway
+  cloudState: (): Promise<CloudState> => bridge.invoke('cloud:state'),
+  cloudSetUrl: (url: string): Promise<string> => bridge.invoke('cloud:setUrl', url),
+  cloudSignup: (p: { email: string; password: string; name?: string }): Promise<CloudUser> => bridge.invoke('cloud:signup', p),
+  cloudLogin: (p: { email: string; password: string }): Promise<CloudUser> => bridge.invoke('cloud:login', p),
+  cloudLogout: () => bridge.invoke('cloud:logout'),
+  cloudPlans: (): Promise<CloudPlans> => bridge.invoke('cloud:plans'),
+  cloudUsage: (): Promise<{ items: CloudUsageItem[] }> => bridge.invoke('cloud:usage'),
+  cloudCatalog: (): Promise<CloudCatalog> => bridge.invoke('cloud:catalog'),
+  cloudCheckout: (item: string): Promise<{ url: string }> => bridge.invoke('cloud:checkout', item),
+  cloudPortal: (): Promise<{ url: string }> => bridge.invoke('cloud:portal'),
+  cloudSpeak: (p: { text: string; model?: string; voice?: string }): Promise<string> => bridge.invoke('cloud:speak', p),
+  cloudVideo: (p: { jobId?: string; model: string; prompt: string; negative?: string; duration?: number; resolution?: string; aspect?: string; frameImage?: string; audio?: boolean; board?: string; source?: string }): Promise<MediaItem> =>
+    bridge.invoke('cloud:video', p),
+  cloudCancelVideo: (jobId: string) => bridge.invoke('cloud:cancelVideo', jobId),
   info: (): Promise<AppInfo> => bridge.invoke('app:info'),
   getSetting: <T,>(key: string, fallback: T): Promise<T> => bridge.invoke('settings:get', key, fallback),
   setSetting: (key: string, value: unknown) => bridge.invoke('settings:set', key, value),
@@ -373,7 +389,7 @@ export const api = {
   deleteVoiceClone: (id: string): Promise<VoiceClone[]> => bridge.invoke('voice:deleteClone', id),
   openModelsFolder: () => bridge.invoke('local:openFolder'),
   complete: (p: { providerId: string; model: string; system?: string; prompt: string; maxTokens?: number }): Promise<string> => bridge.invoke('ai:complete', p),
-  speech: (p: { text: string; voice?: string }): Promise<MediaItem> => bridge.invoke('ai:speech', p),
+  speech: (p: { text: string; voice?: string; model?: string }): Promise<MediaItem> => bridge.invoke('ai:speech', p),
   updateState: (): Promise<UpdateInfo> => bridge.invoke('update:state'),
   checkUpdate: (): Promise<UpdateInfo> => bridge.invoke('update:check'),
   downloadUpdate: (): Promise<UpdateInfo> => bridge.invoke('update:download'),
@@ -449,7 +465,7 @@ export const api = {
   revealMedia: (id: string) => bridge.invoke('media:reveal', id),
   saveMediaAs: (id: string) => bridge.invoke('media:saveAs', id),
   importMedia: (file: { name: string; dataUrl: string }): Promise<MediaItem | null> => bridge.invoke('media:import', file),
-  generateImage: (p: { providerId: string; model: string; prompt: string; size?: string; source?: string; board?: string; width?: number; height?: number }): Promise<MediaItem> =>
+  generateImage: (p: { providerId: string; model: string; prompt: string; size?: string; source?: string; board?: string; width?: number; height?: number; resolution?: string; refImages?: string[] }): Promise<MediaItem> =>
     bridge.invoke('image:generate', p),
 
   getWorkflow: (id: string) => bridge.invoke('workflows:get', id),
@@ -485,4 +501,29 @@ export function readFileAsAttachment(file: File): Promise<Attachment> {
       reader.readAsDataURL(file)
     }
   })
+}
+
+export type CloudUser = {
+  id: string
+  email: string
+  name: string
+  plan: { id: string; name: string; status: string; renews: number | null; monthlyCredits: number } | null
+  credits: { plan: number; extra: number; total: number }
+  created: number
+}
+export type CloudState = { url: string; signedIn: boolean; online?: boolean; configured?: boolean; user: CloudUser | null; payments: boolean; error: string | null; code: string | null }
+export type CloudPlans = {
+  payments: boolean
+  plans: { id: string; name: string; priceLabel: string; monthlyCredits: number; features: string[]; available: boolean }[]
+  packs: { id: string; name: string; priceLabel: string; credits: number; available: boolean }[]
+  credit: { usd: number }
+}
+export type CloudUsageItem = { created_at: number; kind: string; amount: number; model: string; note: string }
+export type CloudCatalog = {
+  chat: { id: string; name: string; vendor: string; context: number; input: string[]; image: boolean; price: { in: number; out: number } }[]
+  image: { id: string; name: string; vendor: string; price?: number; aspects?: string[]; resolutions?: string[] }[]
+  video: { id: string; name: string; vendor: string; durations: number[]; resolutions: string[]; aspects: string[]; audio: boolean; pricePerSecond?: number; imageInput: boolean }[]
+  tts: { id: string; name: string; voices: string[] }[]
+  stt: { id: string; name: string }[]
+  credits: { usd: number; markup: number }
 }

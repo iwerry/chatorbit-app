@@ -1,5 +1,7 @@
+import { AccountPanel, CloudVoiceSettings } from './AccountPanel'
+import { CLOUD_ONLY } from '../lib/cloud'
 import { useEffect, useState } from 'react'
-import { Boxes, Check, Download, ExternalLink, FolderOpen, Globe, Info, KeyRound, Loader2, Mic, Plug, Server, SlidersHorizontal, Square, UserRound, Volume2, X } from 'lucide-react'
+import { Boxes, Check, Download, ExternalLink, FolderOpen, Globe, Info, KeyRound, Loader2, Mic, Plug, Server, SlidersHorizontal, Square, UserRound, Volume2, Wallet, X } from 'lucide-react'
 import { api, type AppInfo, type LocalStatus, type ProviderInfo, type TtsChoice, type VoiceMode } from '../lib/api'
 import { sampleFor, speak, stopSpeaking, systemVoices } from '../lib/tts'
 import { recordWav } from '../lib/voice'
@@ -22,7 +24,7 @@ const KEY_URLS: Record<string, string> = {
   lmstudio: 'https://lmstudio.ai',
 }
 
-export type SettingsTab = 'general' | 'providers' | 'models' | 'voice' | 'about' | 'profile'
+export type SettingsTab = 'account' | 'general' | 'providers' | 'models' | 'voice' | 'about' | 'profile'
 
 type TestState = { status: 'idle' | 'testing' | 'ok' | 'error'; message?: string }
 const cleanErr = (e: unknown) => String((e as Error)?.message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
@@ -134,7 +136,7 @@ export function SettingsModal({
   setLang: (l: Lang) => void
   onOpenSetup?: () => void
 }) {
-  const [tab, setTab] = useState<SettingsTab>(initialTab === 'profile' ? 'general' : initialTab)
+  const [tab, setTab] = useState<SettingsTab>(initialTab === 'profile' ? 'general' : CLOUD_ONLY && (initialTab === 'providers' || initialTab === 'models') ? 'account' : initialTab)
   const [providers, setProviders] = useState<ProviderInfo[]>([])
   const [name, setName] = useState(userName)
 
@@ -146,13 +148,20 @@ export function SettingsModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const nav: { id: SettingsTab; label: string; icon: typeof Plug }[] = [
-    { id: 'general', label: 'General', icon: SlidersHorizontal },
-    { id: 'providers', label: 'AI providers', icon: Plug },
-    { id: 'models', label: 'Local models', icon: Boxes },
-    { id: 'voice', label: 'Voice', icon: Mic },
-    { id: 'about', label: 'About', icon: Info },
-  ]
+  const nav: { id: SettingsTab; label: string; icon: typeof Plug }[] = CLOUD_ONLY
+    ? [
+        { id: 'account', label: 'Account & credits', icon: Wallet },
+        { id: 'general', label: 'General', icon: SlidersHorizontal },
+        { id: 'voice', label: 'Voice', icon: Mic },
+        { id: 'about', label: 'About', icon: Info },
+      ]
+    : [
+        { id: 'general', label: 'General', icon: SlidersHorizontal },
+        { id: 'providers', label: 'AI providers', icon: Plug },
+        { id: 'models', label: 'Local models', icon: Boxes },
+        { id: 'voice', label: 'Voice', icon: Mic },
+        { id: 'about', label: 'About', icon: Info },
+      ]
 
   return (
     <div className="orbi-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -172,6 +181,13 @@ export function SettingsModal({
           <button className="orbi-modal-close" onClick={onClose} aria-label={t('Close settings')}>
             <X size={17} />
           </button>
+
+          {tab === 'account' && (
+            <>
+              <h3>{t('Account & credits')}</h3>
+              <AccountPanel />
+            </>
+          )}
 
           {tab === 'general' && (
             <>
@@ -201,7 +217,7 @@ export function SettingsModal({
                   {t('Save')}
                 </button>
               </div>
-              <p className="orbi-muted mt-3">{t('Used in greetings. Plans, billing and cloud sync arrive with the OrbiX account.')}</p>
+              <p className="orbi-muted mt-3">{t('Used in greetings.')}</p>
             </>
           )}
 
@@ -241,7 +257,14 @@ export function SettingsModal({
             </>
           )}
 
-          {tab === 'voice' && (
+          {tab === 'voice' && CLOUD_ONLY && (
+            <>
+              <h3>{t('Voice')}</h3>
+              <CloudVoiceSettings />
+            </>
+          )}
+
+          {tab === 'voice' && !CLOUD_ONLY && (
             <>
               <h3>{t('Voice')}</h3>
               <p className="orbi-label">{t('Voice input (microphone)')}</p>

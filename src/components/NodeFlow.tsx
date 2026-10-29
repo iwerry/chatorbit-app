@@ -1,5 +1,6 @@
 // Node workflows in the spirit of ComfyUI: typed ports, drag a wire from an output to an input,
 // and every node really runs (text AI, image and video generation, voiceover, save to board).
+import { CLOUD_ONLY, nearestDuration, nearestRes, useCloud } from '../lib/cloud'
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import {
   AudioLines,
@@ -313,12 +314,18 @@ export function NodeFlow({
   const chatModels = useMemo(() => models.filter((m) => !m.image || !/image/i.test(m.id)), [models])
   const imageChoices = useMemo(
     () => [
-      ...(localStatus?.models.filter((m) => m.kind === 'image' && m.installed).map((m) => ({ key: `local::${m.id}`, label: `${m.name} · ${t('this PC')}` })) ?? []),
+      ...(CLOUD_ONLY ? [] : localStatus?.models.filter((m) => m.kind === 'image' && m.installed).map((m) => ({ key: `local::${m.id}`, label: `${m.name} · ${t('this PC')}` })) ?? []),
       ...models.filter((m) => m.image).map((m) => ({ key: `cloud::${m.key}`, label: `${m.name} · ${m.providerName}` })),
     ],
     [models, localStatus],
   )
-  const editChoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'image' && m.installed && m.gen?.ref).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
+  const editChoices = useMemo(
+    () =>
+      CLOUD_ONLY
+        ? models.filter((m) => m.image).map((m) => ({ key: `cloud::${m.key}`, label: m.name.replace(/^[^:]+:\s*/, '') }))
+        : (localStatus?.models.filter((m) => m.kind === 'image' && m.installed && m.gen?.ref).map((m) => ({ key: m.id, label: m.name })) ?? []),
+    [localStatus, models],
+  )
   const localImageChoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'image' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
   const ttsVoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'tts' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
   const upscalers = useMemo(() => localStatus?.models.filter((m) => m.kind === 'upscale' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
@@ -329,7 +336,14 @@ export function NodeFlow({
     const m = src?.out?.media || (src?.kind === 'load' ? media.find((x) => x.id === src.data.mediaId) : undefined)
     return m && m.kind === 'image' ? m.url : null
   }
-  const videoChoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'video' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
+  const cloud = useCloud()
+  const videoChoices = useMemo(
+    () => [
+      ...(CLOUD_ONLY ? [] : (localStatus?.models.filter((m) => m.kind === 'video' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [])),
+      ...(cloud.catalog?.video ?? []).map((v) => ({ key: `cloudvideo::${v.id}`, label: v.name.replace(/^[^:]+:\s*/, '') })),
+    ],
+    [localStatus, cloud.catalog],
+  )
 
   // load / save
   useEffect(() => {
@@ -617,7 +631,9 @@ export function NodeFlow({
             }
             const m = models.find((x) => x.key === choice.slice(7))
             if (!m) throw new Error(t('That image model is not connected anymore.'))
-            return await api.generateImage({ providerId: m.provider, model: m.id, prompt, width, height, source: 'creative' })
+            const ref = init && init.kind === 'image' ? (await api.mediaDataUrl(init.id)) || undefined : undefined
+            const neg = negativeText()
+            return await api.generateImage({ providerId: m.provider, model: m.id, prompt: neg ? `${prompt}\n\nAvoid: ${neg}` : prompt, width, height, refImages: ref ? [ref] : undefined, source: 'creative' })
           } finally {
             activeMediaNode.current = null
           }
@@ -635,6 +651,20 @@ export function NodeFlow({
           activeMediaNode.current = n.id
           try {
             const initImage = init && init.kind === 'image' ? (await api.mediaDataUrl(init.id)) || undefined : undefined
+            if (modelId.startsWith('cloudvideo::')) {
+              const spec = cloud.catalog?.video.find((v) => v.id === modelId.slice(12))
+              const neg = negativeText()
+              return await api.cloudVideo({
+                jobId: jobFor(n.id),
+                model: modelId.slice(12),
+                prompt: neg ? `${prompt}\n\nAvoid: ${neg}` : prompt,
+                duration: nearestDuration(spec?.durations ?? [5], Math.round((Number(n.data.frames) || 81) / (Number(n.data.fps) || 16))),
+                resolution: nearestRes(spec?.resolutions ?? ['720p'], 720),
+                aspect: spec?.aspects.includes('16:9') ? '16:9' : spec?.aspects[0],
+                frameImage: initImage,
+                source: 'creative',
+              })
+            }
             return await api.generateLocal({ jobId: jobFor(n.id), modelId, prompt, negative: negativeText(), frames: Number(n.data.frames) || 33, fps: Number(n.data.fps) || undefined, initImage, seed: Math.floor(Math.random() * 2 ** 31) })
           } finally {
             activeMediaNode.current = null
@@ -661,6 +691,13 @@ export function NodeFlow({
           im.src = img.url
         })
         const scaleTo = Math.min(1, 1024 / Math.max(size.w, size.h))
+        if (modelId.startsWith('cloud::')) {
+          const m = models.find((x) => x.key === modelId.slice(7))
+          if (!m) throw new Error(t('That image model is not connected anymore.'))
+          const item = await withMediaLock(() => api.generateImage({ providerId: m.provider, model: m.id, prompt, width: snap64(size.w * scaleTo), height: snap64(size.h * scaleTo), refImages: dataUrl ? [dataUrl] : undefined, source: 'creative' }))
+          onMediaCreated(item)
+          return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
+        }
         const item = await withMediaLock(() =>
           api.generateLocal({
             jobId: jobFor(n.id),
@@ -1368,6 +1405,7 @@ function NodeBody({
             label={v.type === 'openai' ? `OpenAI · ${v.voice}` : undefined}
             onPick={(c) => {
               if (c.type === 'native') setData({ voice: `native:${c.id}|${c.name}` })
+              else if (c.type === 'cloud') setData({ voice: `openai:${c.voice}` })
               else if (c.type !== 'system') setData({ voice: `local:${c.modelId}${c.voice != null ? `#${c.voice}` : ''}` })
             }}
             extra={

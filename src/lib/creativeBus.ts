@@ -15,6 +15,8 @@ export type GenRequest = {
   /** Video length in seconds. */
   duration?: number
   count?: number
+  /** Video with sound (when the model can). */
+  audio?: boolean
   /** Start from this library image (image-to-video, edits, upscale). */
   initMediaId?: string
   /** Or an image attached in the chat. */

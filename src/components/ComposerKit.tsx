@@ -4,6 +4,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowUp,
+  AudioLines,
   Blocks,
   Bot,
   Check,
@@ -34,6 +35,7 @@ import { api, type MediaItem } from '../lib/api'
 import { t } from '../lib/i18n'
 import { ASPECTS, resLabel, type CreativeOption } from '../lib/creative'
 import { creativeBus, type ChatMediaMeta, type GenUpdate } from '../lib/creativeBus'
+import { fmtCredits, nearestDuration } from '../lib/cloud'
 import { setAudioPref, useAudioDevices } from '../lib/audioDevices'
 import type { Recording } from '../lib/voice'
 import { Lightbox } from './Lightbox'
@@ -449,7 +451,7 @@ export function RecordingBar({ rec, started, onCancel, onStop, onSend }: { rec: 
 /* ------------------------------------------------------------------ */
 
 export type ComposeMode = 'chat' | 'image' | 'video'
-export type CreateSettings = { modelKey: Record<'image' | 'video', string>; aspect: Record<'image' | 'video', string>; res: Record<'image' | 'video', number>; duration: number; count: number }
+export type CreateSettings = { modelKey: Record<'image' | 'video', string>; aspect: Record<'image' | 'video', string>; res: Record<'image' | 'video', number>; duration: number; count: number; audio?: boolean }
 export const DEFAULT_CREATE: CreateSettings = { modelKey: { image: '', video: '' }, aspect: { image: '1:1', video: '16:9' }, res: { image: 0, video: 0 }, duration: 3, count: 1 }
 
 export function ModeSwitch({ mode, onMode }: { mode: ComposeMode; onMode: (m: ComposeMode) => void }) {
@@ -520,7 +522,22 @@ export function CreateControls({
           </div>
         )}
       </PopPill>
-      {mode === 'video' && (
+      {mode === 'video' && current?.video && (
+        <PopPill label={`${nearestDuration(current.video.durations, settings.duration)}s`} icon={<Clock3 size={13} />} title={t('Duration')}>
+          {(close) => (
+            <div className="cpop-list">
+              <p className="cpop-head">{t('Duration')}</p>
+              {current.video!.durations.map((d) => (
+                <button type="button" key={d} className={d === nearestDuration(current.video!.durations, settings.duration) ? 'on' : ''} onClick={() => (set('duration', d), close())}>
+                  <span className="num">{d}s</span>
+                  {current.video!.pricePerSecond ? <small className="num">≈ {fmtCredits(Math.ceil(current.video!.pricePerSecond * d))} {t('credits')}</small> : null}
+                </button>
+              ))}
+            </div>
+          )}
+        </PopPill>
+      )}
+      {mode === 'video' && !current?.video && (
         <PopPill label={`${settings.duration}s`} icon={<Clock3 size={13} />} title={t('Duration')}>
           {() => (
             <div className="cpop-slider">
@@ -546,6 +563,12 @@ export function CreateControls({
           </div>
         )}
       </PopPill>
+      {mode === 'video' && current?.video?.audio && (
+        <button type="button" className={`cpill ${settings.audio !== false ? 'on' : ''}`} aria-pressed={settings.audio !== false} onClick={() => set('audio', settings.audio === false)} title={t('Generate sound with the video')}>
+          <AudioLines size={13} />
+          <span className="cpill-label">{t('Audio')}</span>
+        </button>
+      )}
       <button type="button" className={`cpill enhance-chip ${enhancing ? 'busy' : ''}`} onClick={onEnhance} disabled={enhancing} title={t('Rewrite the prompt with more detail (magic wand)')}>
         {enhancing ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
         <span className="cpill-label">{t('Enhance prompt')}</span>
@@ -662,7 +685,12 @@ export function ChatMediaCard({
       </div>
       {status === 'error' && !items.length ? (
         <div className="chat-media-error">
-          <p>{meta.error || live?.error || t('The render failed.')}</p>
+          <p>{t(meta.error || live?.error || 'The render failed.')}</p>
+          {/credit/i.test(meta.error || live?.error || '') && (
+            <button type="button" className="orbi-btn orbi-btn-primary" onClick={() => window.dispatchEvent(new Event('orbi:open-account'))}>
+              {t('Plans and credits')}
+            </button>
+          )}
           <button type="button" className="orbi-btn" onClick={onRetry}>
             <RotateCcw size={12} /> {t('Try again')}
           </button>

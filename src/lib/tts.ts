@@ -1,6 +1,7 @@
 // Read-aloud: a downloaded Piper voice (natural, offline) or one of the system voices.
 import { api, type TtsChoice } from './api'
 import { routeAudio } from './audioDevices'
+import { CLOUD_ONLY } from './cloud'
 
 let current: { stop: () => void } | null = null
 
@@ -42,7 +43,9 @@ export const isLocalChoice = (c: TtsChoice | null): c is Extract<TtsChoice, { mo
 export async function speak(text: string, choice: TtsChoice | null, lang: string): Promise<void> {
   stopSpeaking()
   const clean = text.replace(/```[\s\S]*?```/g, ' ').replace(/\]\([^)]*\)/g, ']').replace(/[#*_>`~[\]]/g, '')
-  if (isLocalChoice(choice) || choice?.type === 'native') {
+  // Orbi Cloud voices are the default now; system voices remain only as an explicit choice.
+  if (CLOUD_ONLY && (!choice || isLocalChoice(choice))) choice = { type: 'cloud', model: '', voice: '' }
+  if (isLocalChoice(choice) || choice?.type === 'native' || choice?.type === 'cloud') {
     let stopped = false
     let audio: HTMLAudioElement | null = null
     let finish = () => {}
@@ -54,7 +57,9 @@ export async function speak(text: string, choice: TtsChoice | null, lang: string
       },
     }
     const make = (part: string) =>
-      choice.type === 'native' ? api.speakSystem({ text: part, system: choice.id, rate: choice.rate }) : api.speakLocal({ text: part, modelId: choice.modelId, rate: choice.rate, voice: choice.voice, lang })
+      choice.type === 'cloud'
+        ? api.cloudSpeak({ text: part, model: choice.model || undefined, voice: choice.voice || undefined })
+        : choice.type === 'native' ? api.speakSystem({ text: part, system: choice.id, rate: choice.rate }) : api.speakLocal({ text: part, modelId: choice.modelId, rate: choice.rate, voice: choice.voice, lang })
     const list = chunks(clean)
     let next: Promise<string> | null = make(list[0])
     for (let i = 0; i < list.length && !stopped; i++) {

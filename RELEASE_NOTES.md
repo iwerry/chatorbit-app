@@ -1,4 +1,17 @@
-## Orbi 0.1.28-7
+## Orbi 0.1.28-8 — Orbi Cloud
+
+**Orbi agora roda com uma conta Orbi e os principais modelos de mercado (via OpenRouter).**
+- **Conta Orbi:** crie sua conta ou entre ao abrir o app. Contas novas ganham créditos para testar.
+- **Créditos:** o saldo aparece no topo do chat e do Creative. Cada resposta, imagem, vídeo, voz e ditado desconta o custo real, em créditos.
+- **Planos e créditos extras:** assinatura mensal (Pro, Studio) com créditos que renovam todo mês, mais pacotes extras que não expiram. O pagamento é pelo Stripe, no navegador. Em Configurações › Conta e créditos você vê o plano, o saldo, o uso recente e gerencia a assinatura.
+- **Chat:** só modelos de mercado (Claude, GPT, Gemini, DeepSeek, Grok, Llama, Mistral, Qwen…). Os modelos gratuitos saíram.
+- **Imagem:** Nano Banana, GPT Image, Seedream, FLUX e outros, no Creative, no chat e nos Workflows. Imagem de referência funciona.
+- **Vídeo:** Veo 3.1, Seedance, Wan, Hailuo, Grok Imagine e outros, com som. Você escolhe a duração e a resolução que cada modelo aceita e vê a estimativa em créditos antes de gerar. O vídeo sai em MP4.
+- **Voz:** a leitura em voz alta e o ditado usam vozes e transcrição da nuvem (OpenAI, Google, Mistral). Escolha em Configurações › Voz.
+- **Sem chaves de API:** a tela de provedores e a de modelos locais saíram. A chave do OpenRouter fica só no servidor Orbi Cloud, nunca no app.
+- **Orbi Cloud:** o servidor está na pasta `cloud/` do projeto e, por enquanto, roda no seu PC (`npm start`). Veja `cloud/README.md`.
+
+## Orbi 0.1.28-7 (previous)
 
 - Creative › Canvas (Image and Video): one **Improve** (magic wand) and one **Random** under the prompt. Both write the prompt **and** the negative prompt together. The small extra buttons next to the negative prompt were removed.
 - The Video / Image / Story buttons are no longer on the home screen (0.1.28-6).

@@ -13,6 +13,9 @@ const studio = require('./studio.cjs')
 const mcp = require('./mcp.cjs')
 const localAI = require('./local-ai.cjs')
 const updater = require('./updater.cjs')
+const cloudClient = require('./cloud.cjs')
+// Orbi now runs on Orbi Cloud (market models through OpenRouter). Local engines and personal API keys stay in the code but are hidden.
+const CLOUD_ONLY = true
 
 const isDev = !!process.env.ORBI_DEV_URL
 let win = null
@@ -58,7 +61,10 @@ function decrypt(s) {
   }
   return ''
 }
+let cloud = null
+const cloudApi = () => (cloud ||= cloudClient.create({ getSetting, setSetting, encrypt, decrypt, appVersion: app.getVersion() }))
 function providerConfig(id) {
+  if (id === 'orbicloud') return cloudApi().providerConfig()
   if (id === 'orbi') {
     const st = localAI.status()
     return { enabled: st.engineInstalled && st.models.some((m) => m.installed), baseUrl: st.running ? `http://127.0.0.1:${st.running.port}/v1` : '', apiKey: '' }
@@ -146,7 +152,7 @@ const api = {
     const out = []
     const errors = []
     await Promise.all(
-      ai.PROVIDERS.map(async (p) => {
+      ai.PROVIDERS.filter((p) => !CLOUD_ONLY || p.id === 'orbicloud').map(async (p) => {
         const c = providerConfig(p.id)
         if (!c.enabled) return
         try {
@@ -209,7 +215,13 @@ const api = {
   // One-shot completion used by workflow nodes.
   'ai:complete': (p) => complete(p),
   // Text to speech for workflow voiceover nodes (OpenAI key required).
-  'ai:speech': async ({ text, voice }) => {
+  'ai:speech': async ({ text, voice, model }) => {
+    if (CLOUD_ONLY) {
+      const pref = getSetting('cloudVoice', {})
+      const m = model || pref.model || 'openai/gpt-4o-mini-tts-2025-12-15'
+      const { buffer, mime } = await cloudApi().speech({ text, model: m, voice: voice || pref.voice || 'alloy' })
+      return saveMedia({ buffer, mime, kind: 'audio', name: `voiceover-${Date.now()}.mp3`, prompt: String(text).slice(0, 300), model: m, source: 'creative' })
+    }
     const cfg = providerConfig('openai')
     if (!cfg.apiKey) throw new Error('Voiceover needs an OpenAI key (Settings → AI providers).')
     const res = await fetch(`${(cfg.baseUrl || 'https://api.openai.com/v1').replace(/\/+$/, '')}/audio/speech`, {
@@ -343,7 +355,10 @@ const api = {
     return saveMedia({ buffer: Buffer.from(data, 'base64'), mime, kind, name: file.name, source: 'upload' })
   },
   'image:generate': async (payload) => {
-    const { buffer, mime } = await ai.generateImage(payload, providerConfig(payload.providerId))
+    const { buffer, mime } =
+      payload.providerId === 'orbicloud'
+        ? await cloudApi().image({ model: payload.model, prompt: payload.prompt, aspect: aspectOf(payload.width, payload.height), resolution: payload.resolution, refImages: payload.refImages })
+        : await ai.generateImage(payload, providerConfig(payload.providerId))
     const short = payload.prompt.slice(0, 40).replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'image'
     return saveMedia({ buffer, mime, kind: 'image', name: `${short}.${mime.includes('jpeg') ? 'jpg' : 'png'}`, prompt: payload.prompt, model: payload.model, source: payload.source || 'creative', board: payload.board, params: { width: payload.width, height: payload.height } })
   },
@@ -412,6 +427,49 @@ const api = {
   },
 
   // ---------- web search ----------
+  // ---------- Orbi Cloud account ----------
+  'cloud:state': () => cloudApi().state(),
+  'cloud:setUrl': (u) => cloudApi().setUrl(u),
+  'cloud:signup': (p) => cloudApi().signup(p),
+  'cloud:login': (p) => cloudApi().login(p),
+  'cloud:logout': () => cloudApi().logout(),
+  'cloud:plans': () => cloudApi().plans(),
+  'cloud:usage': () => cloudApi().usage(),
+  'cloud:catalog': () => cloudApi().catalog(),
+  'cloud:checkout': async (item) => {
+    const r = await cloudApi().checkout(item)
+    if (r.url) shell.openExternal(r.url)
+    return r
+  },
+  'cloud:portal': async () => {
+    const r = await cloudApi().portal()
+    if (r.url) shell.openExternal(r.url)
+    return r
+  },
+  // Read-aloud: returns playable audio without saving it to the library.
+  'cloud:speak': async ({ text, model, voice }) => {
+    const pref = getSetting('cloudVoice', {})
+    const { buffer, mime } = await cloudApi().speech({ text, model: model || pref.model || 'openai/gpt-4o-mini-tts-2025-12-15', voice: voice || pref.voice || 'alloy' })
+    return `data:${mime};base64,${buffer.toString('base64')}`
+  },
+  'cloud:video': async (p) => {
+    const sender = currentSender
+    const controller = new AbortController()
+    if (p.jobId) cloudVideoJobs.set(p.jobId, controller)
+    try {
+      const { buffer, mime } = await cloudApi().video({
+        ...p,
+        signal: controller.signal,
+        onStatus: (s) => p.jobId && !sender.isDestroyed() && sender.send('local:progress', { jobId: p.jobId, step: 0, total: 0, phase: s.phase === 'completed' || s.phase === 'downloading' ? 'decoding' : s.phase === 'in_progress' ? 'cloud' : 'queued', elapsed: s.elapsed }),
+      })
+      const short = String(p.prompt || '').slice(0, 40).replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'video'
+      return saveMedia({ buffer, mime, kind: 'video', name: `${short}.mp4`, prompt: p.prompt, model: p.model, source: p.source || 'creative', board: p.board, params: { duration: p.duration, resolution: p.resolution, aspect: p.aspect, negative: p.negative || undefined } })
+    } finally {
+      if (p.jobId) cloudVideoJobs.delete(p.jobId)
+    }
+  },
+  'cloud:cancelVideo': (jobId) => cloudVideoJobs.get(jobId)?.abort(),
+
   'web:search': async (q, opts = {}) => {
     const r = await websearch.search(q, { lang: getSetting('language', 'en'), read: opts.read ?? 3 })
     return { ...r, context: websearch.toContext(r) }
@@ -419,6 +477,7 @@ const api = {
 
   // ---------- voice ----------
   'voice:transcribe': async ({ wav, mode, language }) => {
+    if (CLOUD_ONLY || mode?.type === 'cloud') return cloudApi().transcribe({ wavBase64: wav, model: mode?.model || getSetting('cloudStt', '') || 'openai/gpt-4o-mini-transcribe', language })
     const buf = Buffer.from(wav, 'base64')
     if (mode?.type === 'local') {
       const f = path.join(os.tmpdir(), `orbi-voice-${Date.now()}.wav`)
@@ -796,6 +855,15 @@ function installLibraryAgent(id) {
     db.run("UPDATE agents SET skills_mode = 'selected', skills = ? WHERE id = ?", [JSON.stringify(a.skills), aid])
   }
   return true
+}
+
+const cloudVideoJobs = new Map()
+// Nearest standard aspect ratio for a width × height.
+function aspectOf(w, h) {
+  if (!w || !h) return undefined
+  const list = [['1:1', 1], ['4:3', 4 / 3], ['3:4', 3 / 4], ['16:9', 16 / 9], ['9:16', 9 / 16], ['21:9', 21 / 9], ['3:2', 1.5], ['2:3', 2 / 3]]
+  const r = w / h
+  return list.reduce((a, b) => (Math.abs(Math.log(b[1] / r)) < Math.abs(Math.log(a[1] / r)) ? b : a))[0]
 }
 
 async function configFor(providerId, model) {

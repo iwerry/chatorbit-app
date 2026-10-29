@@ -2,6 +2,7 @@
 // Chat and Creative only ask "stream a reply" / "generate an image".
 
 const PROVIDERS = [
+  { id: 'orbicloud', name: 'Orbi', kind: 'openai', baseUrl: 'http://127.0.0.1:8787/v1', needsKey: false, mode: 'Cloud', hint: 'Market AI models through your Orbi account.', builtin: true },
   { id: 'orbi', name: 'Orbi Local', kind: 'openai', baseUrl: 'http://127.0.0.1/v1', needsKey: false, mode: 'Local', hint: 'Free tiny models that run on this PC — downloaded on demand.', builtin: true },
   { id: 'openrouter', name: 'OpenRouter', kind: 'openai', baseUrl: 'https://openrouter.ai/api/v1', needsKey: true, mode: 'API', hint: 'One key for GPT, Claude, Gemini, DeepSeek, Llama… and image models.' },
   { id: 'openai', name: 'OpenAI', kind: 'openai', baseUrl: 'https://api.openai.com/v1', needsKey: true, mode: 'API', hint: 'GPT models and gpt-image for images.' },

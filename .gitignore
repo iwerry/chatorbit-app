@@ -6,3 +6,5 @@ build/pty/
 *.log
 .DS_Store
 electron/build-info.json
+cloud/.env
+cloud/data/

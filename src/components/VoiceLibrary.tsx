@@ -43,6 +43,7 @@ export function defaultVoiceFor(m: LocalModel | undefined, lang: string): number
 export function choiceLabel(c: TtsChoice | null, status: LocalStatus | null): string {
   if (!c) return t('System voice')
   if (c.type === 'system' || c.type === 'native') return c.name
+  if (c.type === 'cloud') return `${c.voice} · ${c.model.split('/').pop()}`
   const m = status?.models.find((x) => x.id === c.modelId)
   if (!m) return t('Voice')
   const v = voicesOf(m, status?.clones || []).find((x) => String(x.id) === String(c.voice ?? '')) || voicesOf(m, status?.clones || [])[0]
