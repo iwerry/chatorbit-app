@@ -1,4 +1,10 @@
-## Orbi 0.1.28-9 — Orbi Cloud no Supabase
+## Orbi 0.1.29-1
+
+- **Confirmar a conta pelo código:** além do link, dá para digitar no Orbi o código de 6 dígitos do e-mail de cadastro.
+- **Esqueceu a senha?** Na tela de entrar, o Orbi manda um código por e-mail; você digita o código e a senha nova, sem sair do app.
+- **Pasta do app mais limpa:** os arquivos de licença do Electron e do Chromium foram para a subpasta `licenses\`.
+
+## Orbi 0.1.28-9 — Orbi Cloud no Supabase (previous)
 
 - **Não precisa mais rodar servidor no seu PC.** A conta, os créditos e o acesso à IA agora ficam no Supabase. É só instalar o Orbi e entrar.
 - **Login pelo Supabase:** crie a conta com e-mail e senha e confirme pelo link que chega no e-mail. Se o e-mail não chegar, o app tem o botão "Enviar o link de novo".

@@ -24,7 +24,9 @@ function ServerField({ compact }: { compact?: boolean }) {
 
 /** Full-screen sign-in shown until the user has an Orbi account on this PC. */
 export function AccountGate({ onSignedIn }: { onSignedIn: () => void }) {
-  const [mode, setMode] = useState<'login' | 'signup'>('signup')
+  const [mode, setMode] = useState<'login' | 'signup' | 'reset'>('signup')
+  const [codeSent, setCodeSent] = useState(false)
+  const [code, setCode] = useState('')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -37,6 +39,17 @@ export function AccountGate({ onSignedIn }: { onSignedIn: () => void }) {
     setBusy(true)
     setError('')
     try {
+      if (mode === 'reset') {
+        if (!codeSent) {
+          await api.cloudRecover(email)
+          setCodeSent(true)
+          return
+        }
+        await api.cloudResetPassword({ email, code, password })
+        await refreshCloud()
+        onSignedIn()
+        return
+      }
       if (mode === 'signup') {
         const r = await api.cloudSignup({ email, password, name })
         if (r.confirm) {
@@ -59,8 +72,9 @@ export function AccountGate({ onSignedIn }: { onSignedIn: () => void }) {
         <div className="acct-mark">
           <OrbiMark width={30} height={30} />
         </div>
-        <h2>{mode === 'signup' ? t('Create your Orbi account') : t('Welcome back')}</h2>
-        <p className="acct-lead">{t('The best AI models for chat, images, video and voice — in one app, with one account.')}</p>
+        <h2>{mode === 'signup' ? t('Create your Orbi account') : mode === 'reset' ? t('Choose a new password') : t('Welcome back')}</h2>
+        <p className="acct-lead">{mode === 'reset' ? (codeSent ? t('We sent a 6-digit code to {email}. Type it below with your new password.', { email }) : t('Type your email and we will send you a code.')) : t('The best AI models for chat, images, video and voice — in one app, with one account.')}</p>
+        {mode !== 'reset' && (
         <div className="acct-tabs" role="tablist">
           <button type="button" role="tab" aria-selected={mode === 'signup'} className={mode === 'signup' ? 'on' : ''} onClick={() => setMode('signup')}>
             {t('Create account')}
@@ -69,6 +83,7 @@ export function AccountGate({ onSignedIn }: { onSignedIn: () => void }) {
             {t('Sign in')}
           </button>
         </div>
+        )}
         {mode === 'signup' && (
           <label className="acct-field">
             <span>{t('Name')}</span>
@@ -79,14 +94,50 @@ export function AccountGate({ onSignedIn }: { onSignedIn: () => void }) {
           <span>{t('Email')}</span>
           <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" autoFocus />
         </label>
-        <label className="acct-field">
-          <span>{t('Password')}</span>
-          <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} />
-          {mode === 'signup' && <small>{t('At least 8 characters.')}</small>}
-        </label>
+        {mode === 'reset' && codeSent && (
+          <label className="acct-field">
+            <span>{t('Code from the email')}</span>
+            <input inputMode="numeric" required value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))} autoComplete="one-time-code" className="num acct-code" />
+          </label>
+        )}
+        {(mode !== 'reset' || codeSent) && (
+          <label className="acct-field">
+            <span>{mode === 'reset' ? t('New password') : t('Password')}</span>
+            <input type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} />
+            {mode !== 'login' && <small>{t('At least 8 characters.')}</small>}
+          </label>
+        )}
+        {mode === 'login' && (
+          <button type="button" className="acct-link acct-forgot" onClick={() => (setMode('reset'), setCodeSent(false), setError(''))}>
+            {t('Forgot your password?')}
+          </button>
+        )}
         {(confirmFor || /confirm/i.test(error)) && (
           <div className="acct-note" role="status">
             {confirmFor && <p>{t('We sent a confirmation link to {email}. Open it, then sign in here.', { email: confirmFor })}</p>}
+            <div className="acct-confirm-code">
+              <input inputMode="numeric" placeholder={t('Code from the email')} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))} aria-label={t('Code from the email')} className="num" />
+              <button
+                type="button"
+                className="orbi-btn"
+                disabled={code.length < 6 || busy}
+                onClick={async () => {
+                  setBusy(true)
+                  setError('')
+                  try {
+                    await api.cloudConfirmSignup({ email: confirmFor || email, code })
+                    await refreshCloud()
+                    onSignedIn()
+                  } catch (err) {
+                    setError(t(clean(err)))
+                  } finally {
+                    setBusy(false)
+                  }
+                }}
+              >
+                {t('Confirm')}
+              </button>
+            </div>
             <button
               type="button"
               className="acct-link"
@@ -111,8 +162,13 @@ export function AccountGate({ onSignedIn }: { onSignedIn: () => void }) {
         )}
         <button className="orbi-btn orbi-btn-primary acct-submit" type="submit" disabled={busy}>
           {busy ? <Loader2 size={15} className="animate-spin" /> : <ArrowRight size={15} />}
-          {mode === 'signup' ? t('Create account') : t('Sign in')}
+          {mode === 'signup' ? t('Create account') : mode === 'reset' ? (codeSent ? t('Save new password') : t('Send code')) : t('Sign in')}
         </button>
+        {mode === 'reset' && (
+          <button type="button" className="acct-link acct-back" onClick={() => (setMode('login'), setError(''))}>
+            {t('Back to sign in')}
+          </button>
+        )}
         {mode === 'signup' && <p className="acct-fine">{t('New accounts get free credits to try Orbi.')}</p>}
         <ServerField compact />
       </form>

@@ -25,12 +25,12 @@ function create({ getSetting, setSetting, encrypt, decrypt, appVersion }) {
     setSetting('cloudRefresh', '')
   }
 
-  async function authCall(path, body, token) {
+  async function authCall(path, body, token, method = 'POST') {
     const b = backend()
     let res
     try {
       res = await fetch(`${b.url}/auth/v1${path}`, {
-        method: 'POST',
+        method,
         headers: { apikey: b.key, 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(body || {}),
         signal: AbortSignal.timeout(20000),
@@ -53,6 +53,8 @@ function create({ getSetting, setSetting, encrypt, decrypt, appVersion }) {
         'Invalid login credentials': 'Wrong email or password.',
         'Email not confirmed': 'Confirm your email first: open the link we sent you.',
         'User already registered': 'An account with this email already exists. Sign in instead.',
+        'Token has expired or is invalid': 'This code is wrong or has expired. Ask for a new one.',
+        'New password should be different from the old password.': 'Choose a password different from the old one.',
       }
       const err = new Error(map[raw] || raw)
       err.code = j.error_code || j.code || String(res.status)
@@ -150,6 +152,19 @@ function create({ getSetting, setSetting, encrypt, decrypt, appVersion }) {
       return true
     },
     resend: (email) => authCall('/resend', { type: 'signup', email }),
+    /** Confirms a new account with the 6-digit code from the welcome email, and signs in. */
+    async confirmSignup({ email, code }) {
+      saveSession(await authCall('/verify', { type: 'signup', email, token: String(code).trim() }))
+      return true
+    },
+    /** Password reset with the 6-digit code from the email (works without any web page). */
+    recover: (email) => authCall('/recover', { email }),
+    async resetPassword({ email, code, password }) {
+      const s = await authCall('/verify', { type: 'recovery', email, token: String(code).trim() })
+      saveSession(s)
+      await authCall('/user', { password }, s.access_token, 'PUT')
+      return true
+    },
     async logout() {
       const t = session?.access
       clear()

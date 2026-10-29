@@ -1,7 +1,7 @@
 # Orbi: continuar daqui
 
 Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trabalho sem perder contexto.
-Última versão publicada: **0.1.28-9** (GitHub Releases, `iwerry/chatorbit-app`).
+Última versão publicada: **0.1.29-1** (GitHub Releases, `iwerry/chatorbit-app`).
 
 ## Regras do projeto
 
@@ -32,7 +32,13 @@ Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trab
 | `library-imports/INDEX.md` | Lista de tarefas detalhada |
 | `RELEASE_NOTES.md` | O que mudou em cada versão |
 
-## O que foi feito nesta sessão
+## 29/10: o que mudou
+
+- Confirmação de cadastro e troca de senha por código de 6 dígitos, dentro do app (testado com um Supabase simulado).
+- As licenças do Electron e do Chromium foram para `licenses\` na pasta do app.
+- Situação no Supabase em 29/10 00h: nenhuma conta criada e nenhuma chamada à função ainda (falta o Daniel salvar os segredos e testar).
+
+## O que foi feito em 28/10
 
 1. **Caixa de mensagem nova**
    - Placeholder que digita exemplos de `/skills` e `@agentes` (Tab usa o exemplo).
@@ -65,6 +71,7 @@ Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trab
 
 - [ ] **Daniel:** em Supabase › Edge Functions › Secrets, criar `OPENROUTER_API_KEY` (chave **nova**; a antiga apareceu no chat e deve ser revogada) e `ADMIN_EMAILS` (`draftcs21@gmail.com`).
 - [ ] **Daniel:** em Authentication › URL Configuration, colocar em Site URL `https://jtdkbtszyrqogmvznrig.supabase.co/functions/v1/orbi/auth/done`.
+- [ ] **Daniel:** em Authentication › Emails › Templates, colocar `{{ .Token }}` nos modelos "Confirm signup" e "Reset password". Sem isso, o código não chega e só o link funciona.
 - [ ] Instalar a 0.1.28-9, criar a conta, confirmar o e-mail e testar com a IA de verdade:
   - chat, imagem, vídeo, voz e ditado;
   - conferir os logs da função pelo conector do Supabase (`query_logs`).
@@ -77,9 +84,9 @@ Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trab
   - webhook em `.../functions/v1/orbi/stripe/webhook`;
   - ativar o portal do cliente;
   - passar para o modo produção e definir os preços em BRL e USD.
-- [ ] **Recuperar senha** (página de redefinição) e **entrar com Google**.
+- [x] Recuperar senha e confirmar a conta por código (0.1.29-1). Falta **entrar com Google**.
 - [ ] **E-mail próprio (SMTP)** no Supabase antes de lançar; o envio padrão tem limite baixo.
-- [ ] **Licenças no instalador:** `LICENSE.electron.txt` e `LICENSES.chromium.html` aparecem na pasta do app; mover para `licenses/` ou mostrar em Sobre. Somem no Tauri.
+- [x] Licenças movidas para `licenses\` no instalador (0.1.29-1).
 - [ ] Ampliar 4× na nuvem: hoje o upscale só funciona com o Real-ESRGAN local, que ficou escondido.
 - [ ] Apagar de vez o código dos motores locais (llama.cpp, sd.cpp, whisper, sherpa, Python). Hoje está só escondido por `CLOUD_ONLY`.
 - [ ] Próximas fases combinadas:

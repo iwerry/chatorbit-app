@@ -42,6 +42,14 @@ res.outputResource(exe)
 fs.writeFileSync(exePath, Buffer.from(exe.generate()))
 console.log('icon + version applied to', exePath)
 
+// Third-party licenses go into licenses\ instead of sitting next to Orbi.exe (they still ship, as required).
+const unpacked = path.join(root, 'release', 'win-unpacked')
+fs.mkdirSync(path.join(unpacked, 'licenses'), { recursive: true })
+for (const f of ['LICENSE.electron.txt', 'LICENSES.chromium.html']) {
+  const from = path.join(unpacked, f)
+  if (fs.existsSync(from)) fs.renameSync(from, path.join(unpacked, 'licenses', f))
+}
+
 // NSIS: the copy electron-builder downloads (local builds), or the system makensis (CI: apt install nsis).
 const cache = path.join(require('node:os').homedir(), '.cache', 'electron-builder')
 const nsisDir = fs.existsSync(cache)

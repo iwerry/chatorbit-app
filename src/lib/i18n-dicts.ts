@@ -1,8 +1,20 @@
 // UI translations. English is the key; each row is [en, pt-BR, es, fr].
 // Missing keys fall back to English, so new strings never break the UI.
 const ROWS: [string, string, string, string][] = [
+  ["We sent a confirmation link to {email}. Open it, then sign in here.", "Enviamos um e-mail para {email}. Abra o link ou digite aqui o código que veio nele.", "Enviamos un correo a {email}. Abre el enlace o escribe aquí el código que trae.", "Nous avons envoyé un e-mail à {email}. Ouvrez le lien ou saisissez ici le code qu’il contient."],
+  ["Confirm", "Confirmar", "Confirmar", "Confirmer"],
+  ["Choose a new password", "Escolha uma senha nova", "Elige una contraseña nueva", "Choisissez un nouveau mot de passe"],
+  ["We sent a 6-digit code to {email}. Type it below with your new password.", "Enviamos um código de 6 dígitos para {email}. Digite abaixo com a sua senha nova.", "Enviamos un código de 6 dígitos a {email}. Escríbelo abajo con tu contraseña nueva.", "Nous avons envoyé un code à 6 chiffres à {email}. Saisissez-le ci-dessous avec votre nouveau mot de passe."],
+  ["Type your email and we will send you a code.", "Digite seu e-mail e enviaremos um código.", "Escribe tu correo y te enviaremos un código.", "Saisissez votre e-mail et nous vous enverrons un code."],
+  ["Code from the email", "Código do e-mail", "Código del correo", "Code reçu par e-mail"],
+  ["New password", "Senha nova", "Contraseña nueva", "Nouveau mot de passe"],
+  ["Forgot your password?", "Esqueceu a senha?", "¿Olvidaste tu contraseña?", "Mot de passe oublié ?"],
+  ["Save new password", "Salvar senha nova", "Guardar contraseña nueva", "Enregistrer le nouveau mot de passe"],
+  ["Send code", "Enviar código", "Enviar código", "Envoyer le code"],
+  ["Back to sign in", "Voltar para entrar", "Volver a iniciar sesión", "Retour à la connexion"],
+  ["This code is wrong or has expired. Ask for a new one.", "Este código está errado ou expirou. Peça um novo.", "Este código es incorrecto o caducó. Pide uno nuevo.", "Ce code est faux ou a expiré. Demandez-en un nouveau."],
+  ["Choose a password different from the old one.", "Escolha uma senha diferente da antiga.", "Elige una contraseña distinta de la anterior.", "Choisissez un mot de passe différent de l’ancien."],
   ["Orbi Cloud online", "Orbi Cloud online", "Orbi Cloud en línea", "Orbi Cloud en ligne"],
-  ["We sent a confirmation link to {email}. Open it, then sign in here.", "Enviamos um link de confirmação para {email}. Abra o link e depois entre aqui.", "Enviamos un enlace de confirmación a {email}. Ábrelo y luego inicia sesión aquí.", "Nous avons envoyé un lien de confirmation à {email}. Ouvrez-le, puis connectez-vous ici."],
   ["Sent again", "Enviado de novo", "Enviado de nuevo", "Renvoyé"],
   ["Send the link again", "Enviar o link de novo", "Enviar el enlace de nuevo", "Renvoyer le lien"],
   ["Administration", "Administração", "Administración", "Administration"],

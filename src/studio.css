@@ -5227,3 +5227,32 @@ form.composer {
 .acct-admin-form input[type='number'] {
   flex: 0 1 110px;
 }
+.acct-forgot {
+  justify-self: start;
+  margin-top: -4px;
+}
+.acct-back {
+  align-self: center;
+}
+.acct-code {
+  letter-spacing: 0.35em;
+  font-size: 18px !important;
+  text-align: center;
+}
+.acct-confirm-code {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.acct-confirm-code input {
+  min-width: 0;
+  flex: 1;
+  height: 34px;
+  border: 1px solid var(--neo-line);
+  border-radius: 10px;
+  background: var(--neo-surface-solid);
+  padding: 0 10px;
+  font-size: 14px;
+  letter-spacing: 0.25em;
+  color: var(--neo-text);
+}

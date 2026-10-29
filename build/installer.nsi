@@ -82,6 +82,9 @@ FunctionEnd
 Section "Install"
   SetOutPath "$INSTDIR"
   RMDir /r "$INSTDIR\resources"
+  ; Older versions left the Electron/Chromium licenses next to Orbi.exe; they now live in licenses\.
+  Delete "$INSTDIR\LICENSE.electron.txt"
+  Delete "$INSTDIR\LICENSES.chromium.html"
   File /r "..\release\win-unpacked\*"
   WriteUninstaller "$INSTDIR\Uninstall ${APP_NAME}.exe"
 

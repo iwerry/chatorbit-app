@@ -22,6 +22,12 @@ Projeto: `jtdkbtszyrqogmvznrig` · Função: `https://jtdkbtszyrqogmvznrig.supab
 
 Os créditos de boas-vindas (300) ficam na função `handle_new_user` da migração.
 
+## E-mails com código (Authentication › Emails › Templates)
+
+O app aceita o código de 6 dígitos do e-mail, então ninguém depende de abrir uma página. Inclua `{{ .Token }}` em dois modelos:
+- **Confirm signup:** por exemplo, `Seu código Orbi: <b>{{ .Token }}</b>`. Pode manter também o link `{{ .ConfirmationURL }}`.
+- **Reset password:** por exemplo, `Código para trocar a senha no Orbi: <b>{{ .Token }}</b>`.
+
 ## Autenticação (Authentication › URL Configuration)
 
 - **Site URL:** `https://jtdkbtszyrqogmvznrig.supabase.co/functions/v1/orbi/auth/done`

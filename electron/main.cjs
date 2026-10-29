@@ -430,6 +430,9 @@ const api = {
   // ---------- Orbi Cloud account ----------
   'cloud:state': () => cloudApi().state(),
   'cloud:resend': (email) => cloudApi().resend(email),
+  'cloud:recover': (email) => cloudApi().recover(email),
+  'cloud:confirmSignup': (p) => cloudApi().confirmSignup(p),
+  'cloud:resetPassword': (p) => cloudApi().resetPassword(p),
   'cloud:grant': (p) => cloudApi().grant(p),
   'cloud:stats': () => cloudApi().stats(),
   'cloud:signup': (p) => cloudApi().signup(p),
