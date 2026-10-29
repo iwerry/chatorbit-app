@@ -1,4 +1,19 @@
-## Orbi 0.1.29-7 (atualização rápida, sem reiniciar)
+## Orbi 0.1.29-8
+
+- **Áudio:** novo estúdio no menu lateral, logo abaixo do Creative.
+  - **Locução:** texto para voz com Gemini 3.8 Flash TTS, ElevenLabs v4, Fish Audio, Microsoft MAI-Voice, MiniMax e outros, cada um com as suas vozes.
+  - **Música:** Lyria 3 (Google), em trecho de 30 s ou música completa, instrumental ou com letra.
+  - **Efeitos sonoros:** descreva o som e ele é gerado.
+- **Voz do Gemini corrigida:** o erro "Gemini TTS only supports response_format=pcm" acabou. O servidor recebe o áudio cru e entrega WAV na hora, sem custo e sem perda.
+- **Um seletor de modelos para tudo:** o mesmo do chat, com busca, empresas, Populares, Top / Rápido / Econômico e o preço.
+  - Imagem e vídeo no chat.
+  - Canvas do Creative.
+  - Cada nó dos Workflows.
+  - Voz, ditado e estúdio de Áudio.
+- **Custo antes de gerar:** imagem, vídeo, locução, música e efeitos mostram "≈ X créditos" ao lado do botão. Os cards do Launchpad também mostram.
+- **Custo depois de gerar:** o saldo no topo mostra quanto a última coisa custou (texto, imagem, vídeo ou áudio).
+
+## Orbi 0.1.29-7 (previous)
 
 - **Voz só na nuvem:**
   - Saíram as vozes baixadas no PC e as vozes do Windows, macOS e Linux.

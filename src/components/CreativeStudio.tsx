@@ -33,8 +33,10 @@ import {
 import { api, on, type Board, type LocalStatus, type MediaItem, type ModelInfo } from '../lib/api'
 import { ASPECTS, CLOUD_GEN, creativeOptions, sizeFor, snap, type CreativeOption } from '../lib/creative'
 import { creativeBus, takePendingUse, type GenRequest } from '../lib/creativeBus'
-import { CLOUD_ONLY, fmtCredits, modelTags, nearestDuration, nearestRes, priceLabel, useCloud } from '../lib/cloud'
-import { resLabel, resolutionsFor } from '../lib/creative'
+import { CLOUD_ONLY, fmtCredits, nearestDuration, nearestRes, useCloud } from '../lib/cloud'
+import { CostChip, ModelSelect } from './ModelMenu'
+import { creativeItems } from '../lib/menuItems'
+import { estimateUsd, resLabel, resolutionsFor } from '../lib/creative'
 import { activity } from '../lib/activity'
 import { fmtBytes, t } from '../lib/i18n'
 import { ThemeSwitcher, type ThemeMode } from './ThemeSwitcher'
@@ -253,18 +255,6 @@ export function CreativeStudio({
   const cloud = useCloud()
   const options: Option[] = useMemo(() => creativeOptions(localStatus, models, cloud.catalog), [localStatus, models, cloud.catalog])
   const modeOptions = options.filter((o) => o.kind === mode)
-  // Price and Fast / Cheap / Top in each model's name in the list.
-  const optionText = useMemo(() => {
-    const out = new Map<string, string>()
-    const tags = modelTags(modeOptions.map((o) => ({ id: o.key, name: o.label, featured: o.featured, cost: o.usd })))
-    const admin = !!cloud.state?.user?.admin
-    for (const o of modeOptions) {
-      const p = CLOUD_ONLY ? priceLabel(o.usd, o.kind === 'video' ? 's' : 'img', admin, cloud.catalog) : ''
-      const tg = (tags.get(o.key) || []).map((x) => t(x)).join(' · ')
-      out.set(o.key, [o.label, tg, p].filter(Boolean).join('  ·  '))
-    }
-    return out
-  }, [modeOptions, cloud.catalog, cloud.state?.user?.admin])
   const current = modeOptions.find((o) => o.key === modelKeys[mode]) ?? modeOptions[0]
   const gen = current?.gen ?? CLOUD_GEN
   // Cloud models: the provider sets steps and fps; you pick resolution, length and sound.
@@ -273,7 +263,7 @@ export function CreativeStudio({
   const cloudResList = isCloud ? resolutionsFor(current, mode) : []
   const cloudShort = cloudResList.includes(cloudRes[mode]) ? cloudRes[mode] : cloudResList[Math.min(1, cloudResList.length - 1)] ?? 720
   const cloudDur = spec ? nearestDuration(spec.durations, duration) : duration
-  const estimate = !isCloud ? null : spec ? (spec.pricePerSecond ? spec.pricePerSecond * cloudDur : null) : current?.price ? current.price * count : null
+  const estimateUsdNow = isCloud ? estimateUsd(current, { count, seconds: cloudDur, res: cloudShort }) : undefined
   const withAvoid = (p: string, neg?: string) => (neg && neg.trim() ? `${p}\n\nAvoid: ${neg.trim()}` : p)
   const cloudRender = (jobId: string, o: Option, r: { prompt: string; negative?: string; aspect: string; short: number; duration: number; init?: string; audio: boolean; source?: string }) =>
     o.video
@@ -911,7 +901,12 @@ export function CreativeStudio({
                       </span>
                     </div>
                     <strong>{t(idea.title)}</strong>
-                    {idea.modelName && <span className="idea-model">{idea.modelName}</span>}
+                    {idea.modelName && (
+                      <span className="idea-model">
+                        {idea.modelName}
+                        {idea.mode !== 'workflow' && <CostChip usd={estimateUsd(options.find((o) => o.kind === idea.mode && o.modelId === idea.model), { count: 1, res: 720 })} />}
+                      </span>
+                    )}
                     <span className="idea-tags">
                       {idea.tags.map((tag) => (
                         <em key={tag}>{t(tag)}</em>
@@ -984,19 +979,7 @@ export function CreativeStudio({
                     </div>
                   )
                 ) : (
-                  <select className="ab-input" value={current?.key} onChange={(e) => setModelKeys((c) => ({ ...c, [mode]: e.target.value }))}>
-                    {[...new Set(modeOptions.map((o) => o.group))].map((g) => (
-                      <optgroup key={g} label={g}>
-                        {modeOptions
-                          .filter((o) => o.group === g)
-                          .map((o) => (
-                            <option key={o.key} value={o.key}>
-                              {optionText.get(o.key) || o.label}
-                            </option>
-                          ))}
-                      </optgroup>
-                    ))}
-                  </select>
+                  <ModelSelect items={creativeItems(modeOptions)} value={current?.key} onPick={(k) => setModelKeys((c) => ({ ...c, [mode]: k }))} icon={mode === 'video' ? <Video size={14} /> : <ImageIcon size={14} />} />
                 )}
               </Section>
               {isCloud ? (
@@ -1062,7 +1045,7 @@ export function CreativeStudio({
                     </div>
                   )}
                   <p className="studio-hint num">
-                    {estimate ? t('About {n} credits', { n: fmtCredits(Math.ceil(estimate)) }) : t('Charged by what the provider bills, in credits.')}
+                    {estimateUsdNow ? <CostChip usd={estimateUsdNow} /> : t('Charged by what the provider bills, in credits.')}
                     {cloud.state?.user ? ` · ${t('You have {n}', { n: fmtCredits(cloud.state.user.credits.total) })}` : ''}
                   </p>
                 </Section>

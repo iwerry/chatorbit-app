@@ -127,6 +127,7 @@ const UpdateCenter = lazy(() => import('./components/UpdateCenter').then((m) => 
 const SetupWizard = lazy(() => import('./components/SetupWizard').then((m) => ({ default: m.SetupWizard })))
 const Explore = lazy(() => import('./components/Explore').then((m) => ({ default: m.Explore })))
 const MediaLibrary = lazy(() => import('./components/MediaLibrary').then((m) => ({ default: m.MediaLibrary })))
+const AudioStudio = lazy(() => import('./components/AudioStudio').then((m) => ({ default: m.AudioStudio })))
 
 type Suggest = { kind: 'skill' | 'command' | 'agent'; id: string; label: string; hint: string; insert: string }
 const SLASH_COMMANDS = [
@@ -346,8 +347,20 @@ export default function App() {
   useEffect(() => {
     if (!isStreaming) return
     const id = activity.start({ area: 'chats', kind: 'chat', label: t('Writing an answer') })
-    return () => activity.end(id, { ok: true, message: t('The answer is ready.') })
+    return () => {
+      activity.end(id, { ok: true, message: t('The answer is ready.') })
+      // The server charges once the answer ends: refresh the balance so the cost shows up.
+      if (CLOUD_ONLY) setTimeout(() => refreshCloud(), 2500)
+    }
   }, [isStreaming])
+  // Images and videos made anywhere (chat, Creative, workflows): refresh the balance when they finish.
+  useEffect(
+    () =>
+      creativeBus.subscribe((u) => {
+        if (CLOUD_ONLY && (u.status === 'done' || u.status === 'error')) setTimeout(() => refreshCloud(), 3000)
+      }),
+    [],
+  )
   const activeNavRef = useRef(activeNav)
   activeNavRef.current = activeNav
   useEffect(
@@ -1673,7 +1686,19 @@ export default function App() {
             onChatWith={chatWithAgent}
           />
         </Suspense>
-      ) : activeNav === 'creative' ? null : activeNav === 'media' ? (
+      ) : activeNav === 'creative' ? null : activeNav === 'audio' ? (
+        <Suspense fallback={<main className="view-loading" />}>
+          <AudioStudio
+            media={media}
+            onBack={() => {
+              setActiveNav('chats')
+              setPanelOpen(false)
+            }}
+            onMediaCreated={(m) => setMedia((cur) => (cur.some((x) => x.id === m.id) ? cur : [m, ...cur]))}
+            onOpenAccount={() => setSettingsOpen('account')}
+          />
+        </Suspense>
+      ) : activeNav === 'media' ? (
         <Suspense fallback={<main className="view-loading" />}>
           <MediaLibrary
             media={media}
@@ -1996,6 +2021,7 @@ export default function App() {
                     <Wallet size={14} />
                     <span className="num">{fmtCredits(cloud.state.user.credits.total)}</span>
                     <small>{t('credits')}</small>
+                    <SpendNote total={cloud.state.user.credits.total} />
                   </button>
                 )}
                 <ThemeSwitcher themeMode={themeMode} setThemeMode={setThemeMode} />
@@ -2862,5 +2888,26 @@ export default function App() {
       </div>
     )}
     </RunCodeContext.Provider>
+  )
+}
+
+/** "−168 credits" for a few seconds after the balance drops: what the last thing cost. */
+function SpendNote({ total }: { total: number }) {
+  const prev = useRef(total)
+  const [spent, setSpent] = useState(0)
+  useEffect(() => {
+    const d = prev.current - total
+    prev.current = total
+    if (d >= 0.5) {
+      setSpent(d)
+      const tm = setTimeout(() => setSpent(0), 7000)
+      return () => clearTimeout(tm)
+    }
+  }, [total])
+  if (!spent) return null
+  return (
+    <em className="spend-note num" role="status">
+      −{fmtCredits(spent)}
+    </em>
   )
 }

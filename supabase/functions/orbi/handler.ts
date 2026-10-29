@@ -6,12 +6,12 @@
 //   GET  /v1/models · /v1/catalog             market models (no free models)
 //   POST /v1/chat/completions                 chat (OpenAI-compatible, streaming)
 //   POST /v1/images · /v1/videos · GET /v1/videos/:id(/content)
-//   POST /v1/audio/speech · /v1/audio/transcriptions
+//   POST /v1/audio/speech · /v1/audio/transcriptions · /v1/music
 //   POST /admin/grant · GET /admin/stats      admins only (ADMIN_EMAILS)
 import { config, HttpError, MICRO, packs, plans } from './config.ts'
 import { caller, publicUser } from './auth.ts'
 import { addCredits, profile, sql, type Profile } from './db.ts'
-import { catalog, chat, image, modelList, speech, transcribe, videoContent, videoStatus, videoSubmit } from './openrouter.ts'
+import { catalog, chat, image, modelList, music, speech, transcribe, videoContent, videoStatus, videoSubmit } from './openrouter.ts'
 import { checkout, handleEvent, paymentsEnabled, portal, verify } from './stripe.ts'
 
 const CORS = {
@@ -102,6 +102,10 @@ async function route(req: Request): Promise<Response> {
   if (is('POST', '/v1/audio/speech')) {
     const b = await body(req)
     return withCors(await limited(c.id, () => speech(c, b)))
+  }
+  if (is('POST', '/v1/music')) {
+    const b = await body(req)
+    return withCors(await limited(c.id, () => music(c, b), 3))
   }
   if (is('POST', '/v1/audio/transcriptions')) {
     const b = await body(req)

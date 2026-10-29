@@ -1,6 +1,6 @@
 // Node workflows in the spirit of ComfyUI: typed ports, drag a wire from an output to an input,
 // and every node really runs (text AI, image and video generation, voiceover, save to board).
-import { CLOUD_ONLY, nearestDuration, nearestRes, useCloud } from '../lib/cloud'
+import { CLOUD_ONLY, nearestDuration, nearestRes, refreshCloud, useCloud, vendorLabel } from '../lib/cloud'
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import {
   AudioLines,
@@ -29,9 +29,12 @@ import {
   Video,
   X,
   type LucideIcon,
+  Film,
+  Volume2,
 } from 'lucide-react'
 import { api, on, type Board, type CloudCatalog, type LocalStatus, type MediaItem, type ModelInfo, type TtsChoice } from '../lib/api'
-import { GroupedOptions } from './AccountPanel'
+import { CostChip, ModelSelect, type MenuItem } from './ModelMenu'
+import { audioItems, chatItems } from '../lib/menuItems'
 import { VoiceButton } from './VoiceLibrary'
 import { getLang, t } from '../lib/i18n'
 import { activity } from '../lib/activity'
@@ -830,6 +833,7 @@ export function NodeFlow({
       try {
         const out = await execNode(nodesRef.current.find((x) => x.id === id)!, ins)
         patch(id, { status: 'done', out, progress: undefined })
+        if (CLOUD_ONLY && n.kind !== 'prompt' && n.kind !== 'negative' && n.kind !== 'note' && n.kind !== 'load' && n.kind !== 'output') setTimeout(() => refreshCloud(), 2500)
         return out
       } catch (err) {
         const msg = cleanErr(err)
@@ -1282,6 +1286,24 @@ function NodeBody({
   onOpenModels: () => void
 }) {
   const out = n.out
+  // Orbi Cloud: every model picker is the shared one (search, companies, Top / Fast / Cheap, price).
+  const cat = extra.catalog
+  const mediaItems = (list: Choice[], kind: 'image' | 'video'): MenuItem[] =>
+    list.map((c) => {
+      const id = c.key.split('::').pop() || c.key
+      const e = kind === 'video' ? cat?.video.find((v) => v.id === id) : cat?.image.find((v) => v.id === id)
+      const usd = kind === 'video' ? (e as CloudCatalog['video'][number] | undefined)?.usdPerSecond : (e as CloudCatalog['image'][number] | undefined)?.usd
+      return { key: c.key, name: c.label.replace(/ · [^·]*$/, '').replace(/^[^:]+:\s*/, ''), sub: id, group: e?.featured ? t('Popular') : vendorLabel(id.split('/')[0]), featured: e?.featured, usd, unit: kind === 'video' ? 's' : 'img' }
+    })
+  const imgIcon = <ImageIcon size={14} />
+  const nodeUsd = (kind: 'image' | 'video', key: string) => {
+    const id = key.split('::').pop()
+    if (kind === 'image') return cat?.image.find((v) => v.id === id)?.usd
+    const v = cat?.video.find((x) => x.id === id)
+    const secs = (Number(n.data.frames) || 33) / (Number(n.data.fps) || 16)
+    const per = v?.usdBySecond?.[`${Number(n.data.res) || 720}p`] ?? v?.usdPerSecond
+    return per !== undefined ? per * nearestDuration(v?.durations ?? [5], Math.round(secs)) : undefined
+  }
   const preview = out?.media ? (
     out.media.kind === 'video' ? (
       <video className="flow-preview" src={out.media.url} controls loop muted />
@@ -1327,14 +1349,18 @@ function NodeBody({
     case 'llm':
       return (
         <>
-          <select className="ab-input" value={String(n.data.model || chatModels[0]?.key || '')} onChange={(e) => setData({ model: e.target.value })}>
-            {!chatModels.length && <option value="">{t('No chat model connected')}</option>}
-            {chatModels.map((m) => (
-              <option key={m.key} value={m.key}>
-                {m.name} · {m.providerName}
-              </option>
-            ))}
-          </select>
+          {CLOUD_ONLY ? (
+            <ModelSelect items={chatItems(chatModels, cat)} value={String(n.data.model || chatModels[0]?.key || '')} onPick={(k) => setData({ model: k })} />
+          ) : (
+            <select className="ab-input" value={String(n.data.model || chatModels[0]?.key || '')} onChange={(e) => setData({ model: e.target.value })}>
+              {!chatModels.length && <option value="">{t('No chat model connected')}</option>}
+              {chatModels.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.name} · {m.providerName}
+                </option>
+              ))}
+            </select>
+          )}
           <select className="ab-input" value={String(n.data.preset || 'image')} onChange={(e) => setData({ preset: e.target.value })}>
             {Object.entries(PRESETS).map(([k, p]) => (
               <option key={k} value={k}>
@@ -1349,7 +1375,12 @@ function NodeBody({
     case 'image':
       return (
         <>
-          {imageChoices.length ? (
+          {imageChoices.length && CLOUD_ONLY ? (
+            <>
+              <ModelSelect items={mediaItems(imageChoices, 'image')} value={String(n.data.model || imageChoices[0].key)} onPick={(k) => setData({ model: k })} icon={imgIcon} />
+              <CostChip usd={nodeUsd('image', String(n.data.model || imageChoices[0].key))} className="flow-cost" />
+            </>
+          ) : imageChoices.length ? (
             <select className="ab-input" value={String(n.data.model || imageChoices[0].key)} onChange={(e) => setData({ model: e.target.value })}>
               {imageChoices.map((c) => (
                 <option key={c.key} value={c.key}>
@@ -1375,7 +1406,12 @@ function NodeBody({
     case 'video':
       return (
         <>
-          {videoChoices.length ? (
+          {videoChoices.length && CLOUD_ONLY ? (
+            <>
+              <ModelSelect items={mediaItems(videoChoices, 'video')} value={String(n.data.model || videoChoices[0].key)} onPick={(k) => setData({ model: k })} icon={<Film size={14} />} />
+              <CostChip usd={nodeUsd('video', String(n.data.model || videoChoices[0].key))} className="flow-cost" />
+            </>
+          ) : videoChoices.length ? (
             <select className="ab-input" value={String(n.data.model || videoChoices[0].key)} onChange={(e) => setData({ model: e.target.value })}>
               {videoChoices.map((c) => (
                 <option key={c.key} value={c.key}>
@@ -1429,7 +1465,12 @@ function NodeBody({
       const list = n.kind === 'edit' ? extra.editChoices : extra.localImageChoices
       return (
         <>
-          {list.length ? (
+          {list.length && CLOUD_ONLY ? (
+            <>
+              <ModelSelect items={mediaItems(list, 'image')} value={String(n.data.model || list[0].key)} onPick={(k) => setData({ model: k })} icon={imgIcon} />
+              <CostChip usd={nodeUsd('image', String(n.data.model || list[0].key))} className="flow-cost" />
+            </>
+          ) : list.length ? (
             <select className="ab-input" value={String(n.data.model || list[0].key)} onChange={(e) => setData({ model: e.target.value })}>
               {list.map((c) => (
                 <option key={c.key} value={c.key}>
@@ -1458,7 +1499,12 @@ function NodeBody({
     case 'upscale':
       return (
         <>
-          {extra.upscalers.length ? (
+          {extra.upscalers.length && CLOUD_ONLY ? (
+            <>
+              <ModelSelect items={mediaItems(extra.upscalers, 'image')} value={String(n.data.model || extra.upscalers[0].key)} onPick={(k) => setData({ model: k })} icon={imgIcon} />
+              <CostChip usd={nodeUsd('image', String(n.data.model || extra.upscalers[0].key))} className="flow-cost" />
+            </>
+          ) : extra.upscalers.length ? (
             <select className="ab-input" value={String(n.data.model || extra.upscalers[0].key)} onChange={(e) => setData({ model: e.target.value })}>
               {extra.upscalers.map((c) => (
                 <option key={c.key} value={c.key}>
@@ -1477,9 +1523,7 @@ function NodeBody({
         const cv = parseCloudVoice(n.data.voice, extra.catalog)
         return (
           <>
-            <select className="ab-input" value={cv.model} onChange={(e) => setData({ voice: `cloud:${e.target.value}#${extra.catalog?.tts.find((x) => x.id === e.target.value)?.voices[0] || ''}` })}>
-              <GroupedOptions list={extra.catalog?.tts ?? []} unit="k" admin={extra.admin} catalog={extra.catalog} />
-            </select>
+            <ModelSelect items={audioItems(extra.catalog?.tts ?? [], 'k')} value={cv.model} onPick={(k) => setData({ voice: `cloud:${k}#${extra.catalog?.tts.find((x) => x.id === k)?.voices[0] || ''}` })} icon={<Volume2 size={14} />} />
             {!!cv.spec?.voices.length && (
               <select className="ab-input" value={cv.voice} onChange={(e) => setData({ voice: `cloud:${cv.model}#${e.target.value}` })}>
                 {cv.spec.voices.map((x) => (

@@ -4,7 +4,7 @@ import { CLOUD_ONLY, vendorLabel } from './cloud'
 import { t } from './i18n'
 
 export type CreativeMode = 'image' | 'video'
-export type CloudVideoSpec = { durations: number[]; resolutions: string[]; aspects: string[]; audio: boolean; pricePerSecond?: number }
+export type CloudVideoSpec = { durations: number[]; resolutions: string[]; aspects: string[]; audio: boolean; pricePerSecond?: number; usdBySecond?: Record<string, number> }
 export type CreativeOption = { key: string; label: string; group: string; kind: CreativeMode; local: boolean; providerId?: string; modelId: string; gen?: GenInfo | null; isNew?: boolean; video?: CloudVideoSpec; price?: number; usd?: number; featured?: boolean }
 
 export const ASPECTS = [
@@ -31,7 +31,7 @@ export function creativeOptions(localStatus: LocalStatus | null, models: ModelIn
       out.push({ key: `cloud::${m.key}`, label: m.name.replace(/^[^:]+:\s*/, ''), group: groupFor(m.id.split('/')[0], c?.featured), kind: 'image', local: false, providerId: m.provider, modelId: m.id, gen: CLOUD_GEN, price: c?.price, usd: c?.usd, featured: c?.featured })
     }
     for (const v of catalog?.video ?? [])
-      out.push({ key: `cloudvideo::${v.id}`, label: v.name.replace(/^[^:]+:\s*/, ''), group: groupFor(v.vendor, v.featured), kind: 'video', local: false, providerId: 'orbicloud', modelId: v.id, gen: CLOUD_GEN, usd: v.usdPerSecond, featured: v.featured, video: { durations: v.durations, resolutions: v.resolutions, aspects: v.aspects, audio: v.audio, pricePerSecond: v.pricePerSecond } })
+      out.push({ key: `cloudvideo::${v.id}`, label: v.name.replace(/^[^:]+:\s*/, ''), group: groupFor(v.vendor, v.featured), kind: 'video', local: false, providerId: 'orbicloud', modelId: v.id, gen: CLOUD_GEN, usd: v.usdPerSecond, featured: v.featured, video: { durations: v.durations, resolutions: v.resolutions, aspects: v.aspects, audio: v.audio, pricePerSecond: v.pricePerSecond, usdBySecond: v.usdBySecond } })
     return out
   }
   for (const m of localStatus?.models ?? []) {
@@ -59,6 +59,17 @@ export function sizeFor(aspect: string, short: number) {
   const a = ASPECTS.find((x) => x.id === aspect) ?? ASPECTS[0]
   const k = short / Math.min(a.w, a.h)
   return { w: snap(a.w * k), h: snap(a.h * k) }
+}
+
+/** OpenRouter US$ for one run: images × count, or video seconds at the chosen resolution. */
+export function estimateUsd(o: CreativeOption | undefined, p: { count?: number; seconds?: number; res?: number }) {
+  if (!o || o.local) return undefined
+  if (o.kind === 'video') {
+    const label = p.res ? `${p.res}p` : '720p'
+    const perSec = o.video?.usdBySecond?.[label] ?? o.usd
+    return perSec !== undefined ? perSec * (p.seconds || o.video?.durations[0] || 5) : undefined
+  }
+  return o.usd !== undefined ? o.usd * (p.count || 1) : undefined
 }
 
 export const resLabel = (r: number) => (r === 1024 || r === 2048 || r === 4096 ? `${r / 1024}K` : `${r}p`)

@@ -117,6 +117,8 @@ function skillDoc(r) {
   return { name: k.name, description: k.description || '', body: k.instructions, files: k.files, tests: k.tests, license: k.meta.license, version: k.meta.version, compatibility: k.meta.compatibility, author: k.meta.author, audit: k.meta.audit }
 }
 
+const audioExt = (mime) => (/wav/.test(mime) ? 'wav' : /flac/.test(mime) ? 'flac' : /ogg/.test(mime) ? 'ogg' : /mp4|m4a|aac/.test(mime) ? 'm4a' : 'mp3')
+
 // ---------- IPC API ----------
 const api = {
   'app:info': () => ({
@@ -215,12 +217,14 @@ const api = {
   // One-shot completion used by workflow nodes.
   'ai:complete': (p) => complete(p),
   // Text to speech for workflow voiceover nodes (OpenAI key required).
-  'ai:speech': async ({ text, voice, model }) => {
+  'ai:speech': async ({ text, voice, model, purpose, source }) => {
     if (CLOUD_ONLY) {
       const pref = getSetting('cloudVoice', {})
-      const m = model || pref.model || 'openai/gpt-4o-mini-tts-2025-12-15'
-      const { buffer, mime } = await cloudApi().speech({ text, model: m, voice: voice || pref.voice || 'alloy' })
-      return saveMedia({ buffer, mime, kind: 'audio', name: `voiceover-${Date.now()}.mp3`, prompt: String(text).slice(0, 300), model: m, source: 'creative' })
+      // The server swaps an unknown model or voice for the best one it has.
+      const m = model || pref.model || ''
+      const { buffer, mime } = await cloudApi().speech({ text, model: m, voice: voice || pref.voice || '', purpose })
+      const ext = audioExt(mime)
+      return saveMedia({ buffer, mime, kind: 'audio', name: `${purpose === 'sfx' ? 'sound' : 'voiceover'}-${Date.now()}.${ext}`, prompt: String(text).slice(0, 300), model: m, source: source || 'creative' })
     }
     const cfg = providerConfig('openai')
     if (!cfg.apiKey) throw new Error('Voiceover needs an OpenAI key (Settings → AI providers).')
@@ -452,9 +456,14 @@ const api = {
     return r
   },
   // Read-aloud: returns playable audio without saving it to the library.
+  'cloud:music': async ({ model, prompt, source }) => {
+    const { buffer, mime, lyrics } = await cloudApi().music({ model, prompt })
+    const item = saveMedia({ buffer, mime, kind: 'audio', name: `music-${Date.now()}.${audioExt(mime)}`, prompt: String(prompt).slice(0, 300), model, source: source || 'audio' })
+    return { ...item, lyrics }
+  },
   'cloud:speak': async ({ text, model, voice }) => {
     const pref = getSetting('cloudVoice', {})
-    const { buffer, mime } = await cloudApi().speech({ text, model: model || pref.model || 'openai/gpt-4o-mini-tts-2025-12-15', voice: voice || pref.voice || 'alloy' })
+    const { buffer, mime } = await cloudApi().speech({ text, model: model || pref.model || '', voice: voice || pref.voice || '' })
     return `data:${mime};base64,${buffer.toString('base64')}`
   },
   'cloud:video': async (p) => {

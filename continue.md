@@ -1,7 +1,7 @@
 # Orbi: continuar daqui
 
 Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trabalho sem perder contexto.
-Última versão publicada: **0.1.29-7** (GitHub Releases, `iwerry/chatorbit-app`).
+Última versão publicada: **0.1.29-8** (GitHub Releases, `iwerry/chatorbit-app`).
 
 ## Regras do projeto
 
@@ -33,6 +33,16 @@ Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trab
 | `RELEASE_NOTES.md` | O que mudou em cada versão |
 
 ## 29/10: o que mudou
+
+- **0.1.29-8 + função v9:**
+  - Estúdio de Áudio (`AudioStudio.tsx`):
+    - Locução: `/v1/audio/speech`.
+    - Música: `/v1/music`, Lyria por `chat/completions` com `modalities: ['text', 'audio']` e stream; os pedaços em base64 são juntados.
+    - Efeitos: Seed Audio pelo `/v1/audio/speech`, com `purpose: 'sfx'`.
+  - PCM vira WAV no servidor (`wavFromPcm`), usado pelo Gemini TTS.
+  - Seletor único: `ModelMenu` / `ModelSelect` / `CostChip` (`src/components/ModelMenu.tsx`) e `menuItems.ts`.
+  - Mostrar o que custou: `SpendNote` no chip de créditos, com `refreshCloud` depois de cada geração.
+- **A testar:** a música (Lyria Pro tinha 22% de disponibilidade no OpenRouter em 29/10; o Clip, 93%) e os efeitos (Seed Audio).
 
 - **0.1.29-7 + função v8:**
   - O catálogo vem de `/models?output_modalities=all`.

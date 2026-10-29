@@ -71,7 +71,7 @@ const vendorRank = (id: string) => {
   return i < 0 ? VENDORS.length : i
 }
 // Voice models in order of preference (best quality for the price first). The rest follow, newest first.
-const TTS_ORDER = ['google/gemini-3.8-flash-tts', 'microsoft/mai-voice-2.1', 'minimax/speech-2.8-hd', 'x-ai/grok-voice-tts-1.0', 'google/gemini-3.8-flash-lite-tts', 'microsoft/mai-voice-2.1-flash', 'qwen/qwen-audio-3.0-tts-plus', 'minimax/speech-2.8-turbo', 'mistralai/voxtral-mini-tts-3-0']
+const TTS_ORDER = ['google/gemini-3.8-flash-tts', 'elevenlabs/eleven-v4', 'elevenlabs/eleven-v4-turbo', 'fish-audio/s2.1-pro', 'microsoft/mai-voice-2.1', 'minimax/speech-2.8-hd', 'x-ai/grok-voice-tts-1.0', 'google/gemini-3.8-flash-lite-tts', 'microsoft/mai-voice-2.1-flash', 'qwen/qwen-audio-3.0-tts-plus', 'minimax/speech-2.8-turbo', 'mistralai/voxtral-mini-tts-3-0']
 const STT_ORDER = ['openai/gpt-4o-mini-transcribe', 'google/gemini-3.5-transcribe', 'openai/gpt-transcribe', 'openai/gpt-4o-transcribe', 'mistralai/voxtral-mini-transcribe-3-0', 'x-ai/grok-stt-1.0', 'openai/whisper-large-v3-turbo', 'openai/whisper-large-v3']
 const byOrder = (order: string[]) => (a: { id: string; created?: number }, b: { id: string; created?: number }) => {
   const ia = order.indexOf(a.id)
@@ -194,6 +194,9 @@ async function buildCatalog() {
     tts: tts.map((m) => ({ id: m.id, name: m.name, vendor: vendorOf(m.id), voices: m.supported_voices || [], usd: num(m.pricing?.prompt) * 1000 + num(m.pricing?.completion) * 1000 })),
     // Dictation: price per minute of audio (≈; some models charge per token).
     stt: stt.map((m) => ({ id: m.id, name: m.name, vendor: vendorOf(m.id), usd: num(m.pricing?.completion) ? num(m.pricing?.prompt) * 1500 + num(m.pricing?.completion) * 200 : num(m.pricing?.prompt) * 60 })),
+    // Music (Lyria: priced per clip / song) and sound effects (speech models that make any sound from a description).
+    music: all.filter((m) => /lyria/i.test(m.id) && outs(m).includes('audio')).map((m) => ({ id: m.id, name: m.name, vendor: vendorOf(m.id), usd: /clip/.test(m.id) ? 0.04 : 0.08, seconds: /clip/.test(m.id) ? 30 : 180 })),
+    sfx: tts.filter((m) => /seed-audio|sound|sfx|foley/i.test(m.id)).map((m) => ({ id: m.id, name: m.name, vendor: vendorOf(m.id), voices: m.supported_voices || [], usd: num(m.pricing?.completion) * 10 + num(m.pricing?.prompt) * 200 })),
     credits: { usd: config.creditUsd, markup: config.markup },
     _ok: all.length > 0,
   }
@@ -326,6 +329,40 @@ export async function videoContent(c: Caller, id: string, index: number): Promis
 
 // ---------------------------------------------------------------- audio
 
+// Raw PCM (what Gemini TTS returns) becomes a playable WAV by adding a 44-byte header. No conversion, no cost.
+export function wavFromPcm(pcm: Uint8Array, rate = 24000, channels = 1, bits = 16): Uint8Array<ArrayBuffer> {
+  const out = new Uint8Array(44 + pcm.length)
+  const v = new DataView(out.buffer)
+  const str = (o: number, x: string) => [...x].forEach((ch, i) => v.setUint8(o + i, ch.charCodeAt(0)))
+  str(0, 'RIFF')
+  v.setUint32(4, 36 + pcm.length, true)
+  str(8, 'WAVE')
+  str(12, 'fmt ')
+  v.setUint32(16, 16, true)
+  v.setUint16(20, 1, true)
+  v.setUint16(22, channels, true)
+  v.setUint32(24, rate, true)
+  v.setUint32(28, (rate * channels * bits) / 8, true)
+  v.setUint16(32, (channels * bits) / 8, true)
+  v.setUint16(34, bits, true)
+  str(36, 'data')
+  v.setUint32(40, pcm.length, true)
+  out.set(pcm, 44)
+  return out
+}
+// What a byte buffer is: a known audio file, or raw PCM that needs a WAV header.
+function audioKind(b: Uint8Array): string | null {
+  const head = String.fromCharCode(...b.slice(0, 4))
+  if (head === 'RIFF') return 'audio/wav'
+  if (head === 'fLaC') return 'audio/flac'
+  if (head === 'OggS') return 'audio/ogg'
+  if (head.startsWith('ID3') || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0)) return 'audio/mpeg'
+  if (String.fromCharCode(...b.slice(4, 8)) === 'ftyp') return 'audio/mp4'
+  return null
+}
+// Voice models that only answer in PCM (learned on the first refusal).
+const pcmOnly = new Set<string>(['google/gemini-3.8-flash-tts', 'google/gemini-3.8-flash-lite-tts', 'google/gemini-3.1-flash-tts-preview'])
+
 export async function speech(c: Caller, body: Record<string, unknown>): Promise<Response> {
   requireCredits(c.profile, 1)
   // Older apps may ask for a voice model that no longer exists: use the best one and its first voice.
@@ -336,13 +373,91 @@ export async function speech(c: Caller, body: Record<string, unknown>): Promise<
     body.model = model.id
     if (model.voices.length && !model.voices.includes(String(body.voice || ''))) body.voice = model.voices[0]
   }
-  const up = await orFetch('/audio/speech', { method: 'POST', body: JSON.stringify(body) })
+  const purpose = body.purpose
+  delete body.purpose
+  const id = String(body.model || '')
+  const ask = (format: string) => orFetch('/audio/speech', { method: 'POST', body: JSON.stringify({ ...body, response_format: format }) })
+  let pcm = pcmOnly.has(id)
+  let up = await ask(pcm ? 'pcm' : String(body.response_format || 'mp3'))
+  if (!up.ok && !pcm) {
+    const text = await up.clone().text()
+    if (/response_format/i.test(text) && /pcm/i.test(text)) {
+      pcmOnly.add(id)
+      pcm = true
+      up = await ask('pcm')
+    }
+  }
   if (!up.ok) await orError(up)
-  const buf = new Uint8Array(await up.arrayBuffer())
+  let buf = new Uint8Array(await up.arrayBuffer())
+  let type = up.headers.get('content-type') || 'audio/mpeg'
+  if (pcm || /pcm|L16/i.test(type) || !audioKind(buf)) {
+    if (!audioKind(buf)) {
+      const rate = Number(type.match(/rate=(\d+)/)?.[1]) || 24000
+      buf = wavFromPcm(buf, rate, Number(type.match(/channels=(\d+)/)?.[1]) || 1)
+    }
+    type = audioKind(buf) || 'audio/wav'
+  }
   const genId = up.headers.get('x-generation-id') || ''
   const cost = genId ? await costOf(genId) : 0
-  await charge(c, cost, String(body.model || ''), 'Voice', genId)
-  return new Response(buf, { headers: { 'Content-Type': up.headers.get('content-type') || 'audio/mpeg' } })
+  await charge(c, cost, id, purpose === 'sfx' ? 'Sound effect' : 'Voice', genId)
+  return new Response(buf, { headers: { 'Content-Type': type } })
+}
+
+// ---------------------------------------------------------------- music (Lyria through chat completions)
+
+export async function music(c: Caller, body: Record<string, unknown>): Promise<Response> {
+  requireCredits(c.profile, 50)
+  const model = String(body.model || 'google/lyria-3-clip-preview')
+  if (!/lyria|audio/i.test(model)) throw new HttpError(400, 'Pick a music model.', 'bad_model')
+  const prompt = String(body.prompt || '').slice(0, 4000)
+  if (!prompt) throw new HttpError(400, 'Describe the music.', 'bad_prompt')
+  const up = await orFetch('/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({ model, stream: true, modalities: ['text', 'audio'], audio: { format: String(body.format || 'wav') }, messages: [{ role: 'user', content: prompt }], user: c.id, usage: { include: true } }),
+  })
+  if (!up.ok) await orError(up)
+  // Collect the base64 audio pieces from the stream.
+  const reader = up.body!.getReader()
+  const dec = new TextDecoder()
+  let tail = ''
+  const parts: string[] = []
+  let text = ''
+  let cost: number | undefined
+  let genId = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    tail += dec.decode(value, { stream: true })
+    const lines = tail.split('\n')
+    tail = lines.pop() || ''
+    for (const line of lines) {
+      if (!line.startsWith('data:') || line.includes('[DONE]')) continue
+      try {
+        const j = JSON.parse(line.slice(5))
+        if (j.id && !genId) genId = j.id
+        if (typeof j.usage?.cost === 'number') cost = j.usage.cost
+        const d = j.choices?.[0]?.delta || j.choices?.[0]?.message || {}
+        if (d.audio?.data) parts.push(d.audio.data)
+        if (typeof d.content === 'string') text += d.content
+        if (d.audio?.transcript) text += d.audio.transcript
+      } catch {
+        /* partial line */
+      }
+    }
+  }
+  if (!parts.length) throw new HttpError(502, text.trim() ? `The model answered without music: ${text.trim().slice(0, 200)}` : 'No music came back. Try again in a moment.', 'no_audio')
+  // Base64 pieces can be split anywhere: join the decoded bytes.
+  const chunks = parts.map((p) => Uint8Array.from(atob(p), (ch) => ch.charCodeAt(0)))
+  let buf = new Uint8Array(chunks.reduce((n, x) => n + x.length, 0))
+  let o = 0
+  for (const ch of chunks) {
+    buf.set(ch, o)
+    o += ch.length
+  }
+  if (!audioKind(buf)) buf = wavFromPcm(buf, 48000, 2)
+  if (cost === undefined && genId) cost = await costOf(genId)
+  await charge(c, cost || 0, model, 'Music', genId)
+  return new Response(buf, { headers: { 'Content-Type': audioKind(buf) || 'audio/wav', 'X-Orbi-Lyrics': encodeURIComponent(text.slice(0, 1500)) } })
 }
 
 export async function transcribe(c: Caller, body: Record<string, unknown>) {

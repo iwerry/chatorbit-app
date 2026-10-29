@@ -216,9 +216,21 @@ function create({ getSetting, setSetting, encrypt, decrypt, appVersion }) {
       return { buffer: Buffer.from(await res.arrayBuffer()), mime: res.headers.get('content-type') || 'video/mp4' }
     },
 
-    async speech({ text, model, voice, format = 'mp3' }) {
-      const res = await call('/v1/audio/speech', { json: { model, input: String(text).slice(0, 4000), voice: voice || undefined, response_format: format }, raw: true, timeout: 120000 })
+    async speech({ text, model, voice, format = 'mp3', purpose }) {
+      const res = await call('/v1/audio/speech', { json: { model, input: String(text).slice(0, 4000), voice: voice || undefined, response_format: format, purpose }, raw: true, timeout: 120000 })
       return { buffer: Buffer.from(await res.arrayBuffer()), mime: res.headers.get('content-type') || 'audio/mpeg' }
+    },
+
+    /** Music from a description (Lyria). Returns the audio and any lyrics the model wrote. */
+    async music({ model, prompt }) {
+      const res = await call('/v1/music', { json: { model, prompt: String(prompt).slice(0, 4000) }, raw: true, timeout: 300000 })
+      let lyrics = ''
+      try {
+        lyrics = decodeURIComponent(res.headers.get('x-orbi-lyrics') || '')
+      } catch {
+        /* none */
+      }
+      return { buffer: Buffer.from(await res.arrayBuffer()), mime: res.headers.get('content-type') || 'audio/wav', lyrics }
     },
 
     async transcribe({ wavBase64, model, language }) {

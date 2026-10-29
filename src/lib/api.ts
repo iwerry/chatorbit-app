@@ -396,7 +396,8 @@ export const api = {
   deleteVoiceClone: (id: string): Promise<VoiceClone[]> => bridge.invoke('voice:deleteClone', id),
   openModelsFolder: () => bridge.invoke('local:openFolder'),
   complete: (p: { providerId: string; model: string; system?: string; prompt: string; maxTokens?: number }): Promise<string> => bridge.invoke('ai:complete', p),
-  speech: (p: { text: string; voice?: string; model?: string }): Promise<MediaItem> => bridge.invoke('ai:speech', p),
+  speech: (p: { text: string; voice?: string; model?: string; purpose?: 'voice' | 'sfx'; source?: string }): Promise<MediaItem> => bridge.invoke('ai:speech', p),
+  cloudMusic: (p: { model: string; prompt: string; source?: string }): Promise<MediaItem & { lyrics?: string }> => bridge.invoke('cloud:music', p),
   updateState: (): Promise<UpdateInfo> => bridge.invoke('update:state'),
   checkUpdate: (): Promise<UpdateInfo> => bridge.invoke('update:check'),
   downloadUpdate: (): Promise<UpdateInfo> => bridge.invoke('update:download'),
@@ -532,6 +533,8 @@ export type CloudCatalog = {
   image: { id: string; name: string; vendor: string; featured?: boolean; price?: number; usd?: number; aspects?: string[]; resolutions?: string[] }[]
   video: { id: string; name: string; vendor: string; featured?: boolean; durations: number[]; resolutions: string[]; aspects: string[]; audio: boolean; pricePerSecond?: number; usdPerSecond?: number; usdBySecond?: Record<string, number>; imageInput: boolean }[]
   tts: { id: string; name: string; vendor?: string; voices: string[]; usd?: number }[]
+  music?: { id: string; name: string; vendor?: string; usd?: number; seconds?: number }[]
+  sfx?: { id: string; name: string; vendor?: string; voices: string[]; usd?: number }[]
   stt: { id: string; name: string; vendor?: string; usd?: number }[]
   credits: { usd: number; markup: number }
 }

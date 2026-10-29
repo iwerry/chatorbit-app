@@ -26,21 +26,21 @@ import {
   Trash2,
   Upload,
   WandSparkles,
-  X,
-} from 'lucide-react'
+  X, AudioLines } from 'lucide-react'
 import { openInCreative } from '../lib/creativeBus'
 import { api, type Agent, type Conversation, type McpServer, type MediaItem, type Memory, type Message, type ModelInfo, type Plugin, type Project, type Skill } from '../lib/api'
 import { t } from '../lib/i18n'
 import { McpPanel } from './panels/McpPanel'
 import { Lightbox } from './Lightbox'
 
-export type NavKey = 'chats' | 'creative' | 'explore' | 'studio' | 'agents' | 'skills' | 'mcp' | 'scheduled' | 'memory' | 'bookmarks' | 'media'
+export type NavKey = 'chats' | 'creative' | 'audio' | 'explore' | 'studio' | 'agents' | 'skills' | 'mcp' | 'scheduled' | 'memory' | 'bookmarks' | 'media'
 // Full-page sections (no side panel).
-export const isPage = (s: string) => s === 'creative' || s === 'explore' || s === 'studio' || s === 'media'
+export const isPage = (s: string) => s === 'creative' || s === 'audio' || s === 'explore' || s === 'studio' || s === 'media'
 
 export const navItems = [
   { id: 'chats' as const, label: 'Chats', icon: MessageSquareText },
   { id: 'creative' as const, label: 'Creative', icon: WandSparkles },
+  { id: 'audio' as const, label: 'Audio', icon: AudioLines },
   { id: 'explore' as const, label: 'Explore', icon: Compass },
   { id: 'studio' as const, label: 'Creator Studio', icon: Hammer },
   { id: 'mcp' as const, label: 'MCP & Plugins', icon: Plug },

@@ -33,12 +33,14 @@ import {
 } from 'lucide-react'
 import { api, type MediaItem } from '../lib/api'
 import { t } from '../lib/i18n'
-import { ASPECTS, resLabel, type CreativeOption } from '../lib/creative'
+import { ASPECTS, estimateUsd, resLabel, type CreativeOption } from '../lib/creative'
 import { creativeBus, type ChatMediaMeta, type GenUpdate } from '../lib/creativeBus'
 import { CLOUD_ONLY, fmtCredits, nearestDuration } from '../lib/cloud'
 import { setAudioPref, useAudioDevices } from '../lib/audioDevices'
 import type { Recording } from '../lib/voice'
 import { Lightbox } from './Lightbox'
+import { CostChip, ModelMenu } from './ModelMenu'
+import { creativeItems } from '../lib/menuItems'
 
 const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -577,6 +579,7 @@ export function CreateControls({
         {enhancing ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
         <span className="cpill-label">{t('Enhance prompt')}</span>
       </button>
+      <CostChip usd={estimateUsd(current, { count: mode === 'image' ? settings.count : 1, seconds: mode === 'video' && current?.video ? nearestDuration(current.video.durations, settings.duration) : settings.duration, res })} />
       {mode === 'image' && (
         <div className="batch-stepper" title={t('Results per press')}>
           <button type="button" onClick={() => set('count', Math.max(1, settings.count - 1))} disabled={settings.count <= 1} aria-label={t('Fewer results')}>
@@ -596,43 +599,14 @@ export function CreateControls({
 }
 
 function ModelPickerPop({ list, current, mode, onPick, onOpenModels }: { list: CreativeOption[]; current?: string; mode: 'image' | 'video'; onPick: (k: string) => void; onOpenModels: () => void }) {
-  const [q, setQ] = useState('')
-  const shown = list.filter((o) => `${o.label} ${o.group}`.toLowerCase().includes(q.toLowerCase()))
-  const groups = [...new Set(shown.map((o) => o.group))]
   return (
     <div className="model-pop">
-      <label className="model-pop-search">
-        <Search size={14} />
-        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Search models')} />
-      </label>
-      <div className="model-pop-list">
-        {groups.map((g) => (
-          <div key={g}>
-            <p className="cpop-head">{g}</p>
-            {shown
-              .filter((o) => o.group === g)
-              .map((o) => (
-                <button type="button" key={o.key} className={o.key === current ? 'on' : ''} onClick={() => onPick(o.key)}>
-                  <span className="model-pop-ico">{mode === 'video' ? <Film size={14} /> : <ImageIcon size={14} />}</span>
-                  <span className="min-w-0 flex-1">
-                    <strong>
-                      {o.label}
-                      {o.isNew && <em className="new-badge">{t('New')}</em>}
-                    </strong>
-                    <small>
-                      {o.local ? t('Runs on this PC') : t('Cloud')} · {o.gen?.width ? `${t('up to')} ${Math.max(o.gen.width, o.gen.height)}px` : t('any size')}
-                    </small>
-                  </span>
-                  {o.key === current && <Check size={14} />}
-                </button>
-              ))}
-          </div>
-        ))}
-        {!shown.length && <p className="cpop-note">{list.length ? t('No match.') : mode === 'video' ? t('No video model is installed yet.') : t('No image model is installed yet.')}</p>}
-      </div>
-      <button type="button" className="model-pop-more" onClick={onOpenModels}>
-        <Plus size={13} /> {t('Get more models')}
-      </button>
+      <ModelMenu items={creativeItems(list)} value={current} onPick={onPick} icon={mode === 'video' ? <Film size={14} /> : <ImageIcon size={14} />} empty={mode === 'video' ? t('No video model is installed yet.') : t('No image model is installed yet.')} />
+      {!CLOUD_ONLY && (
+        <button type="button" className="model-pop-more" onClick={onOpenModels}>
+          <Plus size={13} /> {t('Get more models')}
+        </button>
+      )}
     </div>
   )
 }

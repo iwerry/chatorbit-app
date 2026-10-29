@@ -5,6 +5,8 @@ import { api, type CloudCatalog, type CloudPlans, type CloudUsageItem } from '..
 import { fmtCredits, modelTags, priceLabel, refreshCloud, useCloud, vendorLabel } from '../lib/cloud'
 import { fmtDate, t } from '../lib/i18n'
 import { OrbiMark } from './Logo'
+import { ModelSelect } from './ModelMenu'
+import { audioItems } from '../lib/menuItems'
 
 const clean = (e: unknown) => String((e as Error)?.message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
@@ -347,17 +349,15 @@ export function CloudVoiceSettings() {
       <p className="orbi-label">
         <Mic size={13} /> {t('Dictation (microphone)')}
       </p>
-      <select className="ab-input" value={(catalog?.stt ?? []).some((m) => m.id === stt) ? stt : catalog?.stt[0]?.id || ''} onChange={(e) => (setStt(e.target.value), api.setSetting('cloudStt', e.target.value))}>
-        <GroupedOptions list={catalog?.stt ?? []} unit="min" admin={admin} catalog={catalog} />
-      </select>
+      <ModelSelect items={audioItems(catalog?.stt ?? [], 'min')} value={(catalog?.stt ?? []).some((m) => m.id === stt) ? stt : catalog?.stt[0]?.id || ''} onPick={(k) => (setStt(k), api.setSetting('cloudStt', k))} icon={<Mic size={14} />} />
       <p className="orbi-muted">{t('Pick the microphone with the arrow next to the mic button in the chat.')}</p>
       <p className="orbi-label mt-6">
         <Volume2 size={13} /> {t('Read-aloud voice')}
       </p>
       <div className="flex gap-2">
-        <select className="ab-input flex-1" value={model?.id || ''} onChange={(e) => save({ model: e.target.value, voice: tts.find((m) => m.id === e.target.value)?.voices[0] })}>
-          <GroupedOptions list={tts} unit="k" admin={admin} catalog={catalog} />
-        </select>
+        <div className="flex-1 min-w-0">
+          <ModelSelect items={audioItems(tts, 'k')} value={model?.id || ''} onPick={(k) => save({ model: k, voice: tts.find((m) => m.id === k)?.voices[0] })} icon={<Volume2 size={14} />} />
+        </div>
         {!!model?.voices.length && (
           <select className="ab-input" value={model.voices.includes(voice.voice || '') ? voice.voice : model.voices[0]} onChange={(e) => save({ model: model.id, voice: e.target.value })}>
             {model.voices.map((v) => (
