@@ -1,4 +1,13 @@
-## Orbi 0.1.29-1
+## Orbi 0.1.29-2
+
+- **Atualização rápida, sem reiniciar:** quando uma versão nova muda só a interface, o Orbi baixa um pacote pequeno (cerca de 2 MB) e aplica com **Aplicar agora**. A janela recarrega em um segundo e o Orbi continua aberto.
+- Quando a versão nova muda o próprio aplicativo, o Orbi continua baixando o instalador. Ele fecha, instala e abre de novo, sempre quando você mandar.
+- O Orbi sempre vai direto para a versão mais nova e pula as que ficaram no meio.
+- Na tela de cadastro, o aviso de confirmação explica que dá para clicar no link ou digitar o código do e-mail.
+
+Esta versão ainda chega pelo instalador; as próximas que mexerem só na interface já chegam pela atualização rápida.
+
+## Orbi 0.1.29-1 (previous)
 
 - **Confirmar a conta pelo código:** além do link, dá para digitar no Orbi o código de 6 dígitos do e-mail de cadastro.
 - **Esqueceu a senha?** Na tela de entrar, o Orbi manda um código por e-mail; você digita o código e a senha nova, sem sair do app.

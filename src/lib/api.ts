@@ -184,7 +184,7 @@ export type HfFile = { file: string; size: number; fits: boolean; quant: string 
 export type UpdateInfo = {
   status: 'idle' | 'checking' | 'current' | 'available' | 'available-manual' | 'downloading' | 'ready' | 'installing' | 'error'
   current: string
-  latest: null | { version: string; name: string; notes: string; publishedAt: string; url: string; asset: null | { name: string; size: number; url: string } }
+  latest: null | { version: string; name: string; notes: string; publishedAt: string; url: string; asset: null | { name: string; size: number; url: string }; quick?: { name: string; size: number } }
   progress: null | { received: number; total: number }
   error: string | null
 }

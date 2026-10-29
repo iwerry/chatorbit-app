@@ -1,7 +1,7 @@
 {
   "name": "orbi",
   "productName": "Orbi",
-  "version": "0.1.29-1",
+  "version": "0.1.29-2",
   "description": "Orbi — AI chat and creative studio",
   "author": "Draft Creative Studio Ltda",
   "private": true,
@@ -59,6 +59,7 @@
     "unbzip2-stream": "1.4.3"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "@fontsource/dm-sans": "^5.3.0",
     "@fontsource/manrope": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",

@@ -114,7 +114,7 @@ export function AccountGate({ onSignedIn }: { onSignedIn: () => void }) {
         )}
         {(confirmFor || /confirm/i.test(error)) && (
           <div className="acct-note" role="status">
-            {confirmFor && <p>{t('We sent a confirmation link to {email}. Open it, then sign in here.', { email: confirmFor })}</p>}
+            {confirmFor && <p>{t('We sent an email to {email}. Click its link, then sign in here (or type the code from the email below).', { email: confirmFor })}</p>}
             <div className="acct-confirm-code">
               <input inputMode="numeric" placeholder={t('Code from the email')} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))} aria-label={t('Code from the email')} className="num" />
               <button

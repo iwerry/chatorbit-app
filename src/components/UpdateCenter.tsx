@@ -36,7 +36,12 @@ export function UpdateCenter() {
   const show = info && latest && ['available', 'available-manual', 'downloading', 'ready', 'installing', 'error'].includes(info.status) && !(info.status === 'available' && dismissed === latest.version)
   const pct = info?.progress?.total ? Math.round((info.progress.received / info.progress.total) * 100) : 0
 
-  const askInstall = async () => setConfirm(await api.activeWork().catch(() => []))
+  const quick = !!latest?.quick
+  // A quick update only reloads the window: answers being written and terminals stop; nothing else does.
+  const askInstall = async () => {
+    const work = await api.activeWork().catch(() => [] as ActiveWork[])
+    setConfirm(quick ? work.filter((w) => w.kind === 'chat' || /^Terminal/.test(w.label)) : work)
+  }
 
   return (
     <>
@@ -54,9 +59,10 @@ export function UpdateCenter() {
           <div className="update-card-head">
             <Rocket size={16} />
             <div className="min-w-0 flex-1">
-              <strong>{info.status === 'ready' ? t('Update ready to install') : t('New version available')}</strong>
+              <strong>{info.status === 'ready' ? (quick ? t('Update ready') : t('Update ready to install')) : t('New version available')}</strong>
               <small className="num">
                 {info.current} → {latest.version}
+                {quick ? ` · ${t('no restart')}` : ''}
                 {latest.publishedAt ? ` · ${fmtDate(new Date(latest.publishedAt).getTime())}` : ''}
               </small>
             </div>
@@ -90,7 +96,7 @@ export function UpdateCenter() {
             </button>
             {info.status === 'available' && (
               <button className="orbi-btn orbi-btn-primary" onClick={() => api.downloadUpdate()}>
-                <ArrowDownToLine size={13} /> {t('Download')} {latest.asset ? `· ${fmtBytes(latest.asset.size)}` : ''}
+                <ArrowDownToLine size={13} /> {t('Download')} {latest.quick ? `· ${fmtBytes(latest.quick.size)}` : latest.asset ? `· ${fmtBytes(latest.asset.size)}` : ''}
               </button>
             )}
             {info.status === 'downloading' && (
@@ -100,7 +106,7 @@ export function UpdateCenter() {
             )}
             {info.status === 'ready' && (
               <button className="orbi-btn orbi-btn-primary" onClick={askInstall}>
-                <RefreshCw size={13} /> {t('Install now')}
+                <RefreshCw size={13} /> {quick ? t('Apply now') : t('Install now')}
               </button>
             )}
             {info.status === 'installing' && (
@@ -147,8 +153,12 @@ export function UpdateCenter() {
             <div className="approval-icon">
               <RefreshCw size={20} />
             </div>
-            <h3>{t('Install Orbi {v}?', { v: latest?.version || '' })}</h3>
-            <p className="orbi-muted">{t('Orbi closes for a few seconds, installs the update and opens again. Your chats, images and models are kept. Your computer does not restart.')}</p>
+            <h3>{quick ? t('Apply Orbi {v}?', { v: latest?.version || '' }) : t('Install Orbi {v}?', { v: latest?.version || '' })}</h3>
+            <p className="orbi-muted">
+              {quick
+                ? t('Orbi stays open: the window reloads in a second with the new version. Your chats, images and account are kept.')
+                : t('Orbi closes for a few seconds, installs the update and opens again. Your chats, images and models are kept. Your computer does not restart.')}
+            </p>
             {confirm.length > 0 ? (
               <>
                 <p className="orbi-label">{t('These will be paused or stopped:')}</p>
@@ -157,7 +167,7 @@ export function UpdateCenter() {
                     <li key={i}>{w.label}</li>
                   ))}
                 </ul>
-                <p className="orbi-muted">{t('Downloads resume where they stopped. Unfinished generations need to be run again.')}</p>
+                <p className="orbi-muted">{quick ? t('An answer being written stops; you can ask again.') : t('Downloads resume where they stopped. Unfinished generations need to be run again.')}</p>
               </>
             ) : (
               <p className="provider-status">
@@ -176,7 +186,7 @@ export function UpdateCenter() {
                   api.installUpdate()
                 }}
               >
-                {t('Update now')}
+                {quick ? t('Apply now') : t('Update now')}
               </button>
             </div>
           </div>

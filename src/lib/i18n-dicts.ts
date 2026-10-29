@@ -1,7 +1,13 @@
 // UI translations. English is the key; each row is [en, pt-BR, es, fr].
 // Missing keys fall back to English, so new strings never break the UI.
 const ROWS: [string, string, string, string][] = [
-  ["We sent a confirmation link to {email}. Open it, then sign in here.", "Enviamos um e-mail para {email}. Abra o link ou digite aqui o código que veio nele.", "Enviamos un correo a {email}. Abre el enlace o escribe aquí el código que trae.", "Nous avons envoyé un e-mail à {email}. Ouvrez le lien ou saisissez ici le code qu’il contient."],
+  ["We sent an email to {email}. Click its link, then sign in here (or type the code from the email below).", "Enviamos um e-mail para {email}. Clique no link e depois entre aqui (ou digite abaixo o código do e-mail).", "Enviamos un correo a {email}. Haz clic en el enlace y luego inicia sesión aquí (o escribe abajo el código del correo).", "Nous avons envoyé un e-mail à {email}. Cliquez sur le lien, puis connectez-vous ici (ou saisissez ci-dessous le code de l’e-mail)."],
+  ["Update ready", "Atualização pronta", "Actualización lista", "Mise à jour prête"],
+  ["no restart", "sem reiniciar", "sin reiniciar", "sans redémarrer"],
+  ["Apply now", "Aplicar agora", "Aplicar ahora", "Appliquer maintenant"],
+  ["Apply Orbi {v}?", "Aplicar o Orbi {v}?", "¿Aplicar Orbi {v}?", "Appliquer Orbi {v} ?"],
+  ["Orbi stays open: the window reloads in a second with the new version. Your chats, images and account are kept.", "O Orbi continua aberto: a janela recarrega em um segundo com a versão nova. Suas conversas, imagens e conta continuam aqui.", "Orbi sigue abierto: la ventana se recarga en un segundo con la nueva versión. Tus chats, imágenes y cuenta se mantienen.", "Orbi reste ouvert : la fenêtre se recharge en une seconde avec la nouvelle version. Vos discussions, images et compte sont conservés."],
+  ["An answer being written stops; you can ask again.", "Uma resposta sendo escrita para; é só pedir de novo.", "Una respuesta en curso se detiene; puedes pedirla de nuevo.", "Une réponse en cours s’arrête ; vous pouvez la redemander."],
   ["Confirm", "Confirmar", "Confirmar", "Confirmer"],
   ["Choose a new password", "Escolha uma senha nova", "Elige una contraseña nueva", "Choisissez un nouveau mot de passe"],
   ["We sent a 6-digit code to {email}. Type it below with your new password.", "Enviamos um código de 6 dígitos para {email}. Digite abaixo com a sua senha nova.", "Enviamos un código de 6 dígitos a {email}. Escríbelo abajo con tu contraseña nueva.", "Nous avons envoyé un code à 6 chiffres à {email}. Saisissez-le ci-dessous avec votre nouveau mot de passe."],

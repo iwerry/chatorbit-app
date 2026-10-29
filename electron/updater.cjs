@@ -1,7 +1,18 @@
 // Updates from GitHub Releases (github.com/iwerry/chatorbit-app).
-// The app checks the latest release, tells the user, downloads the installer only when asked,
-// and installs it silently after the user confirms. The installer relaunches Orbi when done.
+// The app always goes straight to the latest release (versions in between are skipped: the latest has everything).
+// Two kinds of update, and the user always decides when:
+//  - "quick": the release only changed the UI (same `core` fingerprint as this build). Orbi downloads the UI
+//    package (~2 MB) and applies it by reloading the window. No reinstall, no restart.
+//  - "full": the release changed the app itself. Orbi downloads the installer, which closes Orbi, installs and reopens it.
 const fs = require('node:fs')
+const crypto = require('node:crypto')
+// Electron treats *.asar paths as archives; original-fs reads and writes them as plain files.
+let ofs = fs
+try {
+  ofs = require('original-fs')
+} catch {
+  /* plain Node (tests) */
+}
 const path = require('node:path')
 const { spawn } = require('node:child_process')
 const { Readable } = require('node:stream')
@@ -20,7 +31,52 @@ function buildInfo() {
   try {
     return JSON.parse(fs.readFileSync(path.join(__dirname, 'build-info.json'), 'utf8'))
   } catch {
-    return { version: app.getVersion(), builtAt: null }
+    return { version: app.getVersion(), builtAt: null, core: null }
+  }
+}
+
+// ---------------------------------------------------------------- quick (UI-only) updates
+const uiDir = () => {
+  const d = path.join(app.getPath('userData'), 'ui')
+  fs.mkdirSync(d, { recursive: true })
+  return d
+}
+const uiCurrentFile = () => path.join(uiDir(), 'current.json')
+
+/** The UI package applied on top of this build, if it still fits (same core, newer than the installed build). */
+function uiOverride() {
+  try {
+    const b = buildInfo()
+    const o = JSON.parse(fs.readFileSync(uiCurrentFile(), 'utf8'))
+    const file = path.join(uiDir(), o.file)
+    if (!b.core || o.core !== b.core) return null
+    if (b.builtAt && new Date(o.builtAt).getTime() <= new Date(b.builtAt).getTime()) return null
+    if (!ofs.existsSync(file)) return null
+    return { ...o, path: file }
+  } catch {
+    return null
+  }
+}
+
+/** What is running now: the installed build, or the newer UI package applied on top of it. */
+function runningInfo() {
+  const b = buildInfo()
+  const o = uiOverride()
+  return o ? { ...b, version: o.version, builtAt: o.builtAt } : b
+}
+
+/** The index.html the windows should load. */
+function uiIndex(defaultIndex) {
+  const o = uiOverride()
+  return o ? path.join(o.path, 'index.html') : defaultIndex
+}
+
+// Removes UI packages that are no longer used (keeps the applied one and the one being prepared).
+function cleanUi(keep = []) {
+  try {
+    for (const f of ofs.readdirSync(uiDir())) if (f !== 'current.json' && !keep.includes(f) && !keep.includes(f.replace(/\.part$/, ''))) ofs.rmSync(path.join(uiDir(), f), { force: true, recursive: true })
+  } catch {
+    /* ignore */
   }
 }
 
@@ -41,7 +97,7 @@ function isNewer(release, info) {
 
 async function check({ manual = false } = {}) {
   if (state.status === 'downloading' || state.status === 'installing') return state
-  const info = buildInfo()
+  const info = runningInfo()
   set({ status: 'checking', current: info.version, error: null })
   try {
     const res = await fetch(API, { headers: { accept: 'application/vnd.github+json', 'user-agent': 'Orbi-Updater' } })
@@ -58,6 +114,22 @@ async function check({ manual = false } = {}) {
       asset: asset ? { name: asset.name, size: asset.size, url: asset.browser_download_url } : null,
     }
     if (!isNewer(rel, info)) return set({ status: 'current', latest })
+    // Quick update when the release only changed the UI.
+    const uiJson = (rel.assets || []).find((a) => a.name === `orbi-ui-${latest.version}.json`)
+    const uiPack = (rel.assets || []).find((a) => a.name === `orbi-ui-${latest.version}.asar`)
+    if (uiJson && uiPack && info.core) {
+      try {
+        const m = await (await fetch(uiJson.browser_download_url, { headers: { 'user-agent': 'Orbi-Updater' } })).json()
+        if (m.core === info.core && m.size === uiPack.size) {
+          latest.quick = { name: uiPack.name, size: uiPack.size, url: uiPack.browser_download_url, sha256: m.sha256, builtAt: m.builtAt, core: m.core }
+          const ready = path.join(uiDir(), uiPack.name)
+          if (ofs.existsSync(ready) && ofs.statSync(ready).size === uiPack.size) return set({ status: 'ready', latest, file: ready })
+          return set({ status: 'available', latest })
+        }
+      } catch {
+        /* fall back to the installer */
+      }
+    }
     if ((process.platform !== 'win32' && process.env.ORBI_UPDATE_TEST !== '1') || !latest.asset) return set({ status: 'available-manual', latest })
     const cached = path.join(dir(), latest.asset.name)
     if (fs.existsSync(cached) && fs.statSync(cached).size === latest.asset.size) return set({ status: 'ready', latest, file: cached })
@@ -73,8 +145,35 @@ function dir() {
   return d
 }
 
+async function downloadQuick(latest) {
+  const q = latest.quick
+  const dest = path.join(uiDir(), q.name)
+  const keep = [q.name]
+  const cur = uiOverride()
+  if (cur) keep.push(cur.file)
+  cleanUi(keep)
+  controller = new AbortController()
+  set({ status: 'downloading', progress: { received: 0, total: q.size }, error: null })
+  try {
+    const res = await fetch(q.url, { signal: controller.signal, redirect: 'follow', headers: { 'user-agent': 'Orbi-Updater' } })
+    if (!res.ok) throw new Error(`Download failed (${res.status})`)
+    const buf = Buffer.from(await res.arrayBuffer())
+    if (buf.length !== q.size) throw new Error('The download is incomplete. Try again.')
+    if (crypto.createHash('sha256').update(buf).digest('hex') !== q.sha256) throw new Error('The download is damaged. Try again.')
+    ofs.writeFileSync(dest + '.part', buf)
+    ofs.renameSync(dest + '.part', dest)
+    return set({ status: 'ready', file: dest, progress: null })
+  } catch (e) {
+    if (controller.signal.aborted) return set({ status: 'available', progress: null })
+    return set({ status: 'error', error: String(e.message || e), progress: null })
+  } finally {
+    controller = null
+  }
+}
+
 async function download() {
   const latest = state.latest
+  if (latest?.quick) return downloadQuick(latest)
   if (!latest?.asset) throw new Error('No installer in this release.')
   const dest = path.join(dir(), latest.asset.name)
   for (const f of fs.readdirSync(dir())) if (f !== latest.asset.name && f !== `${latest.asset.name}.part`) fs.rmSync(path.join(dir(), f), { force: true })
@@ -115,8 +214,19 @@ function cancel() {
 }
 
 // Runs the installer silently; it closes Orbi, replaces the files and opens Orbi again.
-function install(beforeQuit) {
-  if (state.status !== 'ready' || !state.file || !fs.existsSync(state.file)) throw new Error('The update is not downloaded yet.')
+function install(beforeQuit, reloadWindows) {
+  if (state.status !== 'ready' || !state.file || !ofs.existsSync(state.file)) throw new Error('The update is not downloaded yet.')
+  const q = state.latest?.quick
+  if (q) {
+    // Quick update: switch the UI package and reload the windows. Orbi keeps running.
+    fs.writeFileSync(uiCurrentFile(), JSON.stringify({ version: state.latest.version, builtAt: q.builtAt, core: q.core, file: q.name }, null, 2))
+    cleanUi([q.name])
+    const v = state.latest.version
+    state = { ...state, status: 'current', current: v, file: null, progress: null }
+    reloadWindows?.(v)
+    send('update:state', state)
+    return true
+  }
   set({ status: 'installing' })
   beforeQuit?.()
   // Not silent: the installer shows a small progress window so it is clear Orbi is updating.
@@ -129,11 +239,20 @@ function install(beforeQuit) {
 function init(electronApp, sender, getSetting) {
   app = electronApp
   send = sender
-  state.current = buildInfo().version
+  state.current = runningInfo().version
+  // A UI package that no longer fits this build (Orbi was reinstalled with a newer version) is removed.
+  try {
+    if (fs.existsSync(uiCurrentFile()) && !uiOverride()) {
+      fs.rmSync(uiCurrentFile(), { force: true })
+      cleanUi()
+    }
+  } catch {
+    /* ignore */
+  }
   const auto = () => getSetting('autoUpdateCheck', true) && check()
   setTimeout(auto, Number(process.env.ORBI_UPDATE_DELAY || 15_000))
   clearInterval(timer)
   timer = setInterval(auto, 4 * 60 * 60 * 1000)
 }
 
-module.exports = { init, check, download, cancel, install, getState: () => state, isNewer }
+module.exports = { init, check, download, cancel, install, getState: () => state, isNewer, uiIndex, runningInfo }

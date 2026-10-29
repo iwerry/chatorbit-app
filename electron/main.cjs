@@ -120,7 +120,7 @@ function skillDoc(r) {
 // ---------- IPC API ----------
 const api = {
   'app:info': () => ({
-    version: app.getVersion(),
+    version: updater.runningInfo().version,
     platform: process.platform,
     userName: getSetting('userName') || os.userInfo().username || 'there',
     dataDir: app.getPath('userData'),
@@ -769,6 +769,16 @@ const api = {
       localAI.stop()
       terminal.killAll()
       db.flush()
+    }, (v) => {
+      // Quick update: answers being written stop; the windows load the new UI and say so.
+      for (const c of controllers.values()) c.abort()
+      terminal.killAll()
+      db.flush()
+      for (const w of windows) {
+        if (w.isDestroyed() || isDev) continue
+        w.webContents.once('did-finish-load', () => w.webContents.send('update:done', v))
+        w.loadFile(updater.uiIndex(path.join(__dirname, '..', 'dist', 'index.html')))
+      }
     }),
   'local:refreshHardware': () => localAI.refreshHardware(),
   'local:remove': (id) => localAI.removeModel(id),
@@ -951,7 +961,7 @@ function createWindow() {
     }
   })
   if (isDev) w.loadURL(process.env.ORBI_DEV_URL)
-  else w.loadFile(path.join(__dirname, '..', 'dist', 'index.html'))
+  else w.loadFile(updater.uiIndex(path.join(__dirname, '..', 'dist', 'index.html')))
   return w
 }
 
@@ -989,8 +999,8 @@ app.whenReady().then(async () => {
   } else Menu.setApplicationMenu(null)
   await localAI.init(path.join(app.getPath('userData'), 'local-ai'), broadcast, app)
   await mcp.init({ getSetting, setSetting, db, approve, onChange: (what) => broadcast('data:changed', what) })
-  createWindow()
   updater.init(app, broadcast, getSetting)
+  createWindow()
   // Screenshot hook used for automated checks.
   if (process.env.ORBI_SNAPSHOT) {
     win.webContents.once('did-finish-load', () =>

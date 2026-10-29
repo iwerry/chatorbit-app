@@ -57,6 +57,7 @@ jobs:
         run: |
           pnpm exec tsc --noEmit
           pnpm dist:win
+          node build/ui-pack.cjs
 
       - name: Publish release
         if: steps.v.outputs.exists == 'false'
@@ -66,4 +67,4 @@ jobs:
         run: |
           NOTES=RELEASE_NOTES.md
           [ -f "$NOTES" ] || { echo "Orbi $V" > "$NOTES"; }
-          gh release create "v$V" "release/Orbi-Setup-$V.exe" --title "Orbi $V" --notes-file "$NOTES" --target "$GITHUB_SHA"
+          gh release create "v$V" "release/Orbi-Setup-$V.exe" "release/orbi-ui-$V.asar" "release/orbi-ui-$V.json" --title "Orbi $V" --notes-file "$NOTES" --target "$GITHUB_SHA"
