@@ -40,7 +40,7 @@ import { fmtBytes, t } from '../lib/i18n'
 import { ThemeSwitcher, type ThemeMode } from './ThemeSwitcher'
 import { Lightbox } from './Lightbox'
 import { PromptTools } from './PromptTools'
-import { DEFAULT_NEGATIVE, IDEAS, IDEA_CATS, type Idea, type IdeaCat } from '../lib/ideas'
+import { DEFAULT_NEGATIVE, IDEA_COVERS, IDEAS, IDEA_CATS, type Idea, type IdeaCat } from '../lib/ideas'
 
 const NodeFlow = lazy(() => import('./NodeFlow').then((m) => ({ default: m.NodeFlow })))
 
@@ -661,10 +661,13 @@ export function CreativeStudio({
     setNegative(idea.negative || DEFAULT_NEGATIVE[idea.mode])
     setUseInit(false)
     if (idea.aspect) applyAspect(idea.aspect)
+    // The idea's model, when Orbi Cloud has it.
+    const pick = idea.model && options.find((o) => o.kind === idea.mode && o.modelId === idea.model)
+    if (pick) setModelKeys((c) => ({ ...c, [idea.mode]: pick.key }))
     setTab('canvas')
   }
-  // The newest render made from an idea becomes its cover.
-  const coverOf = (idea: Idea) => media.find((m) => m.prompt === idea.prompt && (m.kind === 'image' || m.kind === 'video'))
+  // Cover: the one shipped with Orbi, else the newest render made from the idea.
+  const coverOf = (idea: Idea) => IDEA_COVERS[idea.id] || media.find((m) => m.prompt === idea.prompt && (m.kind === 'image' || m.kind === 'video'))
 
   const Thumb = ({ m, big = false }: { m: MediaItem; big?: boolean }) => (
     <div className={`studio-thumb ${base?.id === m.id ? 'active' : ''} ${big ? 'big' : ''}`} title={m.prompt || m.name}>
@@ -896,6 +899,7 @@ export function CreativeStudio({
                       </span>
                     </div>
                     <strong>{t(idea.title)}</strong>
+                    {idea.modelName && <span className="idea-model">{idea.modelName}</span>}
                     <span className="idea-tags">
                       {idea.tags.map((tag) => (
                         <em key={tag}>{t(tag)}</em>
@@ -1176,7 +1180,7 @@ export function CreativeStudio({
                     <img src={base.dataUrl} alt={base.name} draggable={false} />
                   )
                 ) : (
-                  <div className="studio-bbox-empty">{!modeOptions.length ? (mode === 'video' ? t('Install a video model to start') : t('Install an image model to start')) : mode === 'video' ? t('Your video appears here') : t('Your image appears here')}</div>
+                  <div className="studio-bbox-empty">{!modeOptions.length ? (CLOUD_ONLY ? t('Sign in to your Orbi account to see the models.') : mode === 'video' ? t('Install a video model to start') : t('Install an image model to start')) : mode === 'video' ? t('Your video appears here') : t('Your image appears here')}</div>
                 )}
                 <canvas ref={maskRef} width={width} height={height} className={`studio-mask tool-${tool}`} style={{ opacity: maskVisible ? 1 : 0 }} onPointerDown={paint} />
                 {focusJob && (

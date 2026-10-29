@@ -8,13 +8,18 @@ export const config = {
   supabaseUrl: env('SUPABASE_URL').replace(/\/+$/, ''),
   anonKey: env('SUPABASE_ANON_KEY'),
   dbUrl: env('SUPABASE_DB_URL'),
-  openrouterKey: env('OPENROUTER_API_KEY'),
+  /** Read on every use, so a secret saved in the dashboard works without redeploying. Spaces and line breaks are ignored. */
+  get openrouterKey() {
+    return (env('OPENROUTER_API_KEY') || env('OPENROUTER_KEY')).trim()
+  },
   openrouterBase: env('OPENROUTER_BASE', 'https://openrouter.ai/api/v1').replace(/\/+$/, ''),
   appName: env('APP_NAME', 'Orbi'),
   appUrl: env('APP_URL', 'https://github.com/iwerry/chatorbit-app'),
   markup: Number(env('MARKUP', '1.25')),
   creditUsd: Number(env('CREDIT_USD', '0.001')),
-  admins: env('ADMIN_EMAILS').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
+  get admins() {
+    return env('ADMIN_EMAILS').split(/[,;\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean)
+  },
   stripeKey: env('STRIPE_SECRET_KEY'),
   stripeWebhookSecret: env('STRIPE_WEBHOOK_SECRET'),
   stripeBase: env('STRIPE_BASE', 'https://api.stripe.com').replace(/\/+$/, ''),

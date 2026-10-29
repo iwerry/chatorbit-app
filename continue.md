@@ -1,7 +1,7 @@
 # Orbi: continuar daqui
 
 Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trabalho sem perder contexto.
-Última versão publicada: **0.1.29-4** (GitHub Releases, `iwerry/chatorbit-app`).
+Última versão publicada: **0.1.29-5** (GitHub Releases, `iwerry/chatorbit-app`).
 
 ## Regras do projeto
 
@@ -33,6 +33,13 @@ Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trab
 | `RELEASE_NOTES.md` | O que mudou em cada versão |
 
 ## 29/10: o que mudou
+
+- **0.1.29-5 (atualização rápida):** cada ideia tem `model` e `modelName` (`src/lib/ideas.ts`, IDs reais do OpenRouter em 29/10).
+  - Os workflows escolhem os melhores modelos (`BEST` e `UPSCALE_MODELS` em `NodeFlow.tsx`), e o upscale 4× funciona na nuvem.
+  - **Capas dos cards:** `src/assets/ideas/<id da ideia>.webp|jpg|png|mp4|webm` (`import.meta.glob`).
+    - Imagem: até 720 px em webp (cerca de 70 KB).
+    - Vídeo: mp4 curto, sem áudio, até 720p.
+  - Os IDs das ideias estão em `ideas.ts`.
 
 - **0.1.29-4 (atualização rápida):** o painel de trabalho não abre mais sozinho. Puxadores "=" (terminal, embaixo) e "||" (painel, à direita).
 - **Conta draftcs21@gmail.com:** plano Studio ativo até 2036, com 45.000 créditos, liberado via SQL (equipe, sem Stripe).

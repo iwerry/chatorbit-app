@@ -256,6 +256,14 @@ function template(id: string): { nodes: FNode[]; edges: FEdge[] } {
     edges: [e(p, 'text', l1, 'text'), e(l1, 'text', i, 'prompt'), e(ng, 'text', i, 'negative'), e(i, 'image', v, 'image'), e(l1, 'text', v, 'prompt'), e(ngv, 'text', v, 'negative'), e(p, 'text', l2, 'text'), e(l2, 'text', vo, 'text'), e(v, 'video', o, 'media'), e(vo, 'audio', o, 'media'), e(i, 'image', o, 'media')],
   }
 }
+// Best models on Orbi Cloud (OpenRouter ids), in order of preference. Missing ones are skipped.
+const BEST = {
+  image: ['google/gemini-3-pro-image', 'openai/gpt-image-2', 'google/gemini-nano-banana-2.1', 'black-forest-labs/flux.2-max', 'bytedance-seed/seedream-5-0-pro'],
+  edit: ['google/gemini-3-pro-image', 'openai/gpt-image-2', 'google/gemini-nano-banana-2.1', 'black-forest-labs/flux-3-image', 'qwen/qwen-image-3-pro'],
+  video: ['google/veo-3.1', 'kwaivgi/kling-v3.0-pro', 'bytedance/seedance-2.5', 'bytedance/seedance-2.0', 'alibaba/wan-3.0-prime'],
+}
+const UPSCALE_MODELS = ['google/gemini-3-pro-image', 'google/gemini-nano-banana-2.1', 'openai/gpt-image-2', 'black-forest-labs/flux-3-image']
+
 const TEMPLATES = [
   { id: 'text-image', label: 'Text → image' },
   { id: 'idea-image', label: 'Idea → AI prompt → image' },
@@ -328,7 +336,14 @@ export function NodeFlow({
   )
   const localImageChoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'image' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
   const ttsVoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'tts' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
-  const upscalers = useMemo(() => localStatus?.models.filter((m) => m.kind === 'upscale' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
+  // Orbi Cloud: upscaling is done by the image models that redraw at 4K from a reference (best ones first).
+  const upscalers = useMemo(
+    () =>
+      CLOUD_ONLY
+        ? editChoices.filter((c) => UPSCALE_MODELS.some((id) => c.key.endsWith(`::${id}`))).sort((a, b) => UPSCALE_MODELS.findIndex((id) => a.key.endsWith(`::${id}`)) - UPSCALE_MODELS.findIndex((id) => b.key.endsWith(`::${id}`)))
+        : (localStatus?.models.filter((m) => m.kind === 'upscale' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? []),
+    [localStatus, editChoices],
+  )
   const [maskFor, setMaskFor] = useState<string | null>(null)
   const inputImageOf = (id: string) => {
     const e = edges.find((x) => x.to === id && x.toPort === 'image')
@@ -435,6 +450,28 @@ export function NodeFlow({
       if (p) p.data.text = prompt
     }
     if (negative) for (const x of tpl.nodes) if (x.kind === 'negative') x.data.text = negative
+    // Orbi Cloud: every template starts on the best models for the job (the person can change any node).
+    if (CLOUD_ONLY) {
+      const pick = (choices: Choice[], ids: string[]) => ids.map((id) => choices.find((c) => c.key.endsWith(`::${id}`))?.key).find(Boolean)
+      const bestChat = (chatModels.find((m) => /anthropic\/claude-sonnet/.test(m.id)) || chatModels.find((m) => /anthropic\/claude/.test(m.id)) || chatModels.find((m) => /openai\/gpt-5/.test(m.id)))?.key
+      for (const x of tpl.nodes) {
+        if (x.data.model) continue
+        const model =
+          x.kind === 'image'
+            ? pick(imageChoices, BEST.image)
+            : x.kind === 'edit'
+              ? pick(editChoices, BEST.edit)
+              : x.kind === 'upscale'
+                ? pick(upscalers, UPSCALE_MODELS)
+                : x.kind === 'video'
+                  ? pick(videoChoices, BEST.video)
+                  : x.kind === 'llm'
+                    ? bestChat
+                    : undefined
+        if (model) x.data.model = model
+        if (x.kind === 'video') x.data = { ...x.data, res: 1080, frames: 128, fps: 16 }
+      }
+    }
     setNodes(tpl.nodes)
     setEdges(tpl.edges)
     setView({ x: 40, y: 40, z: 0.85 })
@@ -659,7 +696,7 @@ export function NodeFlow({
                 model: modelId.slice(12),
                 prompt: neg ? `${prompt}\n\nAvoid: ${neg}` : prompt,
                 duration: nearestDuration(spec?.durations ?? [5], Math.round((Number(n.data.frames) || 81) / (Number(n.data.fps) || 16))),
-                resolution: nearestRes(spec?.resolutions ?? ['720p'], 720),
+                resolution: nearestRes(spec?.resolutions ?? ['720p'], Number(n.data.res) || 720),
                 aspect: spec?.aspects.includes('16:9') ? '16:9' : spec?.aspects[0],
                 frameImage: initImage,
                 source: 'creative',
@@ -716,7 +753,33 @@ export function NodeFlow({
       case 'upscale': {
         const img = firstMedia('image')
         if (!img || img.kind !== 'image') throw new Error(t('Connect an image to this node.'))
-        if (!upscalers.length) throw new Error(t('Download an upscaler in Models (Image → Upscalers).'))
+        if (!upscalers.length) throw new Error(CLOUD_ONLY ? t('The image models did not load from Orbi Cloud. Check your internet and try again.') : t('Download an upscaler in Models (Image → Upscalers).'))
+        const upKey = String(n.data.model || upscalers[0].key)
+        if (upKey.startsWith('cloud::')) {
+          const m = models.find((x) => x.key === upKey.slice(7))
+          if (!m) throw new Error(t('That image model is not connected anymore.'))
+          const dataUrl = (await api.mediaDataUrl(img.id)) || undefined
+          const size = await new Promise<{ w: number; h: number }>((ok) => {
+            const im = new Image()
+            im.onload = () => ok({ w: im.naturalWidth, h: im.naturalHeight })
+            im.onerror = () => ok({ w: 1024, h: 1024 })
+            im.src = img.url
+          })
+          const item = await withMediaLock(() =>
+            api.generateImage({
+              providerId: m.provider,
+              model: m.id,
+              prompt: 'Upscale this image to 4K. Keep the composition, subject, faces, text, colors and lighting exactly the same; only add resolution, fine detail and sharpness. Do not add or remove anything.',
+              width: size.w,
+              height: size.h,
+              resolution: '4K',
+              refImages: dataUrl ? [dataUrl] : undefined,
+              source: 'creative',
+            }),
+          )
+          onMediaCreated(item)
+          return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
+        }
         const item = await withMediaLock(() => api.upscale({ mediaId: img.id, modelId: String(n.data.model || upscalers[0].key), jobId: jobFor(n.id) }))
         onMediaCreated(item)
         return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }

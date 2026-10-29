@@ -5256,3 +5256,12 @@ form.composer {
   letter-spacing: 0.25em;
   color: var(--neo-text);
 }
+
+/* The model an idea opens with (Nano Banana Pro, Veo 3.1…). */
+.idea-model {
+  display: block;
+  margin: -2px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--neo-accent-ink);
+}

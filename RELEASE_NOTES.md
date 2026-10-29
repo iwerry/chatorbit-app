@@ -1,4 +1,20 @@
-## Orbi 0.1.29-4 (atualização rápida, sem reiniciar)
+## Orbi 0.1.29-5 (atualização rápida, sem reiniciar)
+
+- **Cada ideia do Creative abre com um modelo da moda,** e o nome dele aparece no card:
+  - Imagem: Nano Banana Pro, Nano Banana 2.1, GPT Image 2 / 2.5, FLUX.2 Max, FLUX 3, Seedream 5.0 Pro, Grok Imagine 2.0, Qwen Image 3 Pro, Krea 2, MAI-Image 2.6, Meta Muse, Recraft V4.1.
+  - Vídeo: Veo 3.1, Kling 3.0 Pro, Seedance 2.5, Wan 3.0 Prime, Hailuo 3 Max.
+- **Três ideias novas de vídeo:**
+  - Perseguição na chuva neon (Grok Imagine Video 1.5)
+  - Voo de drone no litoral (FLUX 3 Video)
+  - Robô de massinha (Runway Gen-4.5)
+- **Workflows com a melhor qualidade:** os modelos já vêm escolhidos em cada template.
+  - Imagem e edição: Nano Banana Pro.
+  - Vídeo: Veo 3.1 em 1080p, 8 s.
+  - Texto: Claude.
+- **Ampliar 4× agora funciona na nuvem:** o Nano Banana Pro redesenha a imagem em 4K, sem mudar nada.
+- As capas dos cards vêm junto com o Orbi (a primeira é o retrato no porto).
+
+## Orbi 0.1.29-4 (previous)
 
 - O painel de trabalho (à direita) não abre mais sozinho quando você manda uma mensagem ou abre uma conversa.
 - **Puxadores:**
