@@ -72,7 +72,7 @@ Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trab
 - [ ] **Daniel:** em Supabase › Edge Functions › Secrets, criar `OPENROUTER_API_KEY` (chave **nova**; a antiga apareceu no chat e deve ser revogada) e `ADMIN_EMAILS` (`draftcs21@gmail.com`).
 - [ ] **Daniel:** em Authentication › URL Configuration, colocar em Site URL `https://jtdkbtszyrqogmvznrig.supabase.co/functions/v1/orbi/auth/done`.
 - [ ] **Daniel:** em Authentication › Emails › Templates, colocar `{{ .Token }}` nos modelos "Confirm signup" e "Reset password". Sem isso, o código não chega e só o link funciona.
-- [ ] Instalar a 0.1.28-9, criar a conta, confirmar o e-mail e testar com a IA de verdade:
+- [ ] Instalar a 0.1.29-1, criar a conta, confirmar o e-mail e testar com a IA de verdade:
   - chat, imagem, vídeo, voz e ditado;
   - conferir os logs da função pelo conector do Supabase (`query_logs`).
 - [ ] Conferir os IDs de modelo de voz e transcrição no OpenRouter. Estão fixos em `supabase/functions/orbi/openrouter.ts` (TTS/STT).
