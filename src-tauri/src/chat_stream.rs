@@ -64,7 +64,11 @@ pub async fn run(
     }
     let mut messages = crate::chat::messages(payload);
     let mut include_tools = !tools.is_empty();
-    for round in 0..8 {
+    for round in 0..if payload["goal"] == true {
+        usize::MAX
+    } else {
+        8
+    } {
         let mut body = json!({"model":payload["model"],"messages":messages,"stream":true});
         if include_tools {
             body["tools"]=json!(tools.iter().map(|tool|json!({"type":"function","function":{"name":tool["name"],"description":tool["description"],"parameters":tool["parameters"]}})).collect::<Vec<_>>());
@@ -173,16 +177,45 @@ pub async fn run(
                 if name.starts_with("orbi-skills__") {
                     crate::skill_tools::call(&backend.db, &catalog, name, &args)
                 } else {
-                    tokio::select! {_=cancel.cancelled()=>return Ok(()),result=backend.mcp.call(backend,window,tool,args.clone())=>result}
+                    if tool["original"] == "run_command" {
+                        backend
+                            .mcp
+                            .call(backend, window, tool, args.clone(), cancel)
+                            .await
+                    } else {
+                        tokio::select! {_=cancel.cancelled()=>return Ok(()),result=backend.mcp.call(backend,window,tool,args.clone(),cancel)=>result}
+                    }
                 }
             } else {
                 Err("The requested tool is outside the allowed tool list.".into())
             };
-            let ok = result.is_ok();
+            let ok = result.is_ok()
+                && !result
+                    .as_ref()
+                    .ok()
+                    .and_then(|text| serde_json::from_str::<Value>(text).ok())
+                    .is_some_and(|value| value["error"].is_string());
             let text = result.unwrap_or_else(|error| json!({"error":error}).to_string());
+            let stopped = serde_json::from_str::<Value>(&text)
+                .ok()
+                .is_some_and(|value| {
+                    value["cancelled"] == true
+                        || value["error"]
+                            .as_str()
+                            .is_some_and(|error| error.contains("user declined"))
+                });
             let text = text.chars().take(64000).collect::<String>();
             window.emit("chat:delta",json!([id,{"tool":{"id":call_id,"name":name,"args":args,"status":if ok{"done"}else{"error"},"result":text}}])).map_err(|e|e.to_string())?;
             messages.push(json!({"role":"tool","tool_call_id":call_id,"content":text}));
+            if stopped {
+                window
+                    .emit(
+                        "chat:delta",
+                        json!([id,{"text":"\n\nExecution paused. Waiting for your instructions."}]),
+                    )
+                    .map_err(|e| e.to_string())?;
+                return Ok(());
+            }
         }
     }
     Err("The model reached the eight-round tool limit; send a follow-up to continue.".into())

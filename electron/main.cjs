@@ -203,7 +203,7 @@ const api = {
         const f = k.files.find((x) => x.path === args.path)
         return f ? { path: f.path, content: f.content } : { error: `No file ${args.path} in ${k.name}. Files: ${k.files.map((x) => x.path).join(', ') || 'none'}` }
       }
-      const toolkit = tools.length ? { tools, call: async (name, args) => compact(name.startsWith('orbi-skills__') ? callSkillTool(name, args || {}) : await mcp.callTool(name, args, sender)) } : null
+      const toolkit = tools.length ? { tools, call: async (name, args) => compact(name.startsWith('orbi-skills__') ? callSkillTool(name, args || {}) : await mcp.callTool(name, args, sender, controller.signal)) } : null
       await ai.streamChat(payload, cfg, (delta) => !sender.isDestroyed() && sender.send('chat:delta', reqId, delta), controller.signal, toolkit)
       return done({ ok: true })
     } catch (e) {
@@ -736,8 +736,8 @@ const api = {
   'plugins:list': () => mcp.plugins(),
   'plugins:set': (id, enabled) => mcp.setPlugin(id, enabled),
   'tool:approveReply': (id, ok) => {
-    approvals.get(id)?.(!!ok)
-    approvals.delete(id)
+    const request = approvals.get(id)
+    if (request?.origin === currentSender) request.finish(!!ok)
   },
 
   // ---------- local AI ----------
@@ -803,6 +803,7 @@ const api = {
   'term:write': (id, data) => terminal.write(id, data),
   'term:resize': (id, cols, rows) => terminal.resize(id, cols, rows),
   'term:kill': (id) => terminal.kill(id),
+  'term:cancelJob': (id) => require('./command-jobs.cjs').stop(id, currentSender),
 
   // ---------- window ----------
   'window:new': () => createWindow(),
@@ -899,19 +900,19 @@ async function configFor(providerId, model) {
   return providerConfig(providerId)
 }
 
-function approve(req, origin) {
+function approve(req, origin, signal) {
   return new Promise((resolve) => {
+    if (signal?.aborted) return resolve(false)
     const id = db.uid()
-    approvals.set(id, resolve)
     const target = origin && !origin.isDestroyed() ? origin : win?.webContents
     if (!target) return resolve(false)
+    const abort = () => finish(false)
+    let timer
+    const finish = (ok) => { clearTimeout(timer); signal?.removeEventListener('abort', abort); approvals.delete(id); if (!target.isDestroyed()) target.send('tool:approvalClosed', id); resolve(ok) }
+    approvals.set(id, { origin: target, finish })
     target.send('tool:approve', id, req)
-    setTimeout(() => {
-      if (approvals.has(id)) {
-        approvals.delete(id)
-        resolve(false)
-      }
-    }, 5 * 60 * 1000)
+    signal?.addEventListener('abort', abort, { once: true })
+    timer = setTimeout(() => finish(false), 5 * 60 * 1000)
   })
 }
 
@@ -947,8 +948,11 @@ function createWindow() {
     },
   })
   windows.add(w)
+  const taskSender = w.webContents
   if (!win) win = w
   w.on('closed', () => {
+    require('./command-jobs.cjs').close(taskSender)
+    for (const request of approvals.values()) if (request.origin === taskSender) request.finish(false)
     windows.delete(w)
     if (win === w) win = [...windows][0] || null
   })

@@ -114,7 +114,7 @@ fn builtin(id: &str) -> Vec<Value> {
         "orbi-terminal" => vec![tool(
             "run_command",
             "Run a shell command after user approval",
-            json!({"command":{"type":"string"}}),
+            json!({"command":{"type":"string"},"cwd":{"type":"string","description":"Relative directory inside the Orbi workspace"},"timeoutSeconds":{"type":"integer","minimum":1,"maximum":1800}}),
             vec!["command"],
         )],
         _ => vec![],
@@ -321,12 +321,14 @@ impl Mcp {
         server: &str,
         name: &str,
         args: &Value,
+        cancel: &tokio_util::sync::CancellationToken,
     ) -> Result<()> {
-        if backend
-            .db
-            .setting("autoApproveTools", json!(false))?
-            .as_bool()
-            .unwrap_or(false)
+        if name != "run_command"
+            && backend
+                .db
+                .setting("autoApproveTools", json!(false))?
+                .as_bool()
+                .unwrap_or(false)
         {
             return Ok(());
         }
@@ -336,13 +338,14 @@ impl Mcp {
             .lock()
             .await
             .insert(id.clone(), (window.label().into(), tx));
-        window.emit("tool:approve",json!([{"id":id,"server":server,"tool":name,"message":format!("{name}\n{}",args),"args":args}])).map_err(|e|e.to_string())?;
-        let approved = tokio::time::timeout(std::time::Duration::from_secs(180), rx)
-            .await
-            .ok()
+        window.emit("tool:approve",json!([id,{"server":server,"tool":name,"message":format!("{name}\n{}",args),"args":args}])).map_err(|e|e.to_string())?;
+        let response = tokio::select! {_=cancel.cancelled()=>None, result=tokio::time::timeout(std::time::Duration::from_secs(180), rx)=>Some(result)};
+        let approved = response
+            .and_then(|result| result.ok())
             .and_then(|r| r.ok())
             .unwrap_or(false);
         self.approvals.lock().await.remove(&id);
+        let _ = window.emit("tool:approvalClosed", json!([id]));
         if approved {
             Ok(())
         } else {
@@ -355,13 +358,15 @@ impl Mcp {
         window: &tauri::WebviewWindow,
         tool: &Value,
         args: Value,
+        cancel: &tokio_util::sync::CancellationToken,
     ) -> Result<String> {
         let id = tool["server"].as_str().ok_or("Missing tool server")?;
         let name = tool["original"].as_str().ok_or("Missing tool name")?;
         if !(id.starts_with("orbi-")
             && ["current_time", "read_webpage", "list_files", "read_file"].contains(&name))
         {
-            self.approve(backend, window, id, name, &args).await?;
+            self.approve(backend, window, id, name, &args, cancel)
+                .await?;
         }
         let result = if id.starts_with("orbi-") {
             match name {
@@ -432,25 +437,17 @@ impl Mcp {
                 }
                 "run_command" => {
                     let command = args["command"].as_str().ok_or("Missing command")?;
-                    let mut process = tokio::process::Command::new(if cfg!(windows) {
-                        "powershell.exe"
-                    } else {
-                        "/bin/sh"
-                    });
-                    if cfg!(windows) {
-                        process.args(["-NoProfile", "-Command", command]);
-                    } else {
-                        process.args(["-lc", command]);
-                    }
-                    #[cfg(windows)]
-                    process.creation_flags(0x08000000);
-                    process.current_dir(workspace(backend)?).kill_on_drop(true);
-                    let output =
-                        tokio::time::timeout(std::time::Duration::from_secs(30), process.output())
-                            .await
-                            .map_err(|_| "Command timed out")?
-                            .map_err(|e| e.to_string())?;
-                    json!({"code":output.status.code(),"stdout":String::from_utf8_lossy(&output.stdout).chars().take(64000).collect::<String>(),"stderr":String::from_utf8_lossy(&output.stderr).chars().take(16000).collect::<String>()})
+                    let root = workspace(backend)?;
+                    let cwd = safe_path(&root, args["cwd"].as_str().unwrap_or("."), false)?;
+                    return crate::command_jobs::run(
+                        backend,
+                        window,
+                        command,
+                        cwd,
+                        args["timeoutSeconds"].as_u64().unwrap_or(900),
+                        cancel,
+                    )
+                    .await;
                 }
                 _ => return Err("Unknown builtin tool".into()),
             }

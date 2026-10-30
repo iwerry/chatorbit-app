@@ -5,7 +5,7 @@ type NativeApi = {
 }
 const native = (window as unknown as { __TAURI__?: NativeApi }).__TAURI__
 if (native) {
-  const allowed = new Set(['chat:delta', 'term:data', 'term:exit', 'local:status', 'local:progress', 'local:error', 'update:state', 'update:done', 'tool:approve', 'data:changed', 'find:result'])
+  const allowed = new Set(['chat:delta', 'term:data', 'term:exit', 'term:job', 'local:status', 'local:progress', 'local:error', 'update:state', 'update:done', 'tool:approve', 'tool:approvalClosed', 'data:changed', 'find:result'])
   const listen = (channel: string, callback: (...args: unknown[]) => void) => {
     if (!allowed.has(channel)) throw new Error(`Unsupported native event: ${channel}`)
     let disposed = false

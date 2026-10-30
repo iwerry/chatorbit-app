@@ -1,6 +1,7 @@
 mod chat;
 mod chat_stream;
 mod cloud;
+mod command_jobs;
 mod crud;
 mod library;
 mod mcp;
@@ -17,6 +18,7 @@ use storage::{now, uid, Result, Storage};
 use tauri::{Manager, State};
 
 struct Backend {
+    jobs: command_jobs::Jobs,
     mcp: mcp::Mcp,
     terminals: terminal::Terminals,
     db: Storage,
@@ -38,6 +40,9 @@ async fn dispatch(
     let a = args.first().cloned().unwrap_or(Value::Null);
     let b = args.get(1).cloned().unwrap_or(Value::Null);
     let db = &backend.db;
+    if channel == "term:cancelJob" {
+        return command_jobs::cancel(&backend, &window, a.as_str().ok_or("Missing job ID")?).await;
+    }
     if let Some(result) = runtime::handle(&backend, &channel).await {
         return result;
     }
@@ -144,6 +149,7 @@ pub fn run() {
             std::fs::create_dir_all(root.join("media"))?;
             let db = Storage::open(&root.join("orbi.db")).map_err(std::io::Error::other)?;
             app.manage(Backend {
+                jobs: command_jobs::Jobs::default(),
                 db,
                 root,
                 cloud: cloud::Cloud::new(),
@@ -163,7 +169,7 @@ pub fn run() {
                     let handle = window.app_handle().clone();
                     tauri::async_runtime::spawn(async move {
                         let state = handle.state::<Backend>();
-                        for tasks in [&state.chats, &state.renders] {
+                        for tasks in [&state.chats, &state.renders, &state.jobs.0] {
                             let tasks = tasks.lock().await;
                             for (key, token) in tasks.iter() {
                                 if key.starts_with(&label) {

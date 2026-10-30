@@ -142,11 +142,12 @@ function resultText(r) {
 }
 
 // Streams a reply. When `toolkit` has tools, runs the tool-calling loop (max 8 rounds).
-async function streamChat({ providerId, model, messages, system, thinking, effort, maxTokens }, cfg, onDelta, signal, toolkit) {
+async function streamChat({ providerId, model, messages, system, thinking, effort, maxTokens, goal = false }, cfg, onDelta, signal, toolkit) {
   const p = def(providerId)
   if (p.needsKey && !cfg.apiKey) throw new Error(`Add your ${p.name} API key in Settings → Providers.`)
   let tools = toolkit?.tools?.length ? toolkit.tools : null
   let wroteText = false
+  let pausedByUser = false
   const emitText = (t) => {
     if (!t) return
     wroteText = true
@@ -163,6 +164,7 @@ async function streamChat({ providerId, model, messages, system, thinking, effor
     onDelta({ tool: { id, name, status: 'running', args } })
     try {
       const r = await toolkit.call(name, args)
+      if (r?.cancelled || (typeof r?.error === 'string' && /user declined/i.test(r.error))) pausedByUser = true
       const text = resultText(r)
       onDelta({ tool: { id, name, status: r && r.error ? 'error' : 'done', result: text.slice(0, 4000) } })
       return text
@@ -175,7 +177,8 @@ async function streamChat({ providerId, model, messages, system, thinking, effor
   if (p.kind === 'anthropic') {
     if (thinking) tools = null
     const msgs = toAnthropicMessages(messages)
-    for (let round = 0; round < 8; round++) {
+    for (let round = 0; goal || round < 8; round++) {
+      signal?.throwIfAborted()
       const body = { model, max_tokens: maxTokens || 8192, stream: true, messages: msgs }
       if (system) body.system = system
       if (tools) body.tools = tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters }))
@@ -223,14 +226,15 @@ async function streamChat({ providerId, model, messages, system, thinking, effor
           .map((b) => (b.type === 'tool_use' ? { type: 'tool_use', id: b.id, name: b.name, input: b.json ? JSON.parse(b.json) : {} } : { type: 'text', text: b.text })),
       })
       const results = []
-      for (const u of uses) results.push({ type: 'tool_result', tool_use_id: u.id, content: await runTool(u.id, u.name, u.json) })
+      for (const u of uses) { results.push({ type: 'tool_result', tool_use_id: u.id, content: await runTool(u.id, u.name, u.json) }); if (pausedByUser) { emitText('\n\nExecution paused. Waiting for your instructions.'); return } }
       msgs.push({ role: 'user', content: results })
     }
     return
   }
 
   const msgs = toOpenAIMessages(messages, system)
-  for (let round = 0; round < 8; round++) {
+  for (let round = 0; goal || round < 8; round++) {
+    signal?.throwIfAborted()
     const body = { model, stream: true, messages: msgs }
     if (tools) body.tools = tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } }))
     if (thinking && p.id === 'openrouter') body.reasoning = { effort: (effort || 'Medium').toLowerCase().replace('fast', 'low') }
@@ -268,7 +272,7 @@ async function streamChat({ providerId, model, messages, system, thinking, effor
     if (!real.length) return
     real.forEach((c, i) => (c.id = c.id || `call_${round}_${i}`))
     msgs.push({ role: 'assistant', content: text || null, tool_calls: real.map((c) => ({ id: c.id, type: 'function', function: { name: c.name, arguments: c.args || '{}' } })) })
-    for (const c of real) msgs.push({ role: 'tool', tool_call_id: c.id, content: await runTool(c.id, c.name, c.args) })
+    for (const c of real) { msgs.push({ role: 'tool', tool_call_id: c.id, content: await runTool(c.id, c.name, c.args) }); if (pausedByUser) { emitText('\n\nExecution paused. Waiting for your instructions.'); return } }
   }
 }
 

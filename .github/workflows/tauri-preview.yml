@@ -1,7 +1,5 @@
 name: Tauri preview packages
 on:
-  push:
-    branches: [codex/tauri-rust]
   workflow_dispatch:
 permissions:
   contents: read

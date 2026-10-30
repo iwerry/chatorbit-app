@@ -319,6 +319,7 @@ for (const a of GITHUB.agents || []) AGENTS.push({ ...a, category: PROFESSIONS.f
 
 // Skills by Daniel Rodrigues that ship as full Agent Skills folders (SKILL.md + references + assets + tests).
 const BUNDLED = [
+  { dir: 'informative-video-remotion', profession: 'motion' },
   { dir: 'behavioral-intelligence', profession: 'marketing' },
   { dir: 'prompt-enhancer', profession: 'design' },
 ]
