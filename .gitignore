@@ -9,3 +9,6 @@ electron/build-info.json
 cloud/.env
 cloud/data/
 supabase/.temp/
+src-tauri/target/
+src-tauri/gen/
+release-native/

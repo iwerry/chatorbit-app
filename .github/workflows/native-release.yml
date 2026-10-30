@@ -1,0 +1,100 @@
+name: Native updates
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'src-tauri/**', 'package.json', 'build/**', '.github/workflows/native-release.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: native-updates
+  cancel-in-progress: false
+jobs:
+  configuration:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      - id: check
+        env:
+          PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
+        run: |
+          if [ -n "$PRIVATE_KEY" ] && [ -n "$PUBLIC_KEY" ]; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo '### Signing setup required' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Configure TAURI_SIGNING_PRIVATE_KEY (Secret) and TAURI_UPDATER_PUBLIC_KEY (Variable). Use build/configure-native-updates.ps1. No unsigned update will be published.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+  build:
+    needs: configuration
+    if: needs.configuration.outputs.ready == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,appimage
+          - os: macos-15
+            target: aarch64-apple-darwin
+            bundles: app,dmg
+          - os: macos-15
+            target: x86_64-apple-darwin
+            bundles: app,dmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: '${{ matrix.target }}' }
+      - uses: swatinem/rust-cache@v2
+        with: { workspaces: 'src-tauri -> target', key: '${{ matrix.target }}' }
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential librsvg2-dev patchelf libssl-dev libdbus-1-dev libayatana-appindicator3-dev
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: node build/prepare-native.cjs
+        env:
+          ORBI_UPDATER_PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --lib --locked
+      - name: Build signed native packages
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          ORBI_UPDATER_PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
+          APPLE_SIGNING_IDENTITY: '-'
+        run: pnpm dlx @tauri-apps/cli@2 build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --ci
+      - run: node build/native-manifest.cjs collect src-tauri/target/${{ matrix.target }}/release/bundle release-native/${{ matrix.target }} ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with: { name: 'signed-${{ matrix.target }}', path: 'release-native/${{ matrix.target }}', if-no-files-found: error }
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - uses: actions/download-artifact@v4
+        with: { pattern: 'signed-*', path: release-native }
+      - run: node build/native-manifest.cjs merge release-native latest.json
+      - name: Publish only the complete signed platform set
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(node -p "require('./package.json').version")
+          find release-native -mindepth 2 -type f ! -name 'fragment-*.json' -exec cp '{}' release-native/ \;
+          if gh release view native-channel >/dev/null 2>&1; then
+            gh release download native-channel --pattern latest.json --output previous-native.json
+            OLD=$(node -p "JSON.parse(require('fs').readFileSync('previous-native.json','utf8')).commit || ''")
+            [[ "$OLD" =~ ^[a-f0-9]{40}$ ]] || { echo 'Invalid previous native commit'; exit 1; }
+            STATUS=$(gh api "repos/$GITHUB_REPOSITORY/compare/$OLD...$GITHUB_SHA" --jq .status)
+            [[ "$STATUS" == 'ahead' || "$STATUS" == 'identical' ]] || { echo 'Refusing to replace a newer native update channel'; exit 1; }
+          fi
+          gh release view "native-v$V" >/dev/null 2>&1 || gh release create "native-v$V" --prerelease --latest=false --target "$GITHUB_SHA" --title "Orbi Native $V (transition preview)" --notes 'Rust/Tauri transition builds. Old previews need one manual installation. macOS uses ad-hoc signing; Apple notarization is not configured.'
+          gh release upload "native-v$V" release-native/*.* --clobber
+          gh release view native-channel >/dev/null 2>&1 || gh release create native-channel --prerelease --latest=false --target "$GITHUB_SHA" --title 'Orbi native update channel' --notes 'Signed native update manifest. Windows Electron uses the stable release channel.'
+          gh release upload native-channel latest.json --clobber

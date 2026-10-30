@@ -1,0 +1,70 @@
+name: Tauri preview packages
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundles: deb,appimage
+          - os: macos-15
+            target: aarch64-apple-darwin
+            bundles: app,dmg
+          - os: macos-15
+            target: x86_64-apple-darwin
+            bundles: app,dmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: ${{ matrix.target }}
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential librsvg2-dev patchelf libssl-dev libdbus-1-dev libayatana-appindicator3-dev xvfb
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: node build/prepare-native.cjs
+        env:
+          ORBI_UPDATER_PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --lib --locked
+      - name: Package native preview
+        env:
+          APPLE_SIGNING_IDENTITY: '-'
+          ORBI_UPDATER_PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm dlx @tauri-apps/cli@2 build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --ci
+      - name: Linux launch smoke test with isolated data
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set +e
+          XDG_DATA_HOME="$RUNNER_TEMP/orbi-smoke-data" XDG_CONFIG_HOME="$RUNNER_TEMP/orbi-smoke-config" GDK_BACKEND=x11 xvfb-run -a timeout 12s src-tauri/target/${{ matrix.target }}/release/orbi-native > native-smoke.log 2>&1
+          result=$?
+          set -e
+          cat native-smoke.log
+          if [ "$result" -ne 124 ]; then echo "Native app exited before the smoke-test deadline ($result)"; exit 1; fi
+      - name: Upload preview installers (migration incomplete)
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbi-native-preview-${{ matrix.target }}
+          if-no-files-found: error
+          path: |
+            src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb
+            src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
+            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg

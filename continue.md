@@ -2,13 +2,27 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 30/10: autorização de todas as atualizações automáticas
+
+- Daniel autorizou publicar automaticamente todas as atualizações via GitHub, independentemente do sistema. Windows 0.1.30-1 publicado e verificado: commit `6e5276a713694075491145ba7bef1bff4b2a0d44`, run `41101201803`, release `v0.1.30-1` com EXE e pacote UI.
+- Updater oficial Tauri adicionado, com assinatura obrigatória, checagens no app, download/cancelamento/instalação e comparação por data de publicação. Código e pipelines nativos devem ficar junto da main sem substituir o Electron Windows.
+- Configuração única de assinatura ainda pendente: chave privada em GitHub Secrets e pública em Variables. Script pronto em `build/configure-native-updates.ps1`; detalhes em `docs/AUTOMATIC_UPDATES.md`. Conector não tem acesso a Secrets; acesso à janela Brave expirou. Não pedir chaves pelo chat nem colocar chave privada no Git.
+- Prévia Tauri antiga sem updater exige uma primeira instalação manual de transição. Depois, atualizações assinadas pelo próprio app. Não afirmar entrega automática retroativa a um cliente que não possui updater; não publicar pacote nativo sem assinatura.
+
 ## 30/10: execução local de skills e /goal — 0.1.30-1
 
 - Daniel pediu Rust + TypeScript e autorizou levar o fluxo também ao Electron atual. Implementação e limites em `docs/SKILL_LOCAL_RUNTIME.md`.
 - Terminal de tarefas com aprovação obrigatória, logs, erros e cancelamento; fila de aprovação; `/goal` sem o limite de oito rodadas; skill Remotion incluída na biblioteca. ZIP fornecido foi somente inspecionado, sem executar scripts.
 - Publicação `[source-only]` preserva o pedido de não gerar instaladores. Os testes continuam no CI; release automática ignora esse marcador e empacotamento Tauri é manual. Não afirmar que aplicativos instalados receberam o backend novo: o atualizador Electron exige `core` igual para UI-only e Tauri ainda não tem updater assinado.
 - Testes locais: comandos reais inofensivos, cancelamento rápido, UTF-8, códigos de saída, parser e goal com dez rodadas simuladas; recusa pausa; UI em navegador isolado, três temas e 800px; TypeScript, build do front e testes Rust.
-- CI final aprovado: run `41094482390` (7 testes Windows/Linux/macOS) e `41094372800` (front + 14 testes Rust Linux/Mac Intel/Apple Silicon). Commits de código: main `d9bcb9f9adaad2908acfede6e32a2e536a6f2560`, Rust `c9cff93f97dd17704cdafb03090dd5c3c1ee4326`. Daniel autorizou agora todas as atualizações automáticas pelo GitHub. A publicação Windows foi liberada; Linux/Mac precisam de bootstrap do updater Tauri e chave de assinatura protegida.
+- CI final aprovado: run `41094482390` (7 testes Windows/Linux/macOS) e `41094372800` (front + 14 testes Rust Linux/Mac Intel/Apple Silicon). Commits de código: main `d9bcb9f9adaad2908acfede6e32a2e536a6f2560`, Rust `c9cff93f97dd17704cdafb03090dd5c3c1ee4326`. Nenhum instalador gerado; decisão sobre distribuição do backend Windows foi solicitada e permanece pendente.
+
+## 30/10: migração Tauri autorizada pelo Daniel
+
+- Arquitetura escolhida: Tauri 2 com backend integral em Rust, sem sidecar Node. Trabalho isolado em `codex/tauri-rust`; Windows estável permanece na main.
+- Estado detalhado e pendências em `docs/TAURI_MIGRATION.md`. Não apresentar a migração como concluída: faltam paridade completa, migração dos dados, atualização nativa assinada e validação real de Linux/macOS.
+- Backend compila no Windows; 11 testes Rust e TypeScript passaram. Workflow separado gera pacotes de desenvolvimento DEB/AppImage e DMG para Intel/Apple Silicon, sem publicar atualização estável.
+- Pacotes preliminares concluídos: run `41078258226`, commit `4e95f68521f8093d3ce75d407140aa82dfaada5e`. Agora são 12 testes aprovados nos três destinos, produção compilada e processo Linux aberto por 12 segundos em Xvfb. Arquivos locais em `../releases/tauri-0.1.30-preview`, com LEIA-ME e hashes. Mac ad-hoc, sem notarização. Sem testes autenticados nem validação interativa no Mac; migração continua incompleta.
 
 Notas anteriores: [histórico da versão 0.1.27-2](docs/history/continuation-0.1.27-2.md). Esse histórico descreve uma versão antiga; para o estado atual, use as notas abaixo.
 

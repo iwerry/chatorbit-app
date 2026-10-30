@@ -1,3 +1,10 @@
+## Orbi 0.1.30-2
+
+- Atualizações Windows continuam pela release estável do GitHub, incluindo pacotes rápidos de interface quando o backend é compatível.
+- Backend Rust/Tauri e frontend compartilhados na main, com canal nativo assinado para Linux e macOS.
+- Publicação nativa valida todos os destinos antes de atualizar o canal; exige configuração protegida da assinatura e uma primeira instalação de transição nas prévias antigas.
+- O Windows estável continua Electron; não é substituído pela migração Rust ainda incompleta.
+
 ## Orbi 0.1.30-1
 
 - Skills com protocolo para checar o ambiente local, propor somente dependências necessárias e verificar os resultados reais.

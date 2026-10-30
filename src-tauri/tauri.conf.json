@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Orbi",
+  "version": "0.1.30-2",
+  "identifier": "com.orbix.orbi",
+  "plugins": {
+    "updater": {
+      "pubkey": "",
+      "endpoints": [
+        "https://github.com/iwerry/chatorbit-app/releases/download/native-channel/latest.json"
+      ]
+    }
+  },
+  "build": {
+    "beforeDevCommand": "node node_modules/vite/bin/vite.js --host 127.0.0.1",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeBuildCommand": "node node_modules/typescript/bin/tsc --noEmit && node node_modules/vite/bin/vite.js build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Orbi",
+        "width": 1280,
+        "height": 860,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob:; media-src 'self' asset: http://asset.localhost data: blob:; connect-src ipc: http://ipc.localhost; font-src 'self' data:",
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$APPDATA/media/**"
+        ]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": [
+      "deb",
+      "appimage",
+      "dmg",
+      "app"
+    ],
+    "publisher": "Draft Creative Studio Ltda",
+    "shortDescription": "Orbi — AI chat and creative studio",
+    "copyright": "Developed by Daniel Rodrigues · Draft Creative Studio Ltda",
+    "icon": [
+      "../build/icon-128.png",
+      "../build/icon-256.png",
+      "../build/icon.ico"
+    ]
+  }
+}

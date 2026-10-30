@@ -6,7 +6,7 @@
 
 web
 
-Desktop app built with web technology (React 19 + Vite + Tailwind 4, packaged with Electron). Windows installer today; macOS and Linux builds come from the same code. The design language is the app's own, not the native look of any OS.
+Desktop app built with web technology (React 19 + Vite + Tailwind 4). Windows stable currently uses Electron; the native Rust/Tauri backend coexists in the repository for Linux/macOS transition builds. Both use the same frontend. Signed native updates require publisher-key setup and one transition installation from older previews. The design language is the app's own, not the native look of any OS.
 
 ## Users
 

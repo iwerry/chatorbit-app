@@ -18,11 +18,11 @@ Cada comando requer aprovação, inclusive quando a aprovação automática de o
 - Electron existente: `command-jobs.cjs` oferece o mesmo contrato durante a migração. A aplicação estável ainda não foi convertida integralmente para Rust.
 - TypeScript/React: protocolo de execução, `/goal`, fila de aprovação e painel de registros compartilhados entre os dois backends.
 
-## Distribuição sem instaladores
+## Distribuição
 
-Este código é publicado com `[source-only]`. O workflow de release ignora esse marcador, enquanto os testes continuam rodando. Empacotamento Tauri fica somente manual. Nenhum instalador ou atualização de aplicativo é gerado por esses commits.
+Inicialmente, o código foi publicado com `[source-only]`, sem gerar instaladores. Depois, Daniel autorizou todas as atualizações automáticas. A publicação Windows 0.1.30-1 foi acionada no GitHub. O marcador continua disponível para alterações deliberadamente somente de código.
 
-Isso **não entrega o novo backend aos aplicativos já instalados**. O atualizador Electron aceita atualização apenas de interface quando o fingerprint `core` é igual (`build/stamp.cjs`, `build/ui-pack.cjs`, `electron/updater.cjs`). Aqui o backend mudou. As prévias Tauri não têm atualização assinada configurada e não aceitam ASAR Electron. Para efetivar nos computadores, será necessária uma distribuição apropriada de backend; apenas o push do código não basta.
+O Windows usa seu atualizador existente. Rust/Tauri passou a ter updater oficial assinado e pipeline automática, mas requer a configuração única da chave protegida e uma primeira instalação de transição nas prévias antigas que não tinham updater. Os passos e o estado real da configuração estão em [AUTOMATIC_UPDATES.md](AUTOMATIC_UPDATES.md). Pacotes sem assinatura não são publicados.
 
 ## Verificação
 
@@ -30,6 +30,6 @@ Testes locais: execução real de comandos inofensivos em PowerShell, UTF-8, std
 
 Os testes usam dados sintéticos e não instalam Remotion/FFmpeg, não acessam a conta do usuário e não gastam créditos. Verificações de comandos são executadas também no CI Windows/Linux/macOS; o runtime Rust tem seu próprio workflow de compilação/testes, sem empacotamento.
 
-CI aprovado nesta revisão: 7 testes de execução/parser por sistema em [Windows, Linux e macOS](https://github.com/iwerry/chatorbit-app/actions/runs/41094482390); front compilado e 14 testes Rust por destino em [Linux, macOS Apple Silicon e macOS Intel](https://github.com/iwerry/chatorbit-app/actions/runs/41094372800). O workflow Release foi ignorado pelo marcador `[source-only]`, sem gerar instaladores. A ativação nos aplicativos instalados aguarda a decisão de distribuição.
+CI aprovado na revisão de skills: 7 testes de execução/parser por sistema em [Windows, Linux e macOS](https://github.com/iwerry/chatorbit-app/actions/runs/41094482390); front compilado e 14 testes Rust por destino em [Linux, macOS Apple Silicon e macOS Intel](https://github.com/iwerry/chatorbit-app/actions/runs/41094372800). A revisão seguinte acrescenta testes do updater e dos manifestos de distribuição. A autorização de distribuição já foi concedida.
 
 Referências oficiais consultadas: https://www.remotion.dev/docs/cli/render e https://www.remotion.dev/docs/cli/browser.
