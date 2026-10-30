@@ -1,0 +1,45 @@
+[package]
+name = "orbi-native"
+version = "0.1.30"
+edition = "2021"
+authors = ["Daniel Rodrigues — Draft Creative Studio Ltda"]
+license = "Apache-2.0"
+
+[lib]
+name = "orbi_native"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.32", features = ["bundled", "backup"] }
+uuid = { version = "1", features = ["v4"] }
+tokio = { version = "1", features = ["sync", "time", "process", "io-util", "macros"] }
+portable-pty = "0.9"
+tokio-util = { version = "0.7", features = ["rt"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "multipart"] }
+futures-util = "0.3"
+base64 = "0.22"
+url = "2"
+directories = "6"
+open = "5"
+rfd = "0.15"
+rmcp = { version = "3.8", default-features = false, features = ["client", "transport-child-process", "transport-streamable-http-client-reqwest", "reqwest"] }
+scraper = "0.24"
+time = { version = "0.3", features = ["formatting"] }
+regex = "1"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+serde_yaml = "0.9"
+semver = "1"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3.6.3", features = ["windows-native"] }
+[target.'cfg(target_os = "macos")'.dependencies]
+keyring = { version = "3.6.3", features = ["apple-native"] }
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3.6.3", features = ["sync-secret-service", "crypto-rust"] }
+

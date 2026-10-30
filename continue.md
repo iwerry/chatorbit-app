@@ -2,6 +2,12 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 30/10: migração Tauri autorizada pelo Daniel
+
+- Arquitetura escolhida: Tauri 2 com backend integral em Rust, sem sidecar Node. Trabalho isolado em `codex/tauri-rust`; Windows estável permanece na main.
+- Estado detalhado e pendências em `docs/TAURI_MIGRATION.md`. Não apresentar a migração como concluída: faltam paridade completa, migração dos dados, atualização nativa assinada e validação real de Linux/macOS.
+- Backend compila no Windows; 11 testes Rust e TypeScript passaram. Workflow separado gera pacotes de desenvolvimento DEB/AppImage e DMG para Intel/Apple Silicon, sem publicar atualização estável.
+
 Notas anteriores: [histórico da versão 0.1.27-2](docs/history/continuation-0.1.27-2.md). Esse histórico descreve uma versão antiga; para o estado atual, use as notas abaixo.
 
 Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trabalho sem perder contexto.

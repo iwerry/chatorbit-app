@@ -6,6 +6,7 @@ import '@fontsource/dm-sans/600.css'
 import '@fontsource/manrope/500.css'
 import '@fontsource/manrope/600.css'
 import '@fontsource/manrope/700.css'
+import './lib/tauriBridge'
 import App from './App'
 
 // Apply the last theme before the first paint (the saved setting is confirmed by App right after).

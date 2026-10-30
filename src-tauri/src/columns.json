@@ -1,0 +1,6 @@
+{
+  "agents": {"name":"TEXT","description":"TEXT","model":"TEXT","category":"TEXT DEFAULT 'General'","tools":"TEXT DEFAULT '[]'","skills_mode":"TEXT DEFAULT 'off'","skills":"TEXT DEFAULT '[]'","starters":"TEXT DEFAULT '[]'","support_name":"TEXT","support_email":"TEXT","color":"TEXT"},
+  "messages":{"tools":"TEXT DEFAULT '[]'"},
+  "media":{"board":"TEXT DEFAULT ''","params":"TEXT DEFAULT ''"},
+  "skills":{"library_id":"TEXT","files":"TEXT DEFAULT '[]'","tests":"TEXT DEFAULT '{}'","meta":"TEXT DEFAULT '{}'"}
+}
