@@ -375,6 +375,7 @@ export const api = {
   plugins: (): Promise<Plugin[]> => bridge.invoke('plugins:list'),
   setPlugin: (id: string, enabled: boolean): Promise<Plugin[]> => bridge.invoke('plugins:set', id, enabled),
   approveTool: (id: string, ok: boolean) => bridge.invoke('tool:approveReply', id, ok),
+  cancelTerminalJob: (id: string) => bridge.invoke('term:cancelJob', id),
 
   localStatus: (): Promise<LocalStatus> => bridge.invoke('local:status'),
   installLocalModel: (id: string): Promise<LocalStatus> => bridge.invoke('local:installModel', id),

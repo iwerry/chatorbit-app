@@ -5,6 +5,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { ChevronDown, Maximize2, Minimize2, Plus, Trash2, X } from 'lucide-react'
 import { api, on, uid } from '../lib/api'
+import { useTaskTerminals } from '../lib/taskTerminal'
 
 type Session = { id: string; shell: string; exited?: boolean }
 
@@ -130,6 +131,10 @@ export const TerminalPanel = forwardRef<TerminalHandle, { height: number; setHei
     const [active, setActive] = useState<string | null>(null)
     const [shellName, setShellName] = useState('shell')
     const [error, setError] = useState<string | null>(null)
+    const jobs = useTaskTerminals()
+    const latestJob = jobs.at(-1)?.id
+    useEffect(() => { if (latestJob) setActive(latestJob) }, [latestJob])
+    const activeJob = jobs.find((job) => job.id === active)
 
     const newTerminal = () => {
       const s = { id: uid(), shell: shellName }
@@ -144,10 +149,11 @@ export const TerminalPanel = forwardRef<TerminalHandle, { height: number; setHei
       })
     }, [])
     useEffect(() => {
-      if (sessions.length === 0 && shellName !== 'shell') newTerminal()
+      if (sessions.length === 0 && jobs.length === 0 && shellName !== 'shell') newTerminal()
     }, [shellName])
 
     const kill = (id: string) => {
+      if (jobs.some((job) => job.id === id)) { void api.cancelTerminalJob(id); return }
       api.termKill(id)
       setSessions((cur) => {
         const next = cur.filter((s) => s.id !== id)
@@ -165,7 +171,7 @@ export const TerminalPanel = forwardRef<TerminalHandle, { height: number; setHei
         t?.clear()
       },
       run: (text: string, execute = false) => {
-        if (!active) return
+        if (!active || activeJob) return
         const clean = text.replace(/\r?\n$/, '')
         const payload = clean.includes('\n') ? clean.replace(/\r?\n/g, '\r') : clean
         api.termWrite(active, payload + (execute ? '\r' : ''))
@@ -211,6 +217,9 @@ export const TerminalPanel = forwardRef<TerminalHandle, { height: number; setHei
                 </span>
               </button>
             ))}
+            {jobs.map((job) => <button key={job.id} className={`term-tab ${job.id === active ? 'active' : ''} ${job.running ? '' : 'exited'}`} onClick={() => setActive(job.id)} title={job.command}>
+              <span className="term-dot" />{t('Task')} · {job.running ? t('Running…') : job.cancelled ? t('Stopped') : job.code === 0 ? t('Completed') : t('Failed')}
+            </button>)}
           </div>
           <div className="term-actions">
             <span className="term-shell">
@@ -231,6 +240,12 @@ export const TerminalPanel = forwardRef<TerminalHandle, { height: number; setHei
           </div>
         </header>
         <div className="term-body">
+          {activeJob && <div className="task-terminal" role="region" aria-label={t('Task terminal')}>
+            <div className="task-terminal-heading"><span>{activeJob.shell} · {activeJob.cwd}</span><button className="orbi-btn" disabled={!activeJob.running} onClick={() => api.cancelTerminalJob(activeJob.id)}>{t('Stop command')}</button></div>
+            <pre className="task-terminal-command">{activeJob.command}</pre>
+            <pre className="task-terminal-output" tabIndex={0}>{activeJob.output.replace(/\u001b\[[0-?]*[ -/]*[@-~]/g, '') || t('Waiting for output…')}</pre>
+            {!activeJob.running && <p className="task-terminal-result">{activeJob.timedOut ? t('Timed out') : activeJob.cancelled ? t('Stopped') : `${t('Exit code')}: ${activeJob.code}`}</p>}
+          </div>}
           {error && <p className="term-error">{error}</p>}
           {sessions.map((s) => (
             <TermView key={s.id} session={s} active={s.id === active} onExit={(id) => setSessions((cur) => cur.map((x) => (x.id === id ? { ...x, exited: true } : x)))} />

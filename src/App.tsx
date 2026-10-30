@@ -85,6 +85,8 @@ import { t, t as tr, setLang as applyLang, fmtDate, fmtTime, type Lang } from '.
 import { isPage, navItems, WorkspacePanel, type NavKey } from './components/WorkspacePanel'
 import { CommandPalette, FindBar, TitleBar, type Command, type MenuDef } from './components/TitleBar'
 import type { TerminalHandle } from './components/TerminalPanel'
+import { receiveTaskTerminal } from './lib/taskTerminal'
+import { skillRuntimeInstructions, parseGoalCommand } from './lib/skillRuntime'
 const TerminalPanel = lazy(() => import('./components/TerminalPanel').then((m) => ({ default: m.TerminalPanel })))
 import { RunCodeContext } from './components/Markdown'
 import { ThemeSwitcher, type ThemeMode } from './components/ThemeSwitcher'
@@ -134,6 +136,7 @@ const AudioStudio = lazy(() => import('./components/AudioStudio').then((m) => ({
 
 type Suggest = { kind: 'skill' | 'command' | 'agent'; id: string; label: string; hint: string; insert: string }
 const SLASH_COMMANDS = [
+  { id: 'goal', hint: 'Continue through tools until the task is verified; Stop interrupts' },
   { id: 'web', hint: 'Search the web before answering' },
   { id: 'image', hint: 'Make an image right here in the chat' },
   { id: 'video', hint: 'Make a video right here in the chat' },
@@ -260,11 +263,14 @@ export default function App() {
   const [termOpen, setTermOpen] = useState(false)
   const [termHeight, setTermHeight] = useState(280)
   const [termMax, setTermMax] = useState(false)
-  const [approval, setApproval] = useState<null | { id: string; server: string; tool: string; message: string }>(null)
+  const [approvalQueue, setApprovalQueue] = useState<{ id: string; server: string; tool: string; message: string }[]>([])
+  const approval = approvalQueue[0] || null
+  const setApproval = (request: (typeof approvalQueue)[number] | null) => setApprovalQueue((queue) => request ? [...queue.filter((item) => item.id !== request.id), request] : queue.slice(1))
   const [alwaysAllow, setAlwaysAllow] = useState(false)
   const terminalRef = useRef<TerminalHandle>(null)
   const activeOverride = useRef<string[]>([])
   const invokedSkill = useRef<string | null>(null)
+  const goalMode = useRef(false)
   const [toolsOn, setToolsOn] = useState(true)
   useEffect(() => {
     api.getSetting<boolean>('toolsEnabled', true).then((v) => setToolsOn(v !== false))
@@ -516,7 +522,9 @@ export default function App() {
       }),
       on('local:error', (e: { id: string; message: string }) => setNotice(`${e.id}: ${e.message}`)),
       on('data:changed', () => refreshLists()),
+      on('term:job', (event: Parameters<typeof receiveTaskTerminal>[0]) => { receiveTaskTerminal(event); if (event.phase === 'start') { setTermMounted(true); setTermOpen(true) } }),
       on('tool:approve', (id: string, req: { server: string; tool: string; message: string }) => setApproval({ id, ...req })),
+      on('tool:approvalClosed', (id: string) => setApprovalQueue((queue) => queue.filter((item) => item.id !== id))),
       on('find:result', (r: { matches: number; active: number }) => setFindResult(r)),
     ]
     const t = setInterval(() => api.mcpStatus().then((s) => s && setServers(s)), 15000)
@@ -768,7 +776,7 @@ export default function App() {
     // Local models have an 8k-token window: keep the system prompt, web results and history inside it.
     const local = target.provider === 'orbi'
     const webCtx = extra?.context ? (local ? extra.context.slice(0, 5000) : extra.context) : ''
-    const sys = [systemPrompt(target), webCtx].filter(Boolean).join('\n\n')
+    const sys = [systemPrompt(target), webCtx, (invokedSkill.current || goalMode.current) && skillRuntimeInstructions(goalMode.current)].filter(Boolean).join('\n\n')
     let payloadMsgs = history.filter((m) => !m.error).map(toPayloadMessage)
     // Text-only local models reject images: send a note instead and say which models can see.
     if (local && !target.vision && payloadMsgs.some((m) => m.images?.length)) {
@@ -787,6 +795,7 @@ export default function App() {
       toolServers: agentToolServers(),
       skillCatalog: local ? [] : skillCatalog(),
       compactToolOutput: harness?.cfg.policies?.compact_tool_output || 0,
+      goal: goalMode.current,
     })
     // Wait for the in-band "done" event; fall back to the invoke reply if it never comes (browser preview).
     const res = await Promise.race([finished, invoked.then((r) => new Promise<typeof r>((ok) => setTimeout(() => ok(r), isDesktop ? 15000 : 0)))])
@@ -812,6 +821,7 @@ export default function App() {
 
   const sendMessage = async (raw: string, regenerate = false) => {
     let text = raw
+    if (!regenerate) { const request = parseGoalCommand(raw); goalMode.current = request.goal; text = request.text }
     let forceWeb = false
     const cmd = text.trim().match(/^\/([\w-]+)\s*([\s\S]*)$/)
     if (cmd && !regenerate) {
@@ -2810,9 +2820,9 @@ export default function App() {
           </div>
           <h3>{t('{server} wants to act', { server: approval.server })}</h3>
           <pre>{approval.message}</pre>
-          <label className="approval-always">
+          {approval.tool !== 'run_command' && <label className="approval-always">
             <input type="checkbox" checked={alwaysAllow} onChange={(e) => setAlwaysAllow(e.target.checked)} /> {t("Don't ask again (auto-approve tools)")}
-          </label>
+          </label>}
           <div className="flex justify-end gap-2">
             <button
               className="orbi-btn"
@@ -2827,7 +2837,7 @@ export default function App() {
               className="orbi-btn orbi-btn-primary"
               autoFocus
               onClick={() => {
-                if (alwaysAllow) api.setSetting('autoApproveTools', true)
+                if (alwaysAllow && approval.tool !== 'run_command') api.setSetting('autoApproveTools', true)
                 api.approveTool(approval.id, true)
                 setApproval(null)
               }}

@@ -112,3 +112,9 @@ main.chat-landing > .chat-scroll { height: auto; flex: none; overflow: visible; 
 }
 @media (max-width: 560px) { .context-ideas { grid-template-columns: 1fr; } .context-idea { min-height: 0; padding: 10px 12px; gap: 6px; } .context-idea-kind { display: none; } }
 @media (prefers-reduced-motion: reduce) { .context-idea, .context-idea-copy, .mm-advice > span { animation: none; transition: none; transform: none; } }
+.task-terminal { height: 100%; overflow: auto; padding: 16px 20px; color: var(--neo-text); background: var(--neo-bg); }
+.task-terminal-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.task-terminal-heading span { min-width: 0; overflow-wrap: anywhere; }
+.task-terminal-command, .task-terminal-output { white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.65 'Cascadia Code', Consolas, monospace; }
+.task-terminal-command { padding: 12px; border: 1px solid var(--neo-line); border-radius: 8px; margin-bottom: 16px; }
+.task-terminal-result { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--neo-line); }

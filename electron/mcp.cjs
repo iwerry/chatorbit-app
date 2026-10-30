@@ -2,7 +2,6 @@
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
-const { exec } = require('node:child_process')
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js')
 const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js')
 const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js')
@@ -208,15 +207,9 @@ const BUILTIN = {
     {
       name: 'run_command',
       description: `Run a shell command on the user's computer (${process.platform === 'win32' ? 'PowerShell' : 'bash/zsh'}) and return its output. The user approves every command.`,
-      inputSchema: { type: 'object', properties: { command: { type: 'string' }, cwd: { type: 'string', description: 'Working directory (default: Orbi workspace)' } }, required: ['command'] },
-      approval: (a) => `Run this command?\n\n${a.command}`,
-      run: ({ command, cwd }) =>
-        new Promise((resolve) => {
-          const shell = process.platform === 'win32' ? 'powershell.exe' : process.env.SHELL || '/bin/bash'
-          exec(command, { cwd: cwd && fs.existsSync(cwd) ? cwd : workspaceDir(), shell, timeout: 120000, maxBuffer: 4 * 1024 * 1024, windowsHide: true }, (err, stdout, stderr) => {
-            resolve({ exit_code: err ? err.code ?? 1 : 0, stdout: String(stdout).slice(-12000), stderr: String(stderr).slice(-4000) })
-          })
-        }),
+      inputSchema: { type: 'object', properties: { command: { type: 'string' }, cwd: { type: 'string', description: 'Working directory (default: Orbi workspace)' }, timeoutSeconds: { type: 'integer', minimum: 1, maximum: 1800 } }, required: ['command'] },
+      approval: (a) => `Run this command in ${a.cwd ? safePath(a.cwd) : workspaceDir()}?\n\n${a.command}`,
+      run: ({ command, cwd, timeoutSeconds }, { origin, signal }) => require('./command-jobs.cjs').run({ command, cwd: cwd ? safePath(cwd) : workspaceDir(), timeoutSeconds }, origin, signal),
     },
   ],
 }
@@ -334,21 +327,22 @@ function toolsForChat(allowServers) {
   return out
 }
 
-async function callTool(qname, args, origin) {
+async function callTool(qname, args, origin, signal) {
   for (const s of servers()) {
     const c = clients.get(s.id)
     if (!c || c.status !== 'connected') continue
     const t = c.tools.find((x) => qualified(s.id, x.name) === qname)
     if (!t) continue
     if (s.type === 'builtin') {
-      if (t.approval && !ctx.getSetting('autoApproveTools', false)) {
-        const ok = await ctx.approve({ server: s.name, tool: t.name, message: t.approval(args || {}), args }, origin)
+      if (t.approval && (t.name === 'run_command' || !ctx.getSetting('autoApproveTools', false))) {
+        const ok = await ctx.approve({ server: s.name, tool: t.name, message: t.approval(args || {}), args }, origin, signal)
         if (!ok) return { error: 'The user declined this action.' }
       }
-      return t.run(args || {})
+      if (signal?.aborted) throw new Error('Stopped.')
+      return t.run(args || {}, { origin, signal })
     }
     if (RISKY.test(t.name) && !ctx.getSetting('autoApproveTools', false)) {
-      const ok = await ctx.approve({ server: s.name, tool: t.name, message: `${s.name} wants to run ${t.name}:\n\n${JSON.stringify(args || {}, null, 2).slice(0, 800)}`, args }, origin)
+      const ok = await ctx.approve({ server: s.name, tool: t.name, message: `${s.name} wants to run ${t.name}:\n\n${JSON.stringify(args || {}, null, 2).slice(0, 800)}`, args }, origin, signal)
       if (!ok) return { error: 'The user declined this action.' }
     }
     const r = await c.client.callTool({ name: t.name, arguments: args || {} })

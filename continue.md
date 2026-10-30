@@ -2,6 +2,13 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 30/10: execução local de skills e /goal — 0.1.30-1
+
+- Daniel pediu Rust + TypeScript e autorizou levar o fluxo também ao Electron atual. Implementação e limites em `docs/SKILL_LOCAL_RUNTIME.md`.
+- Terminal de tarefas com aprovação obrigatória, logs, erros e cancelamento; fila de aprovação; `/goal` sem o limite de oito rodadas; skill Remotion incluída na biblioteca. ZIP fornecido foi somente inspecionado, sem executar scripts.
+- Publicação `[source-only]` preserva o pedido de não gerar instaladores. Os testes continuam no CI; release automática ignora esse marcador e empacotamento Tauri é manual. Não afirmar que aplicativos instalados receberam o backend novo: o atualizador Electron exige `core` igual para UI-only e Tauri ainda não tem updater assinado.
+- Testes locais: comandos reais inofensivos, cancelamento rápido, UTF-8, códigos de saída, parser e goal com dez rodadas simuladas; recusa pausa; UI em navegador isolado, três temas e 800px; TypeScript, build do front e testes Rust.
+
 Notas anteriores: [histórico da versão 0.1.27-2](docs/history/continuation-0.1.27-2.md). Esse histórico descreve uma versão antiga; para o estado atual, use as notas abaixo.
 
 Resumo da sessão de 28/10/2026 (Daniel Rodrigues + Claude), para retomar o trabalho sem perder contexto.

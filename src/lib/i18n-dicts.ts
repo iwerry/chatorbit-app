@@ -1,6 +1,15 @@
 // UI translations. English is the key; each row is [en, pt-BR, es, fr].
 // Missing keys fall back to English, so new strings never break the UI.
 const ROWS: [string, string, string, string][] = [
+  ['Completed', 'Concluído', 'Completado', 'Terminé'],
+  ['Stopped', 'Interrompido', 'Detenido', 'Arrêté'],
+  ['Continue through tools until the task is verified; Stop interrupts', 'Continue com ferramentas até verificar a tarefa; Parar interrompe', 'Continúa con herramientas hasta verificar la tarea; Detener interrumpe', 'Continuez avec les outils jusqu’à vérification ; Arrêter interrompt'],
+  ['Task terminal', 'Terminal da tarefa', 'Terminal de la tarea', 'Terminal de la tâche'],
+  ['Task', 'Tarefa', 'Tarea', 'Tâche'],
+  ['Stop command', 'Parar comando', 'Detener comando', 'Arrêter la commande'],
+  ['Exit code', 'Código de saída', 'Código de salida', 'Code de sortie'],
+  ['Waiting for output…', 'Aguardando saída…', 'Esperando salida…', 'En attente de sortie…'],
+  ['Timed out', 'Tempo limite atingido', 'Tiempo agotado', 'Délai dépassé'],
   ['Open the model menu to compare prices and choose.', 'Abra o menu de modelos para comparar preços e escolher.', 'Abre el menú de modelos para comparar precios y elegir.', 'Ouvrez le menu des modèles pour comparer les prix et choisir.'],
   ['Use Image or Video to create without leaving the chat.', 'Use Imagem ou Vídeo para criar sem sair da conversa.', 'Usa Imagen o Vídeo para crear sin salir del chat.', 'Utilisez Image ou Vidéo pour créer sans quitter le chat.'],
   ['One workspace for your ideas. Chat, images, video and sound.', 'Um espaço para suas ideias. Conversas, imagens, vídeo e som.', 'Un espacio para tus ideas. Chat, imágenes, vídeo y sonido.', 'Un espace pour vos idées. Chat, images, vidéo et son.'],

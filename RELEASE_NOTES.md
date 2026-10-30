@@ -1,3 +1,12 @@
+## Orbi 0.1.30-1 — código, sem instaladores
+
+- Skills com protocolo para checar o ambiente local, propor somente dependências necessárias e verificar os resultados reais.
+- Comandos aprovados aparecem no terminal de tarefas, com logs, código de saída, erros e cancelamento. PowerShell no Windows, bash no Linux e zsh no Mac.
+- Aprovação obrigatória para cada comando, fila de solicitações e isolamento entre janelas. Recusar ou parar pausa a execução.
+- `/goal` e `/nome-da-skill /goal ...` continuam além de oito rodadas de ferramentas; modelo, contexto, créditos e aprovações continuam necessários.
+- Skill `informative-video-remotion` incluída na biblioteca. Remotion e o renderizador Skia/FFmpeg são identificados separadamente, sem alegar renderizações que não aconteceram.
+- Executor em Rust/Tauri e adaptação compatível para o Electron existente. Publicação `[source-only]`: não distribui automaticamente o novo backend aos aplicativos instalados.
+
 ## Orbi 0.1.29-11
 
 - Indicadores de atividade com luz em dois pulsos, ritmo variado por execução e contagem de tarefas. Sem o traço giratório nos botões laterais; a preferência de movimento reduzido mantém uma luz estática.

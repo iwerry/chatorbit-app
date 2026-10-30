@@ -1,0 +1,22 @@
+name: Skill runtime checks
+on:
+  push:
+    branches: [main, codex/tauri-rust]
+    paths: ['electron/**', 'src/**', 'tests/**', '.github/workflows/skill-runtime-check.yml']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  commands:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-15, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node --test tests/skill-runtime.cjs tests/skill-runtime-frontend.mjs
