@@ -48,7 +48,20 @@ pub async fn run(
     payload: &Value,
     cancel: &CancellationToken,
 ) -> Result<()> {
-    let tools = backend.mcp.tools(payload["toolServers"].as_array()).await?;
+    let use_tools =
+        payload["useTools"] != false && backend.db.setting("toolsEnabled", json!(true))? != false;
+    let catalog = payload["skillCatalog"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let mut tools = if use_tools {
+        backend.mcp.tools(payload["toolServers"].as_array()).await?
+    } else {
+        Vec::new()
+    };
+    if use_tools && !catalog.is_empty() {
+        tools.extend(crate::skill_tools::definitions());
+    }
     let mut messages = crate::chat::messages(payload);
     let mut include_tools = !tools.is_empty();
     for round in 0..8 {
@@ -157,7 +170,11 @@ pub async fn run(
                 )
                 .map_err(|e| e.to_string())?;
             let result = if let Some(tool) = tools.iter().find(|tool| tool["name"] == name) {
-                tokio::select! {_=cancel.cancelled()=>return Ok(()),result=backend.mcp.call(backend,window,tool,args.clone())=>result}
+                if name.starts_with("orbi-skills__") {
+                    crate::skill_tools::call(&backend.db, &catalog, name, &args)
+                } else {
+                    tokio::select! {_=cancel.cancelled()=>return Ok(()),result=backend.mcp.call(backend,window,tool,args.clone())=>result}
+                }
             } else {
                 Err("The requested tool is outside the allowed tool list.".into())
             };

@@ -155,8 +155,21 @@ pub async fn handle(backend: &Backend, channel: &str, args: &[Value]) -> Option<
                 };
                 save(backend,&data,&mime,&a,"image")
             },
-            "ai:speech"|"cloud:speak"=>{let body=json!({"model":a["model"],"input":a["text"],"voice":a["voice"],"purpose":a["purpose"],"response_format":"mp3"});let (data,mime)=bytes(backend.cloud.request("/v1/audio/speech",Some(body)).await?).await?;save(backend,&data,&mime,&a,"audio")},
-            "cloud:music"=>{let (data,mime)=bytes(backend.cloud.request("/v1/music",Some(a.clone())).await?).await?;save(backend,&data,&mime,&a,"audio")},
+            "ai:speech"|"cloud:speak"=>{
+                let pref=backend.db.setting("cloudVoice",json!({}))?;
+                let preferred=|key:&str|a[key].as_str().filter(|s|!s.is_empty()).or_else(||pref[key].as_str()).unwrap_or("").to_string();
+                let body=json!({"model":preferred("model"),"input":a["text"].as_str().unwrap_or("").chars().take(4000).collect::<String>(),"voice":preferred("voice"),"purpose":a["purpose"],"response_format":"mp3"});
+                let (data,mime)=bytes(backend.cloud.request("/v1/audio/speech",Some(body)).await?).await?;
+                if channel=="cloud:speak" {Ok(json!(format!("data:{mime};base64,{}",base64::engine::general_purpose::STANDARD.encode(data))))}
+                else {save(backend,&data,&mime,&a,"audio")}
+            },
+            "cloud:music"=>{
+                let response=backend.cloud.request("/v1/music",Some(a.clone())).await?;
+                let lyrics=response.headers().get("x-orbi-lyrics").and_then(|v|v.to_str().ok()).unwrap_or("").to_string();
+                let lyrics=url::form_urlencoded::parse(format!("lyrics={}",lyrics.replace('+',"%2B")).as_bytes()).find(|(key,_)|key=="lyrics").map(|(_,v)|v.into_owned()).unwrap_or_default();
+                let (data,mime)=bytes(response).await?;
+                let mut item=save(backend,&data,&mime,&a,"audio")?;item["lyrics"]=json!(lyrics);Ok(item)
+            },
             "cloud:video"=>{
                 let mut body=json!({"model":a["model"],"prompt":a["prompt"],"duration":a["duration"],"resolution":a["resolution"],"aspect_ratio":a["aspect"],"generate_audio":a["audio"]});
                 if let Some(frame)=a["frameImage"].as_str(){body["frame_images"]=json!([{"type":"image_url","image_url":{"url":frame},"frame_type":"first_frame"}]);}

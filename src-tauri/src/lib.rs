@@ -6,6 +6,7 @@ mod library;
 mod mcp;
 mod media;
 mod runtime;
+mod skill_tools;
 mod storage;
 mod studio;
 mod terminal;

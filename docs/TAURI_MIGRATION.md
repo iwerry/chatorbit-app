@@ -30,6 +30,7 @@ Status: **in progress; not a distributable replacement**. Work is isolated on `c
 
 ## Validation so far
 
-Windows Rust compilation and 11 unit tests passed (storage, conversations, SSE fragmentation/errors, tool names/workspace restrictions, skill validation, YAML roundtrip and ZIP traversal). TypeScript passes. Linux/macOS builds and actual authenticated provider calls have not yet been verified. Tests cover native modules, not full application parity.
+Windows Rust compilation and 12 unit tests passed (storage, conversations, SSE fragmentation/errors, tool names/workspace restrictions, skill validation, YAML roundtrip and ZIP traversal). TypeScript passes. The first Linux/macOS CI unit-test jobs passed; packaging is still in progress. Actual authenticated provider calls have not yet been verified. Tests cover native modules, not full application parity.
 
 No Node sidecar is part of the selected architecture. Do not describe a compiled shell or the browser fallback as a completed migration.
+
