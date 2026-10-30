@@ -30,4 +30,6 @@ Testes locais: execução real de comandos inofensivos em PowerShell, UTF-8, std
 
 Os testes usam dados sintéticos e não instalam Remotion/FFmpeg, não acessam a conta do usuário e não gastam créditos. Verificações de comandos são executadas também no CI Windows/Linux/macOS; o runtime Rust tem seu próprio workflow de compilação/testes, sem empacotamento.
 
+CI aprovado nesta revisão: 7 testes de execução/parser por sistema em [Windows, Linux e macOS](https://github.com/iwerry/chatorbit-app/actions/runs/41094482390); front compilado e 14 testes Rust por destino em [Linux, macOS Apple Silicon e macOS Intel](https://github.com/iwerry/chatorbit-app/actions/runs/41094372800). O workflow Release foi ignorado pelo marcador `[source-only]`, sem gerar instaladores. A ativação nos aplicativos instalados aguarda a decisão de distribuição.
+
 Referências oficiais consultadas: https://www.remotion.dev/docs/cli/render e https://www.remotion.dev/docs/cli/browser.
