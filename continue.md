@@ -7,6 +7,7 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
 - Arquitetura escolhida: Tauri 2 com backend integral em Rust, sem sidecar Node. Trabalho isolado em `codex/tauri-rust`; Windows estável permanece na main.
 - Estado detalhado e pendências em `docs/TAURI_MIGRATION.md`. Não apresentar a migração como concluída: faltam paridade completa, migração dos dados, atualização nativa assinada e validação real de Linux/macOS.
 - Backend compila no Windows; 11 testes Rust e TypeScript passaram. Workflow separado gera pacotes de desenvolvimento DEB/AppImage e DMG para Intel/Apple Silicon, sem publicar atualização estável.
+- Pacotes preliminares concluídos: run `41078258226`, commit `4e95f68521f8093d3ce75d407140aa82dfaada5e`. Agora são 12 testes aprovados nos três destinos, produção compilada e processo Linux aberto por 12 segundos em Xvfb. Arquivos locais em `../releases/tauri-0.1.30-preview`, com LEIA-ME e hashes. Mac ad-hoc, sem notarização. Sem testes autenticados nem validação interativa no Mac; migração continua incompleta.
 
 Notas anteriores: [histórico da versão 0.1.27-2](docs/history/continuation-0.1.27-2.md). Esse histórico descreve uma versão antiga; para o estado atual, use as notas abaixo.
 

@@ -26,11 +26,13 @@ Status: **in progress; not a distributable replacement**. Work is isolated on `c
 - Add non-destructive migration of existing databases and media, with a backup and transaction-based schema upgrades. Never overwrite an existing database.
 - Implement native window/file dialogs and a Tauri-compatible updater. Electron ASAR updates are not valid Tauri updates.
 - Complete unit/integration tests and Linux/macOS launch smoke tests, including concurrent tasks and cancellation.
-- Only then enable AppImage/DEB and Intel/Apple Silicon macOS APP/DMG artifact publication. macOS signing/notarization is a separate release credential setup; an unsigned development build must be labeled accordingly.
+- Only then enable stable AppImage/DEB and Intel/Apple Silicon macOS APP/DMG release publication. Preview artifacts are explicitly marked as incomplete development builds. macOS signing/notarization is a separate release credential setup; an ad-hoc development build must be labeled accordingly.
 
 ## Validation so far
 
-Windows Rust compilation and 12 unit tests passed (storage, conversations, SSE fragmentation/errors, tool names/workspace restrictions, skill validation, YAML roundtrip and ZIP traversal). TypeScript passes. The first Linux/macOS CI unit-test jobs passed; packaging is still in progress. Actual authenticated provider calls have not yet been verified. Tests cover native modules, not full application parity.
+Windows Rust compilation and 12 unit tests passed (storage, conversations, SSE fragmentation/errors, tool names/workspace restrictions, selected-skill access, skill validation, YAML roundtrip and ZIP traversal). TypeScript passes. Linux x64 and macOS Intel/Apple Silicon CI tests and production packaging passed in run [41078258226](https://github.com/iwerry/chatorbit-app/actions/runs/41078258226), code commit `4e95f68521f8093d3ce75d407140aa82dfaada5e`. Linux process launch passed a 12-second Xvfb smoke test with isolated data. Mac packages use ad-hoc signing and include the microphone usage description. Actual authenticated provider calls and interactive macOS launch have not been verified. Tests cover native modules, not full application parity.
+
+Preview DEB/AppImage and both DMGs were downloaded to the parent workspace's `releases/tauri-0.1.30-preview`, their format signatures verified, and `SHA256SUMS.txt` generated. This local output is outside the Git repository. The public cloud health endpoint returned `ok: true`, `openrouter: true`, `payments: false`; no paid generation was performed.
 
 No Node sidecar is part of the selected architecture. Do not describe a compiled shell or the browser fallback as a completed migration.
 
