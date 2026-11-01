@@ -16,13 +16,15 @@ Most are not AI specialists. They expect professional tools that explain themsel
 
 ## Product Purpose
 
-Orbi puts everything a professional needs from AI in one app: chat with web search, projects and memory; a Creative studio for images, video, voice and node workflows; a Creator Studio for skills, agents, multi-agent teams and harnesses; MCP tools; a native terminal; and a media library. Models run locally on the user's PC or in the cloud, chosen per task.
+Orbi puts everything a professional needs from AI in one app: chat with web search, projects and memory; a Creative studio for images, video and node workflows; an Audio studio for voiceover, music and sound effects; a Creator Studio for skills, agents, multi-agent teams and harnesses; MCP tools; a native terminal; and a media library.
+
+All AI runs on **Orbi Cloud**: the user signs in with an Orbi account and pays with credits (subscription plus extra credit packs). Behind it, every model comes from OpenRouter through Orbi's own server (Supabase); the user never brings an API key and nothing runs on a local AI engine.
 
 Success: a professional opens Orbi instead of juggling separate chat, image, video, voice, automation and terminal tools, and finishes the job inside it.
 
 ## Positioning
 
-**Everything in one app.** Chat, images, video, voice, workflows, skills and agents, MCP tools and a terminal share one workspace, one media library, one set of agents and skills, and one model picker that mixes local and cloud models. Neighbors each cover one part (a chat, a node editor, a model runner, a terminal); Orbi's mechanism is that the parts feed each other — a chat answer becomes a workflow prompt, a render lands in the shared library, an agent uses the same skills and tools everywhere.
+**Everything in one app, one account.** Chat, images, video, audio, workflows, skills and agents, MCP tools and a terminal share one workspace, one media library, one set of agents and skills, one credit balance and one model picker with the market's best models (ChatGPT, Claude, Gemini, DeepSeek, Kimi, Nano Banana, Veo, Kling, Seedance, ElevenLabs, Lyria…). Neighbors each cover one part (a chat, a node editor, a model runner, a terminal); Orbi's mechanism is that the parts feed each other — a chat answer becomes a workflow prompt, a render lands in the shared library, an agent uses the same skills and tools everywhere.
 
 ## Operating Context
 
@@ -30,19 +32,22 @@ Success: a professional opens Orbi instead of juggling separate chat, image, vid
 - Three themes the user switches at will: Light, Dark and Terminal.
 - Languages: English default, with Português (Brasil), Español and Français.
 - Work arrives as attachments (documents, images, spreadsheets, audio) and leaves as files, media in the library, boards, exported workflows, skills and agent bundles.
-- Hardware ranges from laptops without a GPU to strong NVIDIA workstations; Orbi measures the PC and says what will run well, slow or not at all.
-- Updates arrive from GitHub releases inside the app; versions follow `0.1.DD-N`.
+- Any PC works: generation happens in the cloud. Microphones and speakers vary (laptop mic, USB audio interface, headset or none); the user picks input and output devices, and Orbi keeps working without a microphone.
+- Updates arrive from GitHub releases inside the app; versions follow `0.1.DD-N`. When a release only changes the interface, Orbi applies it without restarting; app updates use the installer. The user always decides when.
 
 ## Capabilities and Constraints
 
-- Chat: local (llama.cpp) and cloud providers, web search, attachments, projects, memory, temporary chat (not saved), slash commands (`/web`, `/image`, `/video`, `/skill-creator`, `/agents`, `/multi-agents`, `/harness`, …) and `@` mentions for agents and teams. The message box teaches commands (typewriter examples, command guide, Tab completion), picks the microphone and speaker, and switches Chat · Image · Video. Renders asked in chat run in the Creative queue and show in the chat.
+- Account: Orbi Cloud sign-in (e-mail and password, confirmation and password reset by e-mail code), plans and credit packs (Stripe, still being set up), credits shown everywhere; admins (by e-mail on the server) give credits and see totals.
+- Models and prices: every list (text, image, video, voice, dictation, music) groups models by company, puts Popular first, tags Top / Fast / Cheap, and shows the price — OpenRouter US$ for admins, credits for everyone else. Each image and video model offers only its own aspect ratios, resolutions and durations. The cost is shown before a run and the amount spent after it.
+- Chat: Orbi Cloud models, web search, attachments, projects, memory, temporary chat (not saved), slash commands (`/web`, `/image`, `/video`, `/skill-creator`, `/agents`, `/multi-agents`, `/harness`, …) and `@` mentions for agents and teams. The message box teaches commands (typewriter examples, command guide, Tab completion), picks the microphone and speaker, and switches Chat · Image · Video. Renders asked in chat run in the Creative queue and show in the chat.
 - Media Library: full page with search, kind, origin and board filters, full-screen viewer, and follow-ups (make a video, upscale, edit, use prompt).
-- Creative: Launchpad ideas, Canvas (prompt, negative prompt, magic wand, size, quality, seed, mask inpainting), Workflows (ComfyUI-style typed nodes, templates, ComfyUI import), Gallery with boards, full-screen viewer.
-- Local engines: stable-diffusion.cpp (image and video), llama.cpp, whisper/sherpa-onnx (dictation, voices), optional Python voices. Each model shows license, size and fit for this PC.
+- Creative: Launchpad ideas (each opens with a named model and shows its cost; covers ship with the app), Canvas (prompt, negative prompt, Improve and Random, aspect ratio, resolution, duration, sound), Workflows (ComfyUI-style typed nodes, templates set to the best models, ComfyUI import), Gallery with boards, full-screen viewer.
+- Audio: voiceover (text to speech with each model's voices), music (Lyria clips or full songs, instrumental or with lyrics) and sound effects; results go to the Media Library.
+- Voice in chat: dictation and read-aloud through Orbi Cloud models only (no downloaded or operating-system voices).
 - Creator Studio with the SKILLSMITH brain: create, test, audit, export and import skills, agents, teams and harnesses.
 - MCP servers bundled (filesystem, memory, sequential thinking, Playwright) plus a catalog; risky tool calls ask first.
-- Terminology in the UI: Skills, Agents, Multi-agents, Harness, Workflows, Boards, Media Library, Launchpad, Canvas, Gallery, Models.
-- Constraint: features must degrade gracefully on PCs without a strong GPU (lighter models, honest warnings, never blocked silently).
+- Terminology in the UI: Skills, Agents, Multi-agents, Harness, Workflows, Boards, Media Library, Launchpad, Canvas, Gallery, Audio, Credits.
+- Constraints: provider keys never live in the app or the public repository (only in Orbi's server secrets); when the AI balance or a model fails, the message says so plainly. Undecided: final plan prices, Stripe live mode, Google sign-in, own e-mail sender, the website and the mobile app (same account and server), and the move from Electron to Tauri.
 
 ## Brand Commitments
 
@@ -54,14 +59,15 @@ Success: a professional opens Orbi instead of juggling separate chat, image, vid
 
 - Real product, shipping as Windows releases on GitHub (`iwerry/chatorbit-app`), with release notes per version in `RELEASE_NOTES.md`.
 - Built-in library of skills and agents per profession; two full skills by Daniel Rodrigues (`electron/skills-bundled/`) and SKILLSMITH (`iwerry/SKILLSMITH`).
-- No customer testimonials, usage numbers, pricing or press exist yet — do not invent them.
+- Plan prices in the app (Pro US$ 19, Studio US$ 49, packs US$ 6 and US$ 22) are starting hypotheses, not decided prices.
+- No customer testimonials, usage numbers or press exist yet — do not invent them.
 
 ## Product Principles
 
 1. **One place, connected parts.** New features join the shared library, models, skills and agents instead of becoming isolated tools.
 2. **Professional, not technical.** Explain in the user's words what a control does; hide engine details until they help.
-3. **Honest about the machine.** Say what runs well, slowly or not at all on this PC, and why; never fail silently.
-4. **The user stays in control.** Ask before risky actions, show licenses, keep everything exportable.
+3. **Honest about cost and limits.** Show what a run will cost before it starts and what it cost after; say plainly when a model, the balance or the connection fails; never fail silently.
+4. **The user stays in control.** Ask before risky actions and before installing updates, keep everything exportable.
 5. **Same product in every theme and language.** Themes and translations change the look and words, never the behavior or layout.
 
 ## Accessibility & Inclusion

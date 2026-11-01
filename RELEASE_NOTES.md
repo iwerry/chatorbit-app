@@ -1,4 +1,16 @@
-## Orbi 0.1.30-2
+## Orbi 0.2.1-1
+
+- **Menus reorganizados:**
+  - Novo menu **Criar**: imagem, vídeo, Canvas, Workflow, ideias, locução, música, efeitos sonoros e Biblioteca de mídia.
+  - O menu Seleção entrou no Editar. O Exibir não repete mais os atalhos de navegação. O Ir segue os mesmos grupos da barra lateral.
+- **Barra lateral em grupos:** Criar (chats, Creative, Áudio, Mídia), Construir (Explorar, Studio, MCP) e Seus (agendados, memória, favoritos), com um separador entre eles.
+- **Textos novos:**
+  - Tela inicial sem o "no seu PC ou na nuvem".
+  - Sem internet: "Sem conexão com o Orbi Cloud", com o que fazer.
+  - Menu do perfil mostra o plano e os créditos; "Planos e créditos" abre a sua conta.
+  - Saudação e avatar usam o nome da sua conta Orbi.
+
+## Orbi 0.1.30-2 (previous)
 
 - Atualizações Windows continuam pela release estável do GitHub, incluindo pacotes rápidos de interface quando o backend é compatível.
 - Backend Rust/Tauri e frontend compartilhados na main, com canal nativo assinado para Linux e macOS.

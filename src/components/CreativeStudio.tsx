@@ -138,6 +138,17 @@ export function CreativeStudio({
   visible?: boolean
 }) {
   const [tab, setTab] = useState<Tab>('canvas')
+  // A tab asked for from the Create menu.
+  useEffect(() => {
+    const take = () => {
+      const w = window as unknown as { __orbiCreativeTab?: Tab }
+      if (w.__orbiCreativeTab) setTab(w.__orbiCreativeTab)
+      w.__orbiCreativeTab = undefined
+    }
+    take()
+    window.addEventListener('orbi:creative-tab', take)
+    return () => window.removeEventListener('orbi:creative-tab', take)
+  }, [])
   const [flowMounted, setFlowMounted] = useState(false)
   useEffect(() => {
     if (tab === 'workflows') setFlowMounted(true)

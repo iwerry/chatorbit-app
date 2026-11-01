@@ -1,6 +1,6 @@
 // Audio studio: voiceover (text to speech), music (Lyria) and sound effects, all on Orbi Cloud.
 // Same pattern as the Creative studio: controls on the left, results on the right, cost shown before you generate.
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, Download, Loader2, Mic2, Music, Sparkles, Volume2, Wallet, Waves } from 'lucide-react'
 import { activity } from '../lib/activity'
 import { api, type MediaItem } from '../lib/api'
@@ -24,7 +24,22 @@ const VOICE_IDEAS = ['Bem-vindo ao Orbi. Aqui você cria imagens, vídeos e áud
 
 export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount, visible = true }: { visible?: boolean; media: MediaItem[]; onBack: () => void; onMediaCreated: (m: MediaItem) => void; onOpenAccount: () => void }) {
   const { catalog, state } = useCloud()
-  const [tab, setTab] = useState<Tab>('voice')
+  // A tab asked for from the Create menu (also when this page opens for the first time).
+  const pending = () => {
+    const w = window as unknown as { __orbiAudioTab?: Tab }
+    const v = w.__orbiAudioTab
+    w.__orbiAudioTab = undefined
+    return v
+  }
+  const [tab, setTab] = useState<Tab>(() => pending() || 'voice')
+  useEffect(() => {
+    const on = () => {
+      const v = pending()
+      if (v) setTab(v)
+    }
+    window.addEventListener('orbi:audio-tab', on)
+    return () => window.removeEventListener('orbi:audio-tab', on)
+  }, [])
   const [script, setScript] = useState('')
   const [voiceModel, setVoiceModel] = useState('')
   const [voice, setVoice] = useState('')

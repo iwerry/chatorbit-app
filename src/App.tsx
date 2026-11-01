@@ -1,4 +1,4 @@
-import { type CSSProperties, type FormEvent, type PointerEvent as ReactPointerEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, type CSSProperties, type FormEvent, type PointerEvent as ReactPointerEvent, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowUp,
   Blocks,
@@ -294,6 +294,8 @@ export default function App() {
   }
   // Chat · Image · Video in the same box.
   const cloud = useCloud()
+  // The name shown in the app: the Orbi account's name when signed in, else the computer's user name.
+  const shownName = (CLOUD_ONLY && cloud.state?.user?.name) || userName
   useEffect(() => {
     const open = () => setSettingsOpen('account')
     window.addEventListener('orbi:open-account', open)
@@ -690,12 +692,12 @@ export default function App() {
     // Tiny local models have small context windows and get confused by long instructions.
     if (target?.provider === 'orbi') {
       const a = activeAgentList()[0]
-      return [`You are Orbi, a helpful assistant. The user's name is ${userName}. Answer briefly, in the user's language.`, a ? a.instructions.slice(0, 600) : '']
+      return [`You are Orbi, a helpful assistant. The user's name is ${shownName}. Answer briefly, in the user's language.`, a ? a.instructions.slice(0, 600) : '']
         .filter(Boolean)
         .join('\n')
     }
     const parts = [
-      `You are Orbi, a helpful AI assistant and creative partner made by OrbiX. Today is ${new Date().toLocaleDateString('en-US', { dateStyle: 'full' })}. The user's name is ${userName}. Answer in the user's language. Use Markdown when it helps.`,
+      `You are Orbi, a helpful AI assistant and creative partner made by OrbiX. Today is ${new Date().toLocaleDateString('en-US', { dateStyle: 'full' })}. The user's name is ${shownName}. Answer in the user's language. Use Markdown when it helps.`,
     ]
     const chosen = agents.filter((a) => activeAgents.includes(a.handle) || activeOverride.current.includes(a.handle))
     const skillNames = new Set(activeSkills)
@@ -1347,6 +1349,15 @@ export default function App() {
     { id: 'view.fullscreen', category: 'View', label: 'Full Screen', shortcut: 'F11', run: () => api.win.fullscreen() },
     // Go
     ...navItems.map((n, i) => ({ id: `go.${n.id}`, category: 'Go', label: n.label, shortcut: i < 9 ? `Alt+${i + 1}` : undefined, checked: activeNav === n.id && (isPage(n.id) || panelOpen), run: () => goNav(n.id) })),
+    // Create: one place to start any kind of work.
+    { id: 'create.image', category: 'Create', label: 'Image in the Chat', run: () => { goNav('chats'); setComposeMode('image'); textareaRef.current?.focus() } },
+    { id: 'create.video', category: 'Create', label: 'Video in the Chat', run: () => { goNav('chats'); setComposeMode('video'); textareaRef.current?.focus() } },
+    { id: 'create.canvas', category: 'Create', label: 'Creative Canvas', run: () => openCreativeTab('canvas') },
+    { id: 'create.workflow', category: 'Create', label: 'Workflow', run: () => openCreativeTab('workflows') },
+    { id: 'create.ideas', category: 'Create', label: 'Ideas (Launchpad)', run: () => openCreativeTab('launchpad') },
+    { id: 'create.voice', category: 'Create', label: 'Voiceover', run: () => openAudioTab('voice') },
+    { id: 'create.music', category: 'Create', label: 'Music', run: () => openAudioTab('music') },
+    { id: 'create.sfx', category: 'Create', label: 'Sound Effects', run: () => openAudioTab('sfx') },
     { id: 'go.nextChat', category: 'Go', label: 'Next Chat', shortcut: 'Alt+Down', run: () => stepChat(1) },
     { id: 'go.prevChat', category: 'Go', label: 'Previous Chat', shortcut: 'Alt+Up', run: () => stepChat(-1) },
     { id: 'go.chat', category: 'Go', label: 'Go to Chat…', shortcut: 'Ctrl+P', run: () => setPalette('chats') },
@@ -1371,12 +1382,23 @@ export default function App() {
     { id: 'help.about', category: 'Help', label: 'About Orbi', run: () => setSettingsOpen('about') },
   ]
   const commands = Object.fromEntries(commandList.map((c) => [c.id, c]))
+  // Open a tab of Creative or Audio from a menu (the studio listens for these).
+  const openCreativeTab = (tab: 'launchpad' | 'canvas' | 'workflows' | 'gallery') => {
+    ;(window as unknown as { __orbiCreativeTab?: string }).__orbiCreativeTab = tab
+    goNav('creative')
+    setTimeout(() => window.dispatchEvent(new CustomEvent('orbi:creative-tab', { detail: tab })), 60)
+  }
+  const openAudioTab = (tab: 'voice' | 'music' | 'sfx') => {
+    ;(window as unknown as { __orbiAudioTab?: string }).__orbiAudioTab = tab
+    goNav('audio')
+    setTimeout(() => window.dispatchEvent(new CustomEvent('orbi:audio-tab', { detail: tab })), 120)
+  }
   const menus: MenuDef[] = [
     { label: 'File', items: ['file.newChat', 'file.newTemp', 'file.newWindow', 'file.newProject', '-', 'file.openFile', 'file.import', '-', 'file.export', '-', 'file.settings', CLOUD_ONLY ? 'file.account' : 'file.localAI', '-', 'file.closeChat', 'file.closeWindow', '-', 'file.exit'] },
-    { label: 'Edit', items: ['edit.undo', 'edit.redo', '-', 'edit.cut', 'edit.copy', 'edit.paste', '-', 'edit.find', 'edit.searchChats', '-', 'edit.copyAnswer', 'edit.clearComposer'] },
-    { label: 'Selection', items: ['sel.all', 'sel.lastAnswer', '-', 'sel.copy', 'sel.quote', '-', 'sel.runTerminal', 'sel.clear'] },
-    { label: 'View', items: ['view.palette', '-', 'go.chats', 'go.creative', 'go.explore', 'go.agents', 'go.skills', 'go.mcp', 'go.media', '-', 'view.sidebar', 'view.workspace', 'view.terminal', '-', { label: 'Appearance', submenu: ['view.light', 'view.dark', 'view.terminalTheme'] }, 'view.zoomIn', 'view.zoomOut', 'view.zoomReset', 'view.fullscreen'] },
-    { label: 'Go', items: ['go.chats', 'go.creative', 'go.explore', 'go.agents', 'go.skills', 'go.mcp', 'go.scheduled', 'go.memory', 'go.bookmarks', 'go.media', '-', 'go.nextChat', 'go.prevChat', '-', 'go.chat'] },
+    { label: 'Edit', items: ['edit.undo', 'edit.redo', '-', 'edit.cut', 'edit.copy', 'edit.paste', '-', 'sel.all', 'sel.lastAnswer', 'sel.quote', '-', 'edit.find', 'edit.searchChats', '-', 'edit.copyAnswer', 'edit.clearComposer'] },
+    { label: 'Create', items: ['create.image', 'create.video', '-', 'create.canvas', 'create.workflow', 'create.ideas', '-', 'create.voice', 'create.music', 'create.sfx', '-', 'go.media'] },
+    { label: 'View', items: ['view.palette', '-', 'view.sidebar', 'view.workspace', 'view.terminal', '-', { label: 'Appearance', submenu: ['view.light', 'view.dark', 'view.terminalTheme'] }, '-', 'view.zoomIn', 'view.zoomOut', 'view.zoomReset', 'view.fullscreen'] },
+    { label: 'Go', items: ['go.chats', 'go.creative', 'go.audio', 'go.media', '-', 'go.explore', 'go.studio', 'go.mcp', '-', 'go.scheduled', 'go.memory', 'go.bookmarks', '-', 'go.nextChat', 'go.prevChat', 'go.chat'] },
     { label: 'Terminal', items: ['term.new', 'term.toggle', '-', 'term.runSelection', 'term.runLastCode', 'term.workspace', '-', 'term.clear', 'term.kill'] },
     { label: 'Help', items: ['help.welcome', ...(CLOUD_ONLY ? [] : ['help.setup']), 'help.commands', 'help.docs', '-', 'help.issue', '-', 'help.devtools', 'help.reload', 'help.data', '-', 'help.updates', 'help.about'] },
   ]
@@ -1545,10 +1567,13 @@ export default function App() {
           <OrbiMark width={21} height={21} />
         </button>
         <div className="rail-navigation">
-          {navItems.map((item) => {
+          {navItems.map((item, i) => {
             const Icon = item.icon
             const selected = activeNav === item.id && (isPage(item.id) || panelOpen)
+            const newGroup = i > 0 && navItems[i - 1].group !== item.group
             return (
+              <Fragment key={item.id}>
+              {newGroup && <span className="rail-sep" aria-hidden="true" />}
               <button
                 key={item.id}
                 className={`rail-button ${selected ? 'rail-button-active' : ''} ${activities.some((a) => a.area === item.id) ? 'rail-busy' : ''}`}
@@ -1561,12 +1586,13 @@ export default function App() {
                 <Icon size={18} strokeWidth={1.8} />
                 {activities.some((a) => a.area === item.id) && <span className="rail-busy-count num">{activities.filter((a) => a.area === item.id).length}</span>}
               </button>
+              </Fragment>
             )
           })}
         </div>
         <div className="rail-footer">
           <button className={`rail-avatar ${profileOpen ? 'rail-avatar-active' : ''}`} onClick={() => setProfileOpen((v) => !v)} aria-label="Open profile menu" aria-expanded={profileOpen}>
-            {initials(userName)}
+            {initials(shownName)}
           </button>
         </div>
       </nav>
@@ -1576,10 +1602,15 @@ export default function App() {
           <button className="profile-menu-backdrop" onClick={() => setProfileOpen(false)} aria-label="Close profile menu" />
           <div className="profile-menu" role="menu" aria-label="Profile menu">
             <div className="profile-menu-account">
-              <div className="avatar avatar-profile-menu">{initials(userName)}</div>
+              <div className="avatar avatar-profile-menu">{initials(shownName)}</div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-white">{userName}</p>
-                <p className="mt-0.5 text-[11px] text-[color:var(--neo-faint)]">{t('Local account')} · Orbi {info?.version}</p>
+                <p className="truncate text-sm font-semibold text-white">{shownName}</p>
+                <p className="mt-0.5 truncate text-[11px] text-[color:var(--neo-faint)]">
+                  {CLOUD_ONLY && cloud.state?.user
+                    ? `${cloud.state.user.plan ? t('{plan} plan', { plan: cloud.state.user.plan.name }) : t('No plan yet')} · ${fmtCredits(cloud.state.user.credits.total)} ${t('credits')}`
+                    : t('Local account')}{' '}
+                  · Orbi {info?.version}
+                </p>
               </div>
             </div>
             <div className="profile-menu-separator" />
@@ -1588,11 +1619,12 @@ export default function App() {
               role="menuitem"
               onClick={() => {
                 setProfileOpen(false)
-                api.openExternal('https://orbix.com')
+                if (CLOUD_ONLY) setSettingsOpen('account')
+                else api.openExternal('https://orbix.com')
               }}
             >
               <Crown size={16} />
-              <span>{t('Upgrade plan')}</span>
+              <span>{CLOUD_ONLY ? t('Plans and credits') : t('Upgrade plan')}</span>
             </button>
             <button
               className="profile-menu-item"
@@ -2031,7 +2063,7 @@ export default function App() {
                       <div className="standard-title-icon">
                         <OrbiMark width={26} height={26} />
                       </div>
-                      <h2>{themeMode === 'terminal' ? t('System ready, {name}.', { name: userName }) : `${t(greeting())}, ${userName}.`}</h2>
+                      <h2>{themeMode === 'terminal' ? t('System ready, {name}.', { name: shownName }) : `${t(greeting())}, ${shownName}.`}</h2>
                       <p>{themeMode === 'terminal' ? t('Initialize a multimodal workflow.') : t('One workspace for your ideas. Chat, images, video and sound.')}</p>
                     </div>
                   )
@@ -2187,7 +2219,7 @@ export default function App() {
                             </div>
                           )}
                         </div>
-                        {item.role === 'user' && <div className="avatar avatar-user">{initials(userName)}</div>}
+                        {item.role === 'user' && <div className="avatar avatar-user">{initials(shownName)}</div>}
                       </div>
                     )
                   })}
@@ -2472,8 +2504,8 @@ export default function App() {
                   <button className="connect-banner" onClick={() => (setSettingsOpen('account'), loadModels())}>
                     <Wallet size={16} />
                     <span>
-                      <strong>{cloud.state?.online === false ? t('Orbi Cloud is offline') : t('No models from Orbi Cloud yet')}</strong>
-                      <small>{cloud.state?.online === false ? t('Start the Orbi Cloud server, then open your account to reconnect.') : t('The server needs its OpenRouter key. Open your account to check the connection.')}</small>
+                      <strong>{cloud.state?.online === false ? t('No connection to Orbi Cloud') : t('The models did not load yet')}</strong>
+                      <small>{cloud.state?.online === false ? t('Check your internet. Orbi reconnects by itself; open your account to try now.') : t('Open your account to check the connection and try again.')}</small>
                     </span>
                     <ChevronRight size={16} />
                   </button>

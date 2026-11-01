@@ -43,7 +43,7 @@ Versão desta revisão: **0.1.29-11** (publicação via GitHub Actions, `iwerry/
 ## Regras do projeto
 
 - Responder ao Daniel em **português**.
-- Versão no formato `0.1.DD-N` (DD = dia do mês). Cada push na `main` gera uma release, e o app instalado oferece a atualização.
+- Versão no formato `0.M.D-N` (M = mês desde outubro, D = dia sem zero à esquerda; ex.: 0.2.1-1 em 01/11). Zero à esquerda é semver inválido e o Cargo recusa. Cada push na `main` gera uma release, e o app instalado oferece a atualização.
   - Para subir só documentação sem gerar release, use `[skip ci]` na mensagem do commit.
 - Commits como `Claude <noreply@anthropic.com>`, terminando com `Co-Authored-By` e `Claude-Session`.
 - **Nunca** colocar chaves (OpenRouter, Stripe, senha do banco) no código, no app ou no Git: o repositório é público.
@@ -68,6 +68,14 @@ Versão desta revisão: **0.1.29-11** (publicação via GitHub Actions, `iwerry/
 | `supabase/` | Migração do banco e a Edge Function `orbi` (ver `supabase/README.md`) |
 | `library-imports/INDEX.md` | Lista de tarefas detalhada |
 | `RELEASE_NOTES.md` | O que mudou em cada versão |
+
+## 01/11: o que mudou
+
+- **0.2.1-1 (só interface, atualização rápida):** Impeccable init.
+  - `PRODUCT.md` atualizado para o Orbi só na nuvem.
+  - `navItems` com `group` (create / build / yours) e `.rail-sep` entre grupos (`WorkspacePanel.tsx`, `studio.css`).
+  - Menu Criar novo, Seleção dentro de Editar, Exibir sem `go.*` (`App.tsx`).
+  - Textos do hero, do aviso offline e do menu do perfil; `shownName` usa o nome da conta.
 
 ## 29/10: o que mudou
 

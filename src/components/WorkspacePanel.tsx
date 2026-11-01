@@ -37,17 +37,19 @@ export type NavKey = 'chats' | 'creative' | 'audio' | 'explore' | 'studio' | 'ag
 // Full-page sections (no side panel).
 export const isPage = (s: string) => s === 'creative' || s === 'audio' || s === 'explore' || s === 'studio' || s === 'media'
 
+// The tool rail in three groups by meaning: make things · build your own AI · your stuff.
+export type NavGroup = 'create' | 'build' | 'yours'
 export const navItems = [
-  { id: 'chats' as const, label: 'Chats', icon: MessageSquareText },
-  { id: 'creative' as const, label: 'Creative', icon: WandSparkles },
-  { id: 'audio' as const, label: 'Audio', icon: AudioLines },
-  { id: 'explore' as const, label: 'Explore', icon: Compass },
-  { id: 'studio' as const, label: 'Creator Studio', icon: Hammer },
-  { id: 'mcp' as const, label: 'MCP & Plugins', icon: Plug },
-  { id: 'scheduled' as const, label: 'Scheduled Chats', icon: CalendarClock },
-  { id: 'memory' as const, label: 'Memory', icon: Brain },
-  { id: 'bookmarks' as const, label: 'Bookmarks', icon: Bookmark },
-  { id: 'media' as const, label: 'Media Library', icon: Library },
+  { id: 'chats' as const, label: 'Chats', icon: MessageSquareText, group: 'create' as NavGroup },
+  { id: 'creative' as const, label: 'Creative', icon: WandSparkles, group: 'create' as NavGroup },
+  { id: 'audio' as const, label: 'Audio', icon: AudioLines, group: 'create' as NavGroup },
+  { id: 'media' as const, label: 'Media Library', icon: Library, group: 'create' as NavGroup },
+  { id: 'explore' as const, label: 'Explore', icon: Compass, group: 'build' as NavGroup },
+  { id: 'studio' as const, label: 'Creator Studio', icon: Hammer, group: 'build' as NavGroup },
+  { id: 'mcp' as const, label: 'MCP & Plugins', icon: Plug, group: 'build' as NavGroup },
+  { id: 'scheduled' as const, label: 'Scheduled Chats', icon: CalendarClock, group: 'yours' as NavGroup },
+  { id: 'memory' as const, label: 'Memory', icon: Brain, group: 'yours' as NavGroup },
+  { id: 'bookmarks' as const, label: 'Bookmarks', icon: Bookmark, group: 'yours' as NavGroup },
 ]
 
 function groupLabel(ts: number) {

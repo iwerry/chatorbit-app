@@ -5630,3 +5630,13 @@ form.composer {
   flex: none;
   justify-content: center;
 }
+
+/* Tool rail groups: make things · build your own AI · your stuff. */
+.rail-sep {
+  display: block;
+  width: 22px;
+  height: 1px;
+  flex: none;
+  margin: 6px 0;
+  background: var(--neo-line);
+}
