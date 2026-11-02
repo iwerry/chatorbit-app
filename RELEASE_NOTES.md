@@ -1,4 +1,14 @@
-## Orbi 0.2.1-1
+## Orbi 0.2.2-1
+
+- **Visualizador de mídia ajustado a qualquer formato:** imagem e vídeo cabem inteiros na tela, seja 9:16, 1:1, 16:9 ou 21:9, sem corte embaixo.
+  - O painel de detalhes mostra o tamanho real e o formato (ex.: "3:4 · vertical"). "Usar prompt" e "Copiar prompt" ficam logo abaixo do prompt.
+  - Em janela estreita, os detalhes abrem por cima da imagem em vez de espremer. Em janela baixa, a faixa de miniaturas some antes da imagem ficar pequena.
+  - Áudios aparecem com ícone de música na faixa.
+- **Biblioteca de mídia em mosaico:** cada imagem mantém o próprio formato, sem recorte quadrado. Imagens muito altas têm um limite para não ocupar a página toda.
+- **Segurança:** o servidor de arquivos (Filesystem) agora só enxerga a pasta Documentos/Orbi, não a pasta pessoal inteira. Qualquer ferramenta que tente usar chaves SSH, arquivos .env, senhas ou perfis de navegador pede sua aprovação, mesmo para leitura e mesmo com aprovação automática ligada.
+- **Créditos (servidor):** o saldo precisa cobrir o custo estimado antes de começar; vídeos que ficaram sem acompanhamento são fechados e cobrados uma única vez; se o OpenRouter não informar o custo, vale a estimativa do catálogo.
+
+## Orbi 0.2.1-1 (previous)
 
 - **Menus reorganizados:**
   - Novo menu **Criar**: imagem, vídeo, Canvas, Workflow, ideias, locução, música, efeitos sonoros e Biblioteca de mídia.

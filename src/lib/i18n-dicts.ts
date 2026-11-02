@@ -1,6 +1,9 @@
 // UI translations. English is the key; each row is [en, pt-BR, es, fr].
 // Missing keys fall back to English, so new strings never break the UI.
 const ROWS: [string, string, string, string][] = [
+  ["horizontal", "horizontal", "horizontal", "horizontal"],
+  ["vertical", "vertical", "vertical", "vertical"],
+  ["square", "quadrada", "cuadrada", "carrée"],
   ['Completed', 'Concluído', 'Completado', 'Terminé'],
   ['Stopped', 'Interrompido', 'Detenido', 'Arrêté'],
   ['Continue through tools until the task is verified; Stop interrupts', 'Continue com ferramentas até verificar a tarefa; Parar interrompe', 'Continúa con herramientas hasta verificar la tarea; Detener interrumpe', 'Continuez avec les outils jusqu’à vérification ; Arrêter interrompt'],

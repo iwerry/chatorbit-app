@@ -49,7 +49,23 @@ async function costOf(generationId: string, tries = 4): Promise<number> {
   return 0
 }
 
-const charge = (c: Caller, costUsd: number, model: string, note: string, ref = '') => debit(c.id, chargeFor(costUsd), costUsd, model, note, ref)
+// Charges what OpenRouter reported. When no cost comes back, the catalog estimate is the floor, so a
+// generation is never free by accident (the ledger note says "(est.)").
+const chargeUser = (user: string, costUsd: number, model: string, note: string, ref = '', estimate = 0) => {
+  let usd = costUsd > 0 ? costUsd : 0
+  if (!(usd > 0) && estimate > 0) {
+    usd = estimate
+    note += ' (est.)'
+    console.warn(`[orbi] no cost from OpenRouter for ${model} (${ref}); charged the estimate $${estimate.toFixed(4)}`)
+  }
+  return debit(user, chargeFor(usd), usd, model, note, ref)
+}
+const charge = (c: Caller, costUsd: number, model: string, note: string, ref = '', estimate = 0) => chargeUser(c.id, costUsd, model, note, ref, estimate)
+
+// Before a generation starts, the balance must cover its estimated cost (not just 1 credit), so a long
+// answer or an expensive picture cannot push the account far below zero.
+const needFor = (usd: number, min: number) => Math.max(min, Math.ceil(creditsFor(usd)))
+const textLen = (v: unknown): number => (typeof v === 'string' ? v.length : Array.isArray(v) ? v.reduce((n, x) => n + textLen(x), 0) : v && typeof v === 'object' ? Object.values(v as Record<string, unknown>).reduce<number>((n, x) => n + textLen(x), 0) : 0)
 
 // ---------------------------------------------------------------- catalog
 
@@ -229,9 +245,14 @@ export async function modelList() {
 // ---------------------------------------------------------------- chat
 
 export async function chat(c: Caller, body: Record<string, unknown>): Promise<Response> {
-  requireCredits(c.profile, 1)
   const model = String(body.model || '')
   if (!model || model.endsWith(':free')) throw new HttpError(400, 'Pick a model.', 'bad_model')
+  // Estimate: prompt ≈ characters ÷ 4 tokens, answer up to max_tokens (or 2,000).
+  const price = (await catalog()).chat.find((m) => m.id === model)?.usd
+  const inTok = Math.ceil(textLen(body.messages) / 4)
+  const outTok = Number(body.max_tokens || body.max_completion_tokens) || 2000
+  const priceOf = (i: number, o: number) => (price ? (price.in * i + price.out * o) / 1e6 : 0)
+  requireCredits(c.profile, needFor(priceOf(inTok, outTok), 1))
   const payload = { ...body, user: c.id, usage: { include: true }, ...(body.stream ? { stream_options: { include_usage: true } } : {}) }
   const up = await orFetch('/chat/completions', { method: 'POST', body: JSON.stringify(payload) })
   if (!up.ok) await orError(up)
@@ -239,12 +260,16 @@ export async function chat(c: Caller, body: Record<string, unknown>): Promise<Re
     const j = (await up.json()) as { id?: string; usage?: { cost?: number } }
     let cost = j.usage?.cost
     if (cost === undefined && j.id) cost = await costOf(j.id)
-    await charge(c, cost || 0, model, 'Chat', j.id || '')
+    const u = (j as { usage?: { prompt_tokens?: number; completion_tokens?: number } }).usage
+    await charge(c, cost || 0, model, 'Chat', j.id || '', priceOf(u?.prompt_tokens ?? inTok, u?.completion_tokens ?? 0))
     return Response.json(j)
   }
   let cost: number | undefined
   let genId = ''
   let tail = ''
+  let pt = 0
+  let ct = 0
+  let chars = 0
   const dec = new TextDecoder()
   const meter = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, ctl) {
@@ -258,6 +283,9 @@ export async function chat(c: Caller, body: Record<string, unknown>): Promise<Re
           const j = JSON.parse(line.slice(5))
           if (j.id && !genId) genId = j.id
           if (typeof j.usage?.cost === 'number') cost = j.usage.cost
+          if (j.usage?.prompt_tokens) pt = j.usage.prompt_tokens
+          if (j.usage?.completion_tokens) ct = j.usage.completion_tokens
+          chars += textLen(j.choices?.[0]?.delta)
         } catch {
           /* partial line or keep-alive */
         }
@@ -265,7 +293,7 @@ export async function chat(c: Caller, body: Record<string, unknown>): Promise<Re
     },
     async flush() {
       if (cost === undefined && genId) cost = await costOf(genId)
-      await charge(c, cost || 0, model, 'Chat', genId)
+      await charge(c, cost || 0, model, 'Chat', genId, priceOf(pt || inTok, ct || Math.ceil(chars / 4)))
     },
   })
   return new Response(up.body!.pipeThrough(meter), { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' } })
@@ -274,14 +302,16 @@ export async function chat(c: Caller, body: Record<string, unknown>): Promise<Re
 // ---------------------------------------------------------------- images
 
 export async function image(c: Caller, body: Record<string, unknown>) {
-  requireCredits(c.profile, 20)
   const model = String(body.model || '')
+  const each = (await catalog()).image.find((m) => m.id === model)?.usd || 0
+  const est = each * Math.max(1, Number(body.n) || 1)
+  requireCredits(c.profile, needFor(est, 20))
   const up = await orFetch('/images', { method: 'POST', body: JSON.stringify({ ...body, user: c.id }) })
   if (!up.ok) await orError(up)
   const j = (await up.json()) as { id?: string; usage?: { cost?: number } }
   let cost = j.usage?.cost
   if (cost === undefined && j.id) cost = await costOf(j.id)
-  await charge(c, cost || 0, model, 'Image', j.id || '')
+  await charge(c, cost || 0, model, 'Image', j.id || '', est)
   return j
 }
 
@@ -295,36 +325,61 @@ export async function videoSubmit(c: Caller, body: Record<string, unknown>) {
   const model = String(body.model || '')
   const m = cat.video.find((x) => x.id === model)
   const seconds = Number(body.duration || m?.durations?.[0] || 5)
-  requireCredits(c.profile, m?.pricePerSecond ? Math.ceil(m.pricePerSecond * seconds) : 300)
+  const perSecond = m?.usdBySecond?.[String(body.resolution || '')] ?? m?.usdPerSecond ?? 0
+  const est = perSecond * seconds
+  requireCredits(c.profile, needFor(est, 300))
   const up = await orFetch('/videos', { method: 'POST', body: JSON.stringify(body) })
   if (!up.ok) await orError(up)
   const j = (await up.json()) as VideoStatus
-  await sql`insert into public.video_jobs (id, user_id, model, status) values (${j.id}, ${c.id}, ${model}, ${j.status || 'pending'})`
+  await sql`insert into public.video_jobs (id, user_id, model, status, est_usd) values (${j.id}, ${c.id}, ${model}, ${j.status || 'pending'}, ${est})`
   return publicJob(j)
 }
 
+type JobRow = { id: string; user_id: string; model: string; charged: boolean; est_usd: number | string | null }
+
 async function ownJob(c: Caller, id: string) {
-  const [row] = await sql<{ id: string; model: string; charged: boolean }[]>`select id, model, charged from public.video_jobs where id = ${id} and user_id = ${c.id}`
+  const [row] = await sql<JobRow[]>`select id, user_id, model, charged, est_usd from public.video_jobs where id = ${id} and user_id = ${c.id}`
   if (!row) throw new HttpError(404, 'Video not found.', 'not_found')
   return row
 }
 
-export async function videoStatus(c: Caller, id: string) {
-  const row = await ownJob(c, id)
-  const up = await orFetch(`/videos/${encodeURIComponent(id)}`)
+// Reads the job on OpenRouter, saves its status and charges it exactly once when it ends, even if two
+// polls (or a poll and the background check) arrive together. A failed video is not charged.
+async function settleJob(row: JobRow) {
+  const up = await orFetch(`/videos/${encodeURIComponent(row.id)}`)
   if (!up.ok) await orError(up)
   const j = (await up.json()) as VideoStatus
-  await sql`update public.video_jobs set status = ${j.status} where id = ${id}`
+  await sql`update public.video_jobs set status = ${j.status} where id = ${row.id}`
   if ((j.status === 'completed' || j.status === 'failed') && !row.charged) {
-    // Charge exactly once, even if two polls arrive together.
-    const claimed = await sql`update public.video_jobs set charged = true where id = ${id} and charged = false returning id`
+    const claimed = await sql`update public.video_jobs set charged = true where id = ${row.id} and charged = false returning id`
     if (claimed.length) {
       let cost = j.usage?.cost
       if (cost === undefined && j.status === 'completed' && j.generation_id) cost = await costOf(j.generation_id)
-      await charge(c, cost || 0, row.model, 'Video', id)
+      await chargeUser(row.user_id, cost || 0, row.model, 'Video', row.id, j.status === 'completed' ? Number(row.est_usd) || 0 : 0)
     }
   }
-  return publicJob(j)
+  return j
+}
+
+export async function videoStatus(c: Caller, id: string) {
+  return publicJob(await settleJob(await ownJob(c, id)))
+}
+
+/** Videos nobody polled until the end (the app was closed): settle them in the background. */
+export async function settlePendingVideos(userId: string | null, limit = 5) {
+  const rows = userId
+    ? await sql<JobRow[]>`select id, user_id, model, charged, est_usd from public.video_jobs where charged = false and user_id = ${userId} and created_at < now() - interval '2 minutes' order by created_at limit ${limit}`
+    : await sql<JobRow[]>`select id, user_id, model, charged, est_usd from public.video_jobs where charged = false and created_at < now() - interval '2 minutes' order by created_at limit ${limit}`
+  let settled = 0
+  for (const row of rows) {
+    try {
+      const j = await settleJob(row)
+      if (j.status === 'completed' || j.status === 'failed') settled++
+    } catch (e) {
+      console.warn(`[orbi] could not check video ${row.id}: ${(e as Error).message}`)
+    }
+  }
+  return { checked: rows.length, settled }
 }
 
 export async function videoContent(c: Caller, id: string, index: number): Promise<Response> {
@@ -371,7 +426,6 @@ function audioKind(b: Uint8Array): string | null {
 const pcmOnly = new Set<string>(['google/gemini-3.8-flash-tts', 'google/gemini-3.8-flash-lite-tts', 'google/gemini-3.1-flash-tts-preview'])
 
 export async function speech(c: Caller, body: Record<string, unknown>): Promise<Response> {
-  requireCredits(c.profile, 1)
   // Older apps may ask for a voice model that no longer exists: use the best one and its first voice.
   const cat = await catalog()
   let model = cat.tts.find((m) => m.id === body.model)
@@ -382,6 +436,8 @@ export async function speech(c: Caller, body: Record<string, unknown>): Promise<
   }
   const purpose = body.purpose
   delete body.purpose
+  const est = ((model?.usd || 0) * String(body.input || body.text || '').length) / 1000
+  requireCredits(c.profile, needFor(est, 1))
   const id = String(body.model || '')
   const ask = (format: string) => orFetch('/audio/speech', { method: 'POST', body: JSON.stringify({ ...body, response_format: format }) })
   let pcm = pcmOnly.has(id)
@@ -406,15 +462,16 @@ export async function speech(c: Caller, body: Record<string, unknown>): Promise<
   }
   const genId = up.headers.get('x-generation-id') || ''
   const cost = genId ? await costOf(genId) : 0
-  await charge(c, cost, id, purpose === 'sfx' ? 'Sound effect' : 'Voice', genId)
+  await charge(c, cost, id, purpose === 'sfx' ? 'Sound effect' : 'Voice', genId, est)
   return new Response(buf, { headers: { 'Content-Type': type } })
 }
 
 // ---------------------------------------------------------------- music (Lyria through chat completions)
 
 export async function music(c: Caller, body: Record<string, unknown>): Promise<Response> {
-  requireCredits(c.profile, 50)
   const model = String(body.model || 'google/lyria-3-clip-preview')
+  const est = (await catalog()).music.find((m) => m.id === model)?.usd ?? (/clip/.test(model) ? 0.04 : 0.08)
+  requireCredits(c.profile, needFor(est, 50))
   if (!/lyria|audio/i.test(model)) throw new HttpError(400, 'Pick a music model.', 'bad_model')
   const prompt = String(body.prompt || '').slice(0, 4000)
   if (!prompt) throw new HttpError(400, 'Describe the music.', 'bad_prompt')
@@ -463,7 +520,7 @@ export async function music(c: Caller, body: Record<string, unknown>): Promise<R
   }
   if (!audioKind(buf)) buf = wavFromPcm(buf, 48000, 2)
   if (cost === undefined && genId) cost = await costOf(genId)
-  await charge(c, cost || 0, model, 'Music', genId)
+  await charge(c, cost || 0, model, 'Music', genId, est)
   return new Response(buf, { headers: { 'Content-Type': audioKind(buf) || 'audio/wav', 'X-Orbi-Lyrics': encodeURIComponent(text.slice(0, 1500)) } })
 }
 

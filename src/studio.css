@@ -2985,28 +2985,36 @@ select optgroup {
   transition: background var(--dur-1, 0.12s);
 }
 .lightbox-top button:hover, .lightbox-top button.active { background: rgba(255, 255, 255, 0.12); color: #fff; }
-.lightbox-main { flex: 1; min-height: 0; display: flex; }
+.lightbox-main { position: relative; flex: 1; min-height: 0; display: flex; }
+/* The picture always fits the free space, whatever its shape (9:16, 1:1, 21:9…). Percentages resolve
+   against the stage because the media is absolutely placed inside it. */
 .lightbox-stage {
   position: relative;
   flex: 1;
   min-width: 0;
-  display: grid;
-  place-items: center;
-  padding: 18px 64px;
+  min-height: 0;
   overflow: hidden;
+  --lb-pad-x: clamp(12px, 5vw, 72px);
+  --lb-pad-y: clamp(10px, 2.5vh, 24px);
 }
-.lightbox-stage img, .lightbox-stage video {
-  max-width: 100%;
-  max-height: 100%;
+.lightbox-stage > img, .lightbox-stage > video {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: auto;
+  height: auto;
+  max-width: calc(100% - 2 * var(--lb-pad-x));
+  max-height: calc(100% - 2 * var(--lb-pad-y));
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   cursor: zoom-in;
   user-select: none;
 }
+.lightbox-stage > .lightbox-file { position: absolute; inset: 0; margin: auto; height: max-content; width: max-content; }
 .lightbox-stage video { cursor: default; }
-.lightbox-stage.zoomed { overflow: auto; place-items: start center; }
-.lightbox-stage.zoomed img { max-width: none; max-height: none; cursor: zoom-out; }
+.lightbox-stage.zoomed { overflow: auto; }
+.lightbox-stage.zoomed > img { position: static; display: block; margin: 0 auto; max-width: none; max-height: none; cursor: zoom-out; }
 .lightbox-file { display: grid; justify-items: center; gap: 14px; color: rgba(255, 255, 255, 0.7); }
 .lightbox-nav {
   position: absolute;
@@ -3026,15 +3034,18 @@ select optgroup {
 .lightbox-nav.prev { left: 12px; }
 .lightbox-nav.next { right: 12px; }
 .lightbox-info {
-  width: 300px;
+  width: clamp(260px, 24vw, 340px);
   flex-shrink: 0;
+  min-height: 0;
   overflow-y: auto;
   padding: 18px 18px 24px;
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 13px;
 }
 .lightbox-label { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); }
-.lightbox-prompt { margin: 0 0 16px; line-height: 1.55; white-space: pre-wrap; color: rgba(255, 255, 255, 0.9); max-height: 40vh; overflow-y: auto; }
+.lightbox-prompt { margin: 0 0 12px; line-height: 1.55; white-space: pre-wrap; color: rgba(255, 255, 255, 0.9); max-height: 32vh; overflow-y: auto; }
+.lightbox-info .lightbox-actions { margin-bottom: 18px; }
+.lightbox-shape { margin-left: 8px; font-style: normal; font-size: 11px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; }
 .lightbox-prompt.neg { color: #f2a7a7; }
 .lightbox-info dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; margin: 0 0 16px; }
 .lightbox-info dt { color: rgba(255, 255, 255, 0.5); }
@@ -3042,18 +3053,20 @@ select optgroup {
 .lightbox-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .lightbox-keys { margin-top: 18px; font-size: 11px; color: rgba(255, 255, 255, 0.4); }
 .lightbox-strip {
+  --lb-thumb: clamp(40px, 7vh, 60px);
   display: flex;
+  flex-shrink: 0;
   gap: 6px;
-  height: 78px;
-  padding: 10px 14px;
+  padding: 8px 14px;
   overflow-x: auto;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   scrollbar-width: thin;
 }
 .lightbox-strip button {
   flex-shrink: 0;
-  width: 58px;
-  height: 58px;
+  width: var(--lb-thumb);
+  height: var(--lb-thumb);
+  color: rgba(255, 255, 255, 0.7);
   border-radius: 8px;
   overflow: hidden;
   display: grid;
@@ -3067,9 +3080,20 @@ select optgroup {
 .lightbox-strip button:hover { opacity: 0.85; }
 .lightbox-strip button.active { opacity: 1; outline-color: var(--neo-accent-ink, var(--neo-accent)); }
 .lightbox-strip img, .lightbox-strip video { width: 100%; height: 100%; object-fit: cover; }
-@media (max-width: 760px) {
-  .lightbox-info { display: none; }
-  .lightbox-stage { padding: 12px 8px; }
+/* Narrow window: details float over the picture instead of squeezing it. */
+@media (max-width: 980px) {
+  .lightbox-info { position: absolute; top: 0; right: 0; bottom: 0; z-index: 3; width: min(320px, 88vw); background: rgba(12, 13, 14, 0.96); box-shadow: -18px 0 40px rgba(0, 0, 0, 0.45); }
+}
+@media (max-width: 640px) {
+  .lightbox-top { gap: 2px; padding: 0 8px; }
+  .lightbox-top strong { display: none; }
+  .lightbox-nav { width: 38px; height: 38px; }
+  .lightbox-nav.prev { left: 6px; }
+  .lightbox-nav.next { right: 6px; }
+}
+/* Short window: the film strip goes away before the picture gets tiny. */
+@media (max-height: 520px) {
+  .lightbox-strip { display: none; }
 }
 .media-tile img, .media-tile video, .studio-thumb img, .studio-thumb video { cursor: zoom-in; }
 
@@ -5640,3 +5664,30 @@ form.composer {
   margin: 6px 0;
   background: var(--neo-line);
 }
+
+/* Media Library: a masonry of real shapes. Vertical, square and wide pictures sit side by side without
+   being cropped into squares; very tall ones are capped so one picture never fills the page. */
+.ml-masonry {
+  grid-column: 1 / -1;
+  column-width: 210px;
+  column-gap: 14px;
+}
+.ml-masonry .studio-gallery-item {
+  break-inside: avoid;
+  margin-bottom: 16px;
+}
+.ml-masonry .studio-gallery-item .studio-thumb {
+  aspect-ratio: auto;
+  max-height: 520px;
+}
+.ml-masonry .studio-thumb img,
+.ml-masonry .studio-thumb video {
+  display: block;
+  object-fit: cover;
+}
+.ml-masonry .studio-thumb .media-file-tile {
+  width: 100%;
+  height: 100%;
+}
+/* The terminal and panel grips stay under the viewer. */
+body:has(> .lightbox) .grip { display: none; }

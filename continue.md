@@ -69,6 +69,15 @@ Versão desta revisão: **0.1.29-11** (publicação via GitHub Actions, `iwerry/
 | `library-imports/INDEX.md` | Lista de tarefas detalhada |
 | `RELEASE_NOTES.md` | O que mudou em cada versão |
 
+## 02/11: o que mudou
+
+- **0.2.2-1 + função v11 + migração `video_estimate`:**
+  - `Lightbox.tsx` / `studio.css`: mídia com `position:absolute; inset:0; margin:auto; max-*: calc(100% - padding)` (o `max-height:100%` dentro de grid não funcionava). Detalhes viram painel flutuante abaixo de 980 px; faixa some abaixo de 520 px de altura. `ratioName()` mostra o formato.
+  - `MediaLibrary.tsx`: `.ml-masonry` (CSS columns) e `shapeOf()` usa `params.width/height`.
+  - `electron/mcp.cjs`: Filesystem padrão em `{workspace}` (migra a config salva uma vez, flag `fsScopedToWorkspace`); `SENSITIVE` pede aprovação para chaves, .env, perfis de navegador.
+  - Função `orbi` v11: `needFor()` exige saldo para o custo estimado; `chargeUser()` usa a estimativa como piso (nota "(est.)"); `settleJob()` + `settlePendingVideos()` (em `/me` em segundo plano e em `/admin/stats`); coluna `video_jobs.est_usd`.
+  - Testes locais: Postgres em `/var/tmp/pg5544`, OpenRouter falso em `scratchpad/cloudtest/fake.mjs`, testes Deno em `scratchpad/dtest` (`fn_test.ts`, `new_test.ts`).
+
 ## 01/11: o que mudou
 
 - **0.2.1-1 (só interface, atualização rápida):** Impeccable init.

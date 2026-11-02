@@ -15,6 +15,20 @@ type Kind = 'all' | 'image' | 'video' | 'audio' | 'file'
 type Source = '' | 'chat' | 'creative' | 'upload'
 const rid = () => Math.random().toString(36).slice(2, 10)
 
+/** The tile keeps the picture's own shape when the size is known; files and audio get a calm 4:3. */
+function shapeOf(m: MediaItem): string | undefined {
+  if (m.kind !== 'image' && m.kind !== 'video') return '4 / 3'
+  try {
+    const p = m.params ? JSON.parse(m.params) : {}
+    const w = Number(p.width)
+    const h = Number(p.height)
+    if (w > 0 && h > 0) return `${Math.max(0.42, Math.min(2.4, w / h))}`
+  } catch {
+    /* no saved size */
+  }
+  return undefined
+}
+
 export function MediaLibrary({
   media,
   localStatus,
@@ -223,9 +237,10 @@ export function MediaLibrary({
               <span>{q ? t('Try a word from the prompt or the model name.') : t('Generate an image in Creative or the chat, or import files to start your library.')}</span>
             </div>
           ) : (
-            shown.map((m, k) => (
+            <div className="ml-masonry">
+            {shown.map((m, k) => (
               <div key={m.id} className="studio-gallery-item">
-                <div className="studio-thumb big" title={m.prompt || m.name}>
+                <div className="studio-thumb big" title={m.prompt || m.name} style={{ aspectRatio: shapeOf(m) }}>
                   {m.kind === 'image' ? (
                     <img src={m.url} alt={m.prompt || m.name} loading="lazy" onClick={() => setViewing(k)} />
                   ) : m.kind === 'video' ? (
@@ -275,7 +290,8 @@ export function MediaLibrary({
                   {m.model || (m.source === 'upload' ? t('Imported') : '')} · {fmtDate(m.created_at)}
                 </small>
               </div>
-            ))
+            ))}
+            </div>
           )}
         </section>
       </div>

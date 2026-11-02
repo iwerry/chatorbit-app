@@ -15,7 +15,7 @@ const DEFAULT_SERVERS = [
   { id: 'deepwiki', name: 'DeepWiki', type: 'http', url: 'https://mcp.deepwiki.com/mcp', enabled: true, description: 'Ask questions about any public GitHub repository.' },
   { id: 'context7', name: 'Context7', type: 'http', url: 'https://mcp.context7.com/mcp', enabled: true, description: 'Up-to-date docs and code examples for libraries.' },
   // Bundled with Orbi (no Node.js needed). Changes to files and browser actions ask first.
-  { id: 'filesystem', name: 'Filesystem (official)', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '{home}'], enabled: true, description: 'Read and edit files in your home folder. Changes ask first.' },
+  { id: 'filesystem', name: 'Filesystem (official)', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '{workspace}'], enabled: true, description: 'Read and edit files in your Orbi workspace folder. Changes ask first.' },
   { id: 'memory-graph', name: 'Knowledge Graph Memory', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-memory'], enabled: true, description: 'Persistent knowledge graph memory.' },
   { id: 'sequential-thinking', name: 'Sequential Thinking', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-sequential-thinking'], enabled: true, description: 'Structured step-by-step problem solving.' },
   { id: 'playwright', name: 'Playwright Browser', type: 'stdio', command: 'npx', args: ['-y', '@playwright/mcp@latest'], enabled: true, description: 'Lets the AI drive a real browser (Edge or Chrome). Actions ask first.' },
@@ -44,11 +44,16 @@ function bundledLaunch(server) {
     return null
   }
 }
+// Secrets and private data: any tool call that names one of these asks first, even for reading and even
+// when automatic approval is on (SSH and cloud keys, .env files, browser profiles, password stores…).
+const SENSITIVE = /(^|[\\/"'\s])(\.ssh|\.aws|\.azure|\.gnupg|\.kube|\.docker|\.config[\\/](gh|gcloud)|\.npmrc|\.pypirc|\.netrc|\.git-credentials|\.env(\.[\w-]+)?|id_(rsa|ed25519|ecdsa|dsa)|[\w-]+\.(pem|key|p12|pfx|kdbx|keychain(-db)?))(?=$|[\\/"'\s])|User Data[\\/]|Login Data|Cookies|Local State|Microsoft[\\/]Credentials|Keychains[\\/]|\.mozilla|Firefox[\\/]Profiles/i
+const touchesSecrets = (args) => SENSITIVE.test(JSON.stringify(args || {}))
+
 // Actions that change things outside the chat ask for approval, even on external servers.
 const RISKY = /(^|_)(write|edit|move|delete|remove|rename|create|update|upload|click|type|fill|navigate|drag|press|select_option|file_upload|evaluate|run|exec)/i
 
 const CATALOG = [
-  { id: 'filesystem', name: 'Filesystem (official)', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '{home}'], description: 'Full file access to a folder you choose. Needs Node.js.' },
+  { id: 'filesystem', name: 'Filesystem (official)', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem', '{workspace}'], description: 'File access to your Orbi workspace folder (edit the path to choose another). Needs Node.js.' },
   { id: 'memory-graph', name: 'Knowledge Graph Memory', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-memory'], description: 'Persistent knowledge graph memory. Needs Node.js.' },
   { id: 'sequential-thinking', name: 'Sequential Thinking', type: 'stdio', command: 'npx', args: ['-y', '@modelcontextprotocol/server-sequential-thinking'], description: 'Structured step-by-step problem solving. Needs Node.js.' },
   { id: 'playwright', name: 'Playwright Browser', type: 'stdio', command: 'npx', args: ['-y', '@playwright/mcp@latest'], description: 'Let the AI drive a real browser. Needs Node.js.' },
@@ -93,6 +98,16 @@ function servers() {
   if (!saved) {
     ctx.setSetting('mcpServers', DEFAULT_SERVERS)
     return DEFAULT_SERVERS
+  }
+  // 0.2.2: the bundled Filesystem server used to open the whole home folder. Move the untouched default
+  // to the Orbi workspace folder (a path the user typed stays as it is).
+  if (!ctx.getSetting('fsScopedToWorkspace', false)) {
+    for (const s of saved) if (s.id === 'filesystem' && Array.isArray(s.args) && s.args.includes('{home}')) {
+      s.args = s.args.map((a) => (a === '{home}' ? '{workspace}' : a))
+      s.description = 'Read and edit files in your Orbi workspace folder. Changes ask first.'
+    }
+    ctx.setSetting('mcpServers', saved)
+    ctx.setSetting('fsScopedToWorkspace', true)
   }
   // make sure new built-ins appear after updates
   const ids = new Set(saved.map((s) => s.id))
@@ -341,8 +356,10 @@ async function callTool(qname, args, origin, signal) {
       if (signal?.aborted) throw new Error('Stopped.')
       return t.run(args || {}, { origin, signal })
     }
-    if (RISKY.test(t.name) && !ctx.getSetting('autoApproveTools', false)) {
-      const ok = await ctx.approve({ server: s.name, tool: t.name, message: `${s.name} wants to run ${t.name}:\n\n${JSON.stringify(args || {}, null, 2).slice(0, 800)}`, args }, origin, signal)
+    const secret = touchesSecrets(args)
+    if (secret || (RISKY.test(t.name) && !ctx.getSetting('autoApproveTools', false))) {
+      const head = secret ? `${s.name} wants to use ${t.name} on what looks like private data (keys, passwords or a browser profile):` : `${s.name} wants to run ${t.name}:`
+      const ok = await ctx.approve({ server: s.name, tool: t.name, message: `${head}\n\n${JSON.stringify(args || {}, null, 2).slice(0, 800)}`, args }, origin, signal)
       if (!ok) return { error: 'The user declined this action.' }
     }
     const r = await c.client.callTool({ name: t.name, arguments: args || {} })

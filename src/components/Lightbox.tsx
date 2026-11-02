@@ -2,7 +2,7 @@
 // zoom with a click, slideshow, and the same actions as the library tiles.
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Brush, ChevronLeft, ChevronRight, Clapperboard, Copy, Download, ExternalLink, FileText, FolderOpen, Info, Maximize2, Pause, Play, Trash2, Wand2, X, ZoomIn, ZoomOut } from 'lucide-react'
+import { Brush, ChevronLeft, ChevronRight, Clapperboard, Copy, Download, ExternalLink, FileText, FolderOpen, Info, Maximize2, Music, Pause, Play, Trash2, Wand2, X, ZoomIn, ZoomOut } from 'lucide-react'
 import { api, type MediaItem } from '../lib/api'
 import { fmtDate, t } from '../lib/i18n'
 
@@ -20,6 +20,14 @@ type Props = {
   onEdit?: (m: MediaItem) => void
 }
 
+/** "3:4 · vertical" style label for a picture size. */
+function ratioName(w: number, h: number) {
+  const known: [number, string][] = [[1, '1:1'], [4 / 5, '4:5'], [3 / 4, '3:4'], [2 / 3, '2:3'], [9 / 16, '9:16'], [9 / 21, '9:21'], [5 / 4, '5:4'], [4 / 3, '4:3'], [3 / 2, '3:2'], [16 / 9, '16:9'], [21 / 9, '21:9']]
+  const r = w / h
+  const [, name] = known.reduce((a, b) => (Math.abs(Math.log(b[0] / r)) < Math.abs(Math.log(a[0] / r)) ? b : a))
+  return `${name} · ${r > 1.05 ? t('horizontal') : r < 0.95 ? t('vertical') : t('square')}`
+}
+
 const paramsOf = (m: MediaItem): Record<string, unknown> => {
   try {
     return m.params ? JSON.parse(m.params) : {}
@@ -31,7 +39,10 @@ const paramsOf = (m: MediaItem): Record<string, unknown> => {
 export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDeleted, onUpscale, onMakeVideo, onEdit }: Props) {
   const [toast, setToast] = useState('')
   const [zoom, setZoom] = useState(false)
-  const [info, setInfo] = useState(true)
+  // Details open by default only when there is room for them next to the picture.
+  const [info, setInfo] = useState(() => window.innerWidth > 980)
+  // Real pixel size, read when the picture loads (older files have no saved size).
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
   const [playing, setPlaying] = useState(false)
   const [copied, setCopied] = useState(false)
   const stripRef = useRef<HTMLDivElement>(null)
@@ -55,6 +66,7 @@ export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDelete
   useEffect(() => {
     setZoom(false)
     setCopied(false)
+    setNatural(null)
     stripRef.current?.querySelector<HTMLElement>(`[data-i="${i}"]`)?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' })
   }, [i])
 
@@ -90,7 +102,10 @@ export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDelete
   if (!m) return null
   const p = paramsOf(m)
   const negative = typeof p.negative === 'string' ? p.negative : ''
-  const size = p.width && p.height ? `${p.width} × ${p.height}` : ''
+  const w = Number(p.width) || natural?.w || 0
+  const h = Number(p.height) || natural?.h || 0
+  const size = w && h ? `${w} × ${h}` : ''
+  const shape = w && h ? ratioName(w, h) : ''
 
   // Rendered on <body> so it covers the whole window even when opened from a side panel.
   return createPortal(
@@ -145,12 +160,12 @@ export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDelete
       <div className="lightbox-main">
         <div className={`lightbox-stage ${zoom ? 'zoomed' : ''}`} onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
           {m.kind === 'image' ? (
-            <img key={m.id} src={m.url} alt={m.prompt || m.name} draggable={false} onClick={() => setZoom((v) => !v)} />
+            <img key={m.id} src={m.url} alt={m.prompt || m.name} draggable={false} onClick={() => setZoom((v) => !v)} onLoad={(e) => setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })} />
           ) : m.kind === 'video' ? (
-            <video key={m.id} src={m.url} controls autoPlay loop />
+            <video key={m.id} src={m.url} controls autoPlay loop onLoadedMetadata={(e) => setNatural({ w: e.currentTarget.videoWidth, h: e.currentTarget.videoHeight })} />
           ) : m.kind === 'audio' ? (
             <div className="lightbox-file">
-              <FileText size={40} />
+              <Music size={40} />
               <audio key={m.id} src={m.url} controls autoPlay />
             </div>
           ) : (
@@ -187,6 +202,24 @@ export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDelete
                 <p className="lightbox-prompt neg">{negative}</p>
               </>
             )}
+            {m.prompt && (
+              <div className="lightbox-actions">
+                {onUsePrompt && (
+                  <button className="orbi-btn orbi-btn-primary" onClick={() => onUsePrompt(m, negative || undefined)}>
+                    <Wand2 size={13} /> {t('Use prompt')}
+                  </button>
+                )}
+                <button
+                  className="orbi-btn"
+                  onClick={() => {
+                    navigator.clipboard.writeText(m.prompt)
+                    setCopied(true)
+                  }}
+                >
+                  <Copy size={13} /> {copied ? t('Copied') : t('Copy prompt')}
+                </button>
+              </div>
+            )}
             <dl>
               {m.model && (
                 <>
@@ -197,7 +230,10 @@ export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDelete
               {size && (
                 <>
                   <dt>{t('Size')}</dt>
-                  <dd className="num">{size}</dd>
+                  <dd className="num">
+                    {size}
+                    {shape && <em className="lightbox-shape">{shape}</em>}
+                  </dd>
                 </>
               )}
               {p.steps ? (
@@ -257,24 +293,6 @@ export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDelete
                 )}
               </div>
             )}
-            {m.prompt && (
-              <div className="lightbox-actions">
-                {onUsePrompt && (
-                  <button className="orbi-btn orbi-btn-primary" onClick={() => onUsePrompt(m, negative || undefined)}>
-                    <Wand2 size={13} /> {t('Use prompt')}
-                  </button>
-                )}
-                <button
-                  className="orbi-btn"
-                  onClick={() => {
-                    navigator.clipboard.writeText(m.prompt)
-                    setCopied(true)
-                  }}
-                >
-                  <Copy size={13} /> {copied ? t('Copied') : t('Copy prompt')}
-                </button>
-              </div>
-            )}
             <p className="lightbox-keys">{t('← → to browse · Space for slideshow · Esc to close')}</p>
           </aside>
         )}
@@ -284,7 +302,7 @@ export function Lightbox({ items, index, onIndex, onClose, onUsePrompt, onDelete
         <div className="lightbox-strip" ref={stripRef}>
           {items.map((x, k) => (
             <button key={x.id} data-i={k} className={k === i ? 'active' : ''} onClick={() => onIndex(k)} aria-label={x.name}>
-              {x.kind === 'image' ? <img src={x.url} alt="" loading="lazy" draggable={false} /> : x.kind === 'video' ? <video src={x.url} muted preload="metadata" /> : <FileText size={16} />}
+              {x.kind === 'image' ? <img src={x.url} alt="" loading="lazy" draggable={false} /> : x.kind === 'video' ? <video src={x.url} muted preload="metadata" /> : x.kind === 'audio' ? <Music size={16} /> : <FileText size={16} />}
             </button>
           ))}
         </div>

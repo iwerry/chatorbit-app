@@ -11,7 +11,7 @@
 import { config, HttpError, MICRO, packs, plans } from './config.ts'
 import { caller, publicUser } from './auth.ts'
 import { addCredits, profile, sql, type Profile } from './db.ts'
-import { catalog, chat, image, modelList, music, speech, transcribe, videoContent, videoStatus, videoSubmit } from './openrouter.ts'
+import { catalog, chat, image, modelList, music, settlePendingVideos, speech, transcribe, videoContent, videoStatus, videoSubmit } from './openrouter.ts'
 import { checkout, handleEvent, paymentsEnabled, portal, verify } from './stripe.ts'
 
 const CORS = {
@@ -32,6 +32,13 @@ const body = async (req: Request) => {
   } catch {
     throw new HttpError(400, 'Body must be JSON.', 'bad_json')
   }
+}
+
+// Work that may finish after the response (Supabase keeps the worker alive for it).
+function background(p: Promise<unknown>) {
+  const done = p.catch((e) => console.warn(`[orbi] background: ${(e as Error).message}`))
+  const rt = (globalThis as { EdgeRuntime?: { waitUntil?: (p: Promise<unknown>) => void } }).EdgeRuntime
+  rt?.waitUntil?.(done)
 }
 
 // Small per-instance limit on parallel generations per user.
@@ -76,7 +83,11 @@ async function route(req: Request): Promise<Response> {
 
   // Everything below needs a signed-in user.
   const c = await caller(req)
-  if (is('GET', '/me')) return json({ user: publicUser(c), payments: paymentsEnabled() })
+  if (is('GET', '/me')) {
+    // Videos left unfinished when the app closed are settled after the answer is sent.
+    background(settlePendingVideos(c.id, 3))
+    return json({ user: publicUser(c), payments: paymentsEnabled() })
+  }
   if (is('GET', '/me/usage')) {
     const rows = await sql<{ created_at: Date; kind: string; amount: string; model: string; note: string }[]>`select created_at, kind, amount, model, note from public.ledger where user_id = ${c.id} order by id desc limit 100`
     return json({ items: rows.map((r) => ({ ...r, created_at: new Date(r.created_at).getTime(), amount: Number(r.amount) / MICRO })) })
@@ -115,9 +126,10 @@ async function route(req: Request): Promise<Response> {
   if (is('POST', '/admin/grant') || is('GET', '/admin/stats')) {
     if (!c.admin) throw new HttpError(403, 'Admin only.', 'forbidden')
     if (M === 'GET') {
+      const videos = await settlePendingVideos(null, 20)
       const [u] = await sql`select count(*)::int as users, count(*) filter (where plan_status in ('active','trialing','past_due'))::int as subscribers from public.profiles`
       const [l] = await sql`select round(coalesce(sum(cost_usd),0)::numeric, 4)::float as cost, count(*)::int as calls from public.ledger where kind = 'usage' and created_at > now() - interval '30 days'`
-      return json({ ...u, usage30d: l })
+      return json({ ...u, usage30d: l, videos })
     }
     const b = await body(req)
     const [target] = await sql<Profile[]>`select * from public.profiles where lower(email) = ${String(b.email || '').toLowerCase()}`
