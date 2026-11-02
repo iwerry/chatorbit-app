@@ -2,6 +2,14 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 02/11: Claude Code no PC do Daniel — migração de dados para o Tauri (branch `claude/tauri-data-migration`)
+
+- Ambiente Windows verificado: Rust 1.99.1 MSVC, Build Tools VS, Node 26, WebView2 156. O pnpm não está instalado; usar `npx pnpm@10` (Node 26 não traz corepack). Tauri CLI não instalado. O `.exe` sai com `cargo build --release --features tauri/custom-protocol`, depois de `node build/prepare-native.cjs` e `pnpm build`.
+- Build Windows da 0.2.2-1: compilou e abriu a janela "Orbi" (45 MB). A interface não foi percorrida.
+- Paridade de IPC: os 23 canais ausentes no Rust são `local:*`, `providers:*` e `voice:*`, que podem ser apagados no modo nuvem. Faltam os eventos `data:changed`, `find:result` e `update:done`. O `tauri.conf.json` não tem alvo Windows (`nsis`/`msi`) e a `pubkey` do updater está vazia.
+- Nova `src-tauri/src/legacy.rs`: importação única de `%APPDATA%\Orbi` ao abrir. Detalhes em `docs/TAURI_MIGRATION.md`. Testada com 19 testes Rust e com uma cópia dos dados reais (11 conversas, 97 mensagens, 34 mídias). A cópia foi apagada.
+- Atenção: abrir a prévia Tauri neste PC agora importaria um retrato dos dados e criaria `electron-migration.json`. A pasta `%APPDATA%\com.orbix.orbi` daqui só tem o banco vazio do teste de abertura, que a migração põe de lado sozinha.
+
 ## 30/10: autorização de todas as atualizações automáticas
 
 - Daniel autorizou publicar automaticamente todas as atualizações via GitHub, independentemente do sistema. Windows 0.1.30-1 publicado e verificado: commit `6e5276a713694075491145ba7bef1bff4b2a0d44`, run `41101201803`, release `v0.1.30-1` com EXE e pacote UI.

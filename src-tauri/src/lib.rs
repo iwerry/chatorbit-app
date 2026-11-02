@@ -3,6 +3,7 @@ mod chat_stream;
 mod cloud;
 mod command_jobs;
 mod crud;
+mod legacy;
 mod library;
 mod mcp;
 mod media;
@@ -153,6 +154,14 @@ pub fn run() {
         .setup(|app| {
             let root = app.path().app_data_dir()?;
             std::fs::create_dir_all(root.join("media"))?;
+            // Electron used the product name as its data folder; import it once before the native database opens.
+            match legacy::migrate(&app.path().config_dir()?.join("Orbi"), &root) {
+                Ok(Some(report)) => eprintln!("Electron data migration: {report}"),
+                Ok(None) => (),
+                Err(error) => eprintln!(
+                    "Electron data migration failed; it will retry on the next launch: {error}"
+                ),
+            }
             let db = Storage::open(&root.join("orbi.db")).map_err(std::io::Error::other)?;
             app.manage(Backend {
                 updater: updater::Updater::default(),

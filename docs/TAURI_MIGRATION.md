@@ -14,6 +14,7 @@ Status: **in progress; native packages remain transition previews**. Rust/Tauri 
 - Cloud image/audio/video requests, video polling, media storage and native file dialogs.
 - Official Rust MCP client with stdio/HTTP transports, scoped approvals and workspace path restrictions; native PTY terminals.
 - Bundled library/plugin catalog, Creator Studio validation and YAML/ZIP import/export.
+- One-time Electron data import (`src-tauri/src/legacy.rs`, 2 November), before the native database opens. Source is Electron's `<config>/Orbi` folder, which is only read. The database is copied with the SQLite backup API and an integrity check, with a raw copy in `backups/electron-orbi-<ms>.db`. Media files are copied without overwriting existing names, and `media.file` is rewritten from the bare file name to the native absolute path. Settings that hold Electron safeStorage ciphertext or MCP profiles (`cloudRefresh`, `mcpServers`, `provider:*`) are dropped, so users sign in again. A native database that already has user data is never replaced (status `skipped`). An empty one is moved to `backups/orbi-empty-<ms>.db`. The result is recorded in `electron-migration.json`. Failures write no marker and retry on the next launch. Verified with 4 unit tests and an ignored test against a copy of a real Windows folder: 11 conversations, 97 messages, 34 media files, 2 workflows, 34 skills and 18 agents matched.
 - Native window actions and frontend transport. Startup explicitly reports that local engines/system voices and signed native updates are unavailable in this preview.
 - Preview packaging workflow produces Linux x64 DEB/AppImage and macOS Intel/Apple Silicon DMG artifacts. These are development packages, not a completed migration or a stable release; macOS uses ad-hoc signing.
 
@@ -23,7 +24,7 @@ Status: **in progress; native packages remain transition previews**. Rust/Tauri 
 - Port Supabase Auth, OS-protected token storage, refresh, streaming chat, tool calls, generation, polling and cancellation.
 - Implement and test media import/export, safe local asset access, all CRUD operations, skills, agents, teams and harnesses.
 - Port MCP transports, approvals and the native PTY terminal.
-- Add non-destructive migration of existing databases and media, with a backup and transaction-based schema upgrades. Never overwrite an existing database.
+- ~~Add non-destructive migration of existing databases and media, with a backup and transaction-based schema upgrades. Never overwrite an existing database.~~ Done in `legacy.rs`. Still open: the import is a one-time snapshot. Opening a Tauri preview before the final switch freezes that snapshot, so the Electron-to-Tauri installer must run before Electron data diverges, or the marker must be removed. The UI has not yet been opened on migrated data.
 - Implement native window/file dialogs and a Tauri-compatible updater. Electron ASAR updates are not valid Tauri updates.
 - Complete unit/integration tests and Linux/macOS launch smoke tests, including concurrent tasks and cancellation.
 - Only then enable stable AppImage/DEB and Intel/Apple Silicon macOS APP/DMG release publication. Preview artifacts are explicitly marked as incomplete development builds. macOS signing/notarization is a separate release credential setup; an ad-hoc development build must be labeled accordingly.
