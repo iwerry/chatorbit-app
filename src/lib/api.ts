@@ -303,6 +303,7 @@ export const api = {
   cloudRecover: (email: string) => bridge.invoke('cloud:recover', email),
   cloudConfirmSignup: (p: { email: string; code: string }) => bridge.invoke('cloud:confirmSignup', p),
   cloudResetPassword: (p: { email: string; code: string; password: string }) => bridge.invoke('cloud:resetPassword', p),
+  cloudChangePassword: (p: { password: string }): Promise<boolean> => bridge.invoke('cloud:changePassword', p),
   cloudGrant: (p: { email: string; credits: number; bucket?: 'plan' | 'extra' }): Promise<{ email: string; credits: number }> => bridge.invoke('cloud:grant', p),
   cloudStats: (): Promise<{ users: number; subscribers: number; usage30d: { cost: number; calls: number } }> => bridge.invoke('cloud:stats'),
   cloudLogout: () => bridge.invoke('cloud:logout'),

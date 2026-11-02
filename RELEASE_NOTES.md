@@ -1,4 +1,14 @@
-## Orbi 0.2.2-1
+## Orbi 0.2.2-2
+
+- **Trocar a senha pelo app:** em Configurações › Geral, quem está conectado escolhe uma senha nova (duas vezes, pelo menos 8 caracteres), sem precisar de código por e-mail.
+- **E-mails com código:** os modelos de confirmação de conta e de troca de senha mostram o código de 6 dígitos em destaque. Ficam em `supabase/templates/` e são aplicados com `build/supabase-auth.mjs` (Management API, com token pessoal fora do Git).
+- **Base da versão Rust/Tauri (ainda em prévia, o Windows segue no Electron):**
+  - importa uma única vez os dados do Electron, sem alterar a pasta original;
+  - envia os avisos de listas atualizadas, resultado da busca e "atualizado";
+  - a interface abre de verdade (antes ficava em branco);
+  - modo de teste com pasta de dados isolada.
+
+## Orbi 0.2.2-1 (previous)
 
 - **Visualizador de mídia ajustado a qualquer formato:** imagem e vídeo cabem inteiros na tela, seja 9:16, 1:1, 16:9 ou 21:9, sem corte embaixo.
   - O painel de detalhes mostra o tamanho real e o formato (ex.: "3:4 · vertical"). "Usar prompt" e "Copiar prompt" ficam logo abaixo do prompt.

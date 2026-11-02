@@ -174,6 +174,11 @@ impl Cloud {
                     if recovery {self.auth("/user",json!({"password":a["password"]}),session["access_token"].as_str(),true).await?;}
                     Ok(json!(true))
                 },
+                "cloud:changePassword"=>{
+                    let token=self.token().await?;
+                    self.auth("/user",json!({"password":a["password"]}),Some(&token),true).await?;
+                    Ok(json!(true))
+                },
                 "cloud:logout"=>{
                     let token=self.token().await.unwrap_or_default();
                     match Self::credential()?.delete_credential() {Ok(())|Err(keyring::Error::NoEntry)=>(),Err(_)=>return Err("Unable to remove the saved sign-in securely.".into())}

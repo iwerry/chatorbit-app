@@ -165,6 +165,13 @@ function create({ getSetting, setSetting, encrypt, decrypt, appVersion }) {
       await authCall('/user', { password }, s.access_token, 'PUT')
       return true
     },
+    /** New password for the signed-in account (Settings › General); the session itself is the proof. */
+    async changePassword({ password }) {
+      const token = await accessToken()
+      if (!token) throw new Error('Sign in to Orbi to continue.')
+      await authCall('/user', { password }, token, 'PUT')
+      return true
+    },
     async logout() {
       const t = session?.access
       clear()

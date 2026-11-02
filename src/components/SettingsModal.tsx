@@ -1,5 +1,5 @@
 import { AccountPanel, CloudVoiceSettings } from './AccountPanel'
-import { CLOUD_ONLY } from '../lib/cloud'
+import { CLOUD_ONLY, useCloud } from '../lib/cloud'
 import { useEffect, useState } from 'react'
 import { Boxes, Check, Download, ExternalLink, FolderOpen, Globe, Info, KeyRound, Loader2, Mic, Plug, Server, SlidersHorizontal, Square, UserRound, Volume2, Wallet, X } from 'lucide-react'
 import { api, type AppInfo, type LocalStatus, type ProviderInfo, type TtsChoice, type VoiceMode } from '../lib/api'
@@ -28,6 +28,55 @@ export type SettingsTab = 'account' | 'general' | 'providers' | 'models' | 'voic
 
 type TestState = { status: 'idle' | 'testing' | 'ok' | 'error'; message?: string }
 const cleanErr = (e: unknown) => String((e as Error)?.message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+
+// Signed-in password change: the current session proves who it is, so no e-mail code is needed.
+function ChangePassword() {
+  const { state } = useCloud()
+  const [password, setPassword] = useState('')
+  const [repeat, setRepeat] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  if (!state?.signedIn) return null
+  const save = async () => {
+    if (password.length < 8) return setMsg(t('At least 8 characters.'))
+    if (password !== repeat) return setMsg(t('The passwords do not match.'))
+    setBusy(true)
+    try {
+      await api.cloudChangePassword({ password })
+      setPassword('')
+      setRepeat('')
+      setMsg(t('Password changed. Use it the next time you sign in.'))
+    } catch (e) {
+      setMsg(t(cleanErr(e)))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        save()
+      }}
+    >
+      <label className="orbi-label mt-6">{t('Password')}</label>
+      <div className="flex gap-2">
+        <label className="orbi-field flex-1">
+          <KeyRound size={14} />
+          <input type="password" minLength={8} required placeholder={t('New password')} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+        </label>
+        <label className="orbi-field flex-1">
+          <KeyRound size={14} />
+          <input type="password" minLength={8} required placeholder={t('Repeat the new password')} value={repeat} onChange={(e) => setRepeat(e.target.value)} autoComplete="new-password" />
+        </label>
+        <button className="orbi-btn orbi-btn-primary" type="submit" disabled={busy}>
+          {busy ? <Loader2 size={13} className="animate-spin" /> : t('Change password')}
+        </button>
+      </div>
+      <p className="orbi-muted mt-3">{msg || t('At least 8 characters.')}</p>
+    </form>
+  )
+}
 
 function ProviderCard({ provider, onChanged }: { provider: ProviderInfo; onChanged: () => void }) {
   const [key, setKey] = useState('')
@@ -218,6 +267,7 @@ export function SettingsModal({
                 </button>
               </div>
               <p className="orbi-muted mt-3">{t('Used in greetings.')}</p>
+              <ChangePassword />
             </>
           )}
 

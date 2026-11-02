@@ -2,6 +2,13 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 02/11: 0.2.2-2 — trocar senha logado + e-mails com código
+
+- Novo canal `cloud:changePassword` (`PUT /auth/v1/user` com o token da sessão) no Electron (`cloud.cjs`, `main.cjs`) e no Rust (`cloud.rs`). Interface em Configurações › Geral (`ChangePassword` em `SettingsModal.tsx`), visível só com login. Testado no Electron contra um Supabase falso (troca, erro de senha repetida, recusa sem login). A tela ainda não foi vista com uma conta logada.
+- Os e-mails do Supabase vinham só com link porque os modelos nunca receberam `{{ .Token }}`, e o Site URL ainda era `localhost:3000`. Os modelos ficam em `supabase/templates/`. Para aplicar: `$env:SUPABASE_ACCESS_TOKEN=...; node build/supabase-auth.mjs --apply`, rodado **dentro** de `chatorbit-app`. A primeira tentativa do Daniel rodou na pasta de cima (`MODULE_NOT_FOUND`); confirmar que aplicou.
+- O conector MCP do Supabase não altera a configuração de Auth (só SQL, logs e funções). Não definir senha de usuário por SQL.
+- Como `electron/` mudou, esta é uma atualização completa (instalador), não rápida.
+
 ## 02/11: Claude Code no PC do Daniel — migração de dados para o Tauri (branch `claude/tauri-data-migration`)
 
 - Ambiente Windows verificado: Rust 1.99.1 MSVC, Build Tools VS, Node 26, WebView2 156. O pnpm não está instalado; usar `npx pnpm@10` (Node 26 não traz corepack). Tauri CLI não instalado. O `.exe` sai com `cargo build --release --features tauri/custom-protocol`, depois de `node build/prepare-native.cjs` e `pnpm build`.

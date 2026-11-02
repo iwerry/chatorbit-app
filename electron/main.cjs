@@ -437,6 +437,7 @@ const api = {
   'cloud:recover': (email) => cloudApi().recover(email),
   'cloud:confirmSignup': (p) => cloudApi().confirmSignup(p),
   'cloud:resetPassword': (p) => cloudApi().resetPassword(p),
+  'cloud:changePassword': (p) => cloudApi().changePassword(p),
   'cloud:grant': (p) => cloudApi().grant(p),
   'cloud:stats': () => cloudApi().stats(),
   'cloud:signup': (p) => cloudApi().signup(p),
