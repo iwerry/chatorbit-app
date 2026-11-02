@@ -11,6 +11,8 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
 - **Verificado em produção:** o Daniel atualizou, trocou a senha em Geral e entrou com a nova. No log do Supabase: `PUT /user` (`user_modified`) às 18:18:30 e login por senha às 18:18:43.
 - **Tauri logado (modo isolado):** conta, catálogo, modelos, chat em streaming (Haiku 5.5, 0,0126 crédito) e Media Library com as 34 mídias migradas, tudo funcionando. Faltam geração de imagem e vídeo, voz, ferramentas MCP no chat, terminal e múltiplas janelas.
 - **Instalador Windows do Tauri (prévia):** `npx --yes @tauri-apps/cli@2 build --bundles nsis --config src-tauri/tauri.preview.json --ci`. Gera "Orbi Preview", 8,6 MB, com dados e credenciais próprios (`com.orbix.orbi.preview`). Instalação, abertura e desinstalação foram testadas; o Electron não foi afetado. Feche qualquer `orbi-native.exe` aberto antes do build ("Acesso negado"). O instalador **não** foi publicado.
+- **Imagem e vídeo no Tauri:** `gpt-image-2` 1024² (7,47 créditos) e `tbc/mischief-1` 3 s/480p a partir da imagem (18,75 créditos). Ambos funcionaram depois da correção dos `null` em `media.rs`. O `mischief-1` exige imagem inicial e só aceita 16:9, mas o catálogo não informa isso.
+- **Função `orbi` v12 (02/11):** sem as variantes `:batch` (modo lote do OpenRouter) no chat, imagem e vídeo. Os arquivos publicados foram conferidos contra o repositório. Lista ao vivo: 171 modelos, 0 batch.
 - O Rust agora traduz os erros de login como o Electron (`auth_message` em `cloud.rs`).
 - Os modelos de e-mail com código ainda **não** foram aplicados no Supabase (o script rodou na pasta errada). O Site URL continua `localhost:3000`.
 
