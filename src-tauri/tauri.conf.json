@@ -43,6 +43,7 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "targets": [
+      "nsis",
       "deb",
       "appimage",
       "dmg",
@@ -55,6 +56,21 @@
       "../build/icon-128.png",
       "../build/icon-256.png",
       "../build/icon.ico"
-    ]
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "PortugueseBR",
+          "English",
+          "Spanish",
+          "French"
+        ],
+        "displayLanguageSelector": false
+      }
+    }
   }
 }

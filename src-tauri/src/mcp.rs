@@ -36,7 +36,7 @@ fn defaults() -> Vec<Value> {
     ]
 }
 fn profiles() -> Result<Vec<Value>> {
-    match keyring::Entry::new(crate::storage::credential_service(), "mcp-servers")
+    match keyring::Entry::new(&crate::storage::credential_service(), "mcp-servers")
         .map_err(|_| "Credential store is unavailable")?
         .get_password()
     {
@@ -48,7 +48,7 @@ fn profiles() -> Result<Vec<Value>> {
     }
 }
 fn save_profiles(profiles: &[Value]) -> Result<()> {
-    keyring::Entry::new(crate::storage::credential_service(), "mcp-servers")
+    keyring::Entry::new(&crate::storage::credential_service(), "mcp-servers")
         .map_err(|_| "Credential store is unavailable")?
         .set_password(&serde_json::to_string(profiles).map_err(|e| e.to_string())?)
         .map_err(|_| "Unable to save MCP configuration securely.".into())

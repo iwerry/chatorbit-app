@@ -1,0 +1,19 @@
+{
+  "productName": "Orbi Preview",
+  "identifier": "com.orbix.orbi.preview",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Orbi Preview",
+        "width": 1280,
+        "height": 860,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ]
+  },
+  "bundle": {
+    "createUpdaterArtifacts": false
+  }
+}

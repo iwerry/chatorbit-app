@@ -189,6 +189,7 @@ pub fn run() {
         .setup(|app| {
             // ORBI_DATA_DIR runs an isolated copy for testing: its own database, media and credentials, and
             // the Electron import reads ORBI_LEGACY_DIR only (never the real Electron folder).
+            storage::set_identifier(&app.config().identifier);
             let (root, legacy) = match storage::isolated_dir() {
                 Some(dir) => (dir, std::env::var_os("ORBI_LEGACY_DIR").map(Into::into)),
                 None => (

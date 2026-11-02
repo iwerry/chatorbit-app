@@ -19,12 +19,18 @@ pub fn isolated_dir() -> Option<std::path::PathBuf> {
         .filter(|dir| !dir.is_empty())
         .map(Into::into)
 }
+static IDENTIFIER: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+/// Records the bundle identifier at startup: a preview build (`com.orbix.orbi.preview`) keeps its own sign-in.
+pub fn set_identifier(identifier: &str) {
+    let _ = IDENTIFIER.set(identifier.to_string());
+}
 /// OS credential store service name; isolated runs never read or replace the installed app's sign-in.
-pub fn credential_service() -> &'static str {
+pub fn credential_service() -> String {
+    let identifier = IDENTIFIER.get().map_or("com.orbix.orbi", String::as_str);
     if isolated_dir().is_some() {
-        "com.orbix.orbi.isolated"
+        format!("{identifier}.isolated")
     } else {
-        "com.orbix.orbi"
+        identifier.to_string()
     }
 }
 fn sql_value(value: &Value) -> SqlValue {

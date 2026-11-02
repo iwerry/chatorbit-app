@@ -40,7 +40,7 @@ impl Cloud {
     }
     fn credential() -> Result<keyring::Entry> {
         keyring::Entry::new(
-            crate::storage::credential_service(),
+            &crate::storage::credential_service(),
             "supabase-refresh-token",
         )
         .map_err(|_| "The operating system credential store is unavailable.".into())
