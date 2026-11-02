@@ -1,5 +1,6 @@
 {
   "productName": "Orbi Preview",
+  "mainBinaryName": "orbi-preview",
   "identifier": "com.orbix.orbi.preview",
   "app": {
     "windows": [
@@ -14,6 +15,11 @@
     ]
   },
   "bundle": {
-    "createUpdaterArtifacts": false
+    "createUpdaterArtifacts": false,
+    "windows": {
+      "nsis": {
+        "installerHooks": null
+      }
+    }
   }
 }

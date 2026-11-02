@@ -16,7 +16,8 @@ concurrency:
 
 jobs:
   release:
-    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[source-only]')
+    # After the Windows transition (ORBI_WINDOWS_NATIVE=true) the stable release comes from native-release.yml.
+    if: vars.ORBI_WINDOWS_NATIVE != 'true' && (github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[source-only]'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

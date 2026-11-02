@@ -43,6 +43,9 @@ jobs:
           - os: macos-15
             target: x86_64-apple-darwin
             bundles: app,dmg
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -98,3 +101,18 @@ jobs:
           gh release upload "native-v$V" release-native/*.* --clobber
           gh release view native-channel >/dev/null 2>&1 || gh release create native-channel --prerelease --latest=false --target "$GITHUB_SHA" --title 'Orbi native update channel' --notes 'Signed native update manifest. Windows Electron uses the stable release channel.'
           gh release upload native-channel latest.json --clobber
+      # Windows transition switch (repository variable ORBI_WINDOWS_NATIVE=true): the stable release gets the
+      # Tauri installer under the name Electron's updater downloads (Orbi-Setup-<version>.exe, run with /UPDATE).
+      # Its installer hooks remove the Electron install; the app imports %APPDATA%\Orbi on first launch.
+      # No orbi-ui pack is published, so Electron always takes the full installer. release.yml stands down.
+      - name: Publish the Windows stable release from the Tauri build
+        if: vars.ORBI_WINDOWS_NATIVE == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(node -p "require('./package.json').version")
+          if gh release view "v$V" >/dev/null 2>&1; then echo "v$V already published"; exit 0; fi
+          SETUP=$(find release-native -maxdepth 1 -type f -name "*x86_64-pc-windows-msvc*-setup.exe" | head -n 1)
+          [ -n "$SETUP" ] || { echo 'Windows installer missing'; exit 1; }
+          cp "$SETUP" "Orbi-Setup-$V.exe"
+          gh release create "v$V" "Orbi-Setup-$V.exe" --title "Orbi $V" --notes-file RELEASE_NOTES.md --target "$GITHUB_SHA" --latest

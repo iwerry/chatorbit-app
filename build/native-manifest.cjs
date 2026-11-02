@@ -6,7 +6,7 @@ function collect(source, output, target) {
   const platforms = {}
   const arch = target.startsWith('aarch64') ? 'aarch64' : 'x86_64'
   const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() && !entry.name.endsWith('.app') ? walk(path.join(dir, entry.name)) : entry.isFile() ? [path.join(dir, entry.name)] : [])
-  const files = walk(source).filter((file) => /\.(?:dmg|deb|AppImage|app\.tar\.gz)(?:\.sig)?$/.test(file))
+  const files = walk(source).filter((file) => /(?:\.dmg|\.deb|\.AppImage|\.app\.tar\.gz|-setup\.exe)(?:\.sig)?$/.test(file))
   for (const file of files) {
     const name = `Orbi_${version}_${target}_${path.basename(file)}`
     fs.copyFileSync(file, path.join(output, name))
@@ -19,6 +19,7 @@ function collect(source, output, target) {
     if (artifact.endsWith('.AppImage')) platforms[`linux-${arch}-appimage`] = { url, signature }
     if (artifact.endsWith('.deb')) platforms[`linux-${arch}-deb`] = { url, signature }
     if (artifact.endsWith('.app.tar.gz')) { platforms[`darwin-${arch}`] = { url, signature }; platforms[`darwin-${arch}-app`] = { url, signature } }
+    if (artifact.endsWith('-setup.exe')) { platforms[`windows-${arch}`] = { url, signature }; platforms[`windows-${arch}-nsis`] = { url, signature } }
   }
   if (!Object.keys(platforms).length) throw new Error(`No signed update artifacts for ${target}`)
   fs.writeFileSync(path.join(output, `fragment-${target}.json`), JSON.stringify({ version, platforms }, null, 2))
@@ -31,7 +32,7 @@ function merge(root, output) {
     if (fragment.version !== version) throw new Error('Cannot publish mixed native versions')
     for (const [key, value] of Object.entries(fragment.platforms)) { if (platforms[key]) throw new Error(`Duplicate platform ${key}`); platforms[key] = value }
   }
-  for (const key of ['linux-x86_64-appimage', 'linux-x86_64-deb', 'darwin-aarch64', 'darwin-x86_64']) if (!platforms[key]) throw new Error(`Missing signed target: ${key}`)
+  for (const key of ['linux-x86_64-appimage', 'linux-x86_64-deb', 'darwin-aarch64', 'darwin-x86_64', 'windows-x86_64']) if (!platforms[key]) throw new Error(`Missing signed target: ${key}`)
   const manifest = { version, commit: process.env.GITHUB_SHA || null, notes: fs.readFileSync(path.join(__dirname, '../RELEASE_NOTES.md'), 'utf8').slice(0, 6000), pub_date: new Date().toISOString(), platforms }
   fs.writeFileSync(output, JSON.stringify(manifest, null, 2) + '\n')
 }
