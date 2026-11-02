@@ -8,6 +8,10 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
 - Os e-mails do Supabase vinham só com link porque os modelos nunca receberam `{{ .Token }}`, e o Site URL ainda era `localhost:3000`. Os modelos ficam em `supabase/templates/`. Para aplicar: `$env:SUPABASE_ACCESS_TOKEN=...; node build/supabase-auth.mjs --apply`, rodado **dentro** de `chatorbit-app`. A primeira tentativa do Daniel rodou na pasta de cima (`MODULE_NOT_FOUND`); confirmar que aplicou.
 - O conector MCP do Supabase não altera a configuração de Auth (só SQL, logs e funções). Não definir senha de usuário por SQL.
 - Como `electron/` mudou, esta é uma atualização completa (instalador), não rápida.
+- **Verificado em produção:** o Daniel atualizou, trocou a senha em Geral e entrou com a nova. No log do Supabase: `PUT /user` (`user_modified`) às 18:18:30 e login por senha às 18:18:43.
+- **Tauri logado (modo isolado):** conta, catálogo, modelos, chat em streaming (Haiku 5.5, 0,0126 crédito) e Media Library com as 34 mídias migradas, tudo funcionando. Faltam geração de imagem e vídeo, voz, ferramentas MCP no chat, terminal e múltiplas janelas.
+- O Rust agora traduz os erros de login como o Electron (`auth_message` em `cloud.rs`).
+- Os modelos de e-mail com código ainda **não** foram aplicados no Supabase (o script rodou na pasta errada). O Site URL continua `localhost:3000`.
 
 ## 02/11: Claude Code no PC do Daniel — migração de dados para o Tauri (branch `claude/tauri-data-migration`)
 
