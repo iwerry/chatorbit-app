@@ -8,6 +8,8 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
 - Build Windows da 0.2.2-1: compilou e abriu a janela "Orbi" (45 MB). A interface não foi percorrida.
 - Paridade de IPC: os 23 canais ausentes no Rust são `local:*`, `providers:*` e `voice:*`, que podem ser apagados no modo nuvem. Faltam os eventos `data:changed`, `find:result` e `update:done`. O `tauri.conf.json` não tem alvo Windows (`nsis`/`msi`) e a `pubkey` do updater está vazia.
 - Nova `src-tauri/src/legacy.rs`: importação única de `%APPDATA%\Orbi` ao abrir. Detalhes em `docs/TAURI_MIGRATION.md`. Testada com 19 testes Rust e com uma cópia dos dados reais (11 conversas, 97 mensagens, 34 mídias). A cópia foi apagada.
+- Eventos `data:changed`, `find:result` e `update:done` implementados no Rust (`lib.rs`, `window.rs`, `mcp.rs`). A contagem da busca foi testada no Node, mas os eventos ainda não foram vistos numa janela aberta.
+- O Visual Studio 2026 Community está instalado neste PC (MSVC e depurador). Use-o quando precisar.
 - Atenção: abrir a prévia Tauri neste PC agora importaria um retrato dos dados e criaria `electron-migration.json`. A pasta `%APPDATA%\com.orbix.orbi` daqui só tem o banco vazio do teste de abertura, que a migração põe de lado sozinha.
 
 ## 30/10: autorização de todas as atualizações automáticas

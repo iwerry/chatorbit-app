@@ -17,7 +17,7 @@ mod web;
 mod window;
 use serde_json::{json, Value};
 use storage::{now, uid, Result, Storage};
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 
 struct Backend {
     updater: updater::Updater,
@@ -31,7 +31,18 @@ struct Backend {
     root: std::path::PathBuf,
     renders:
         tokio::sync::Mutex<std::collections::HashMap<String, tokio_util::sync::CancellationToken>>,
+    // Version this launch replaced, announced once with `update:done`.
+    updated_from: std::sync::Mutex<Option<String>>,
 }
+
+// Commands that change lists shown in every window (Electron broadcast `data:changed` after the same ones).
+const CHANGES_LISTS: [&str; 5] = [
+    "library:installKit",
+    "studio:importBundle",
+    "plugins:set",
+    "mcp:save",
+    "mcp:remove",
+];
 
 #[tauri::command]
 async fn dispatch(
@@ -39,6 +50,30 @@ async fn dispatch(
     args: Vec<Value>,
     backend: State<'_, Backend>,
     window: tauri::WebviewWindow,
+) -> Result<Value> {
+    if channel == "update:state" {
+        if backend.updated_from.lock().unwrap().take().is_some() {
+            // UpdateCenter asks for the state as it mounts; give its listener a moment to register.
+            let window = window.clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                let _ = window.emit("update:done", json!([env!("CARGO_PKG_VERSION")]));
+            });
+        }
+    }
+    let changes_lists = CHANGES_LISTS.contains(&channel.as_str());
+    let result = route(channel, args, &backend, &window).await;
+    if result.is_ok() && changes_lists {
+        let _ = window.emit("data:changed", json!(["all"]));
+    }
+    result
+}
+
+async fn route(
+    channel: String,
+    args: Vec<Value>,
+    backend: &State<'_, Backend>,
+    window: &tauri::WebviewWindow,
 ) -> Result<Value> {
     let a = args.first().cloned().unwrap_or(Value::Null);
     let b = args.get(1).cloned().unwrap_or(Value::Null);
@@ -163,6 +198,18 @@ pub fn run() {
                 ),
             }
             let db = Storage::open(&root.join("orbi.db")).map_err(std::io::Error::other)?;
+            let version = json!(env!("CARGO_PKG_VERSION"));
+            let previous = db
+                .setting("nativeVersion", Value::Null)
+                .map_err(std::io::Error::other)?;
+            if previous != version {
+                db.set_setting("nativeVersion", &version)
+                    .map_err(std::io::Error::other)?;
+            }
+            let updated_from = previous
+                .as_str()
+                .filter(|v| json!(v) != version)
+                .map(String::from);
             app.manage(Backend {
                 updater: updater::Updater::default(),
                 jobs: command_jobs::Jobs::default(),
@@ -173,6 +220,7 @@ pub fn run() {
                 renders: tokio::sync::Mutex::new(std::collections::HashMap::new()),
                 terminals: terminal::Terminals::default(),
                 mcp: mcp::Mcp::default(),
+                updated_from: std::sync::Mutex::new(updated_from),
             });
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {

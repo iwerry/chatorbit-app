@@ -104,15 +104,29 @@ pub async fn handle(
                     .get(1)
                     .and_then(|v| v["matchCase"].as_bool())
                     .unwrap_or(false);
+                let next = args
+                    .get(1)
+                    .and_then(|v| v["findNext"].as_bool())
+                    .unwrap_or(false);
+                // WebView2/WebKit have no found-in-page event, so the page counts matches itself and
+                // reports them like Electron did: { matches, active } with a 1-based active match.
                 window
                     .eval(format!(
-                        "window.find && window.find({}, {}, {}, true)",
-                        a, sensitive, backwards
+                        "(() => {{ const q = String({a} ?? ''), cs = {sensitive}, back = {backwards}, next = {next};
+                        const text = document.body.innerText, hay = cs ? text : text.toLowerCase(), needle = cs ? q : q.toLowerCase();
+                        let matches = 0;
+                        for (let i = needle ? hay.indexOf(needle) : -1; i >= 0; i = hay.indexOf(needle, i + needle.length)) matches++;
+                        const last = window.__orbiFind;
+                        const active = !matches ? 0 : next && last && last.q === q ? ((last.active - 1 + (back ? -1 : 1) + matches) % matches) + 1 : back ? matches : 1;
+                        window.__orbiFind = {{ q, active }};
+                        if (window.find) window.find(q, cs, back, true);
+                        window.__TAURI__?.event.emit('find:result', [{{ matches, active }}]);
+                        }})()"
                     ))
                     .map_err(|e| e.to_string())?;
             }
             "find:stop" => window
-                .eval("window.getSelection()?.removeAllRanges()")
+                .eval("window.__orbiFind = null; window.getSelection()?.removeAllRanges()")
                 .map_err(|e| e.to_string())?,
             _ => return Err("Unsupported window action".into()),
         }

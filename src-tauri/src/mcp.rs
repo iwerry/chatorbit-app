@@ -379,6 +379,7 @@ impl Mcp {
                         "INSERT INTO memories(id,content,created_at) VALUES(?,?,?)",
                         &[json!(uid()), json!(content), json!(crate::storage::now())],
                     )?;
+                    let _ = window.emit("data:changed", json!(["memories"]));
                     json!({"saved":true})
                 }
                 "read_webpage" => {
