@@ -8,6 +8,22 @@ struct Session {
     access: String,
     expires: u64,
 }
+// Same wording as electron/cloud.cjs, so the frontend translations apply to both apps.
+fn auth_message(raw: String) -> String {
+    match raw.as_str() {
+        "Invalid login credentials" => "Wrong email or password.",
+        "Email not confirmed" => "Confirm your email first: open the link we sent you.",
+        "User already registered" => "An account with this email already exists. Sign in instead.",
+        "Token has expired or is invalid" => {
+            "This code is wrong or has expired. Ask for a new one."
+        }
+        "New password should be different from the old password." => {
+            "Choose a password different from the old one."
+        }
+        _ => return raw,
+    }
+    .into()
+}
 pub struct Cloud {
     pub http: reqwest::Client,
     session: Mutex<Option<Session>>,
@@ -70,7 +86,7 @@ impl Cloud {
             .send()
             .await
             .map_err(|_| "Unable to reach Supabase. Check your connection.")?;
-        Self::json_response(response).await
+        Self::json_response(response).await.map_err(auth_message)
     }
     async fn save_session(&self, session: &Value) -> Result<()> {
         let access = session["access_token"]
@@ -203,5 +219,17 @@ impl Cloud {
                 _=>Err(format!("Cloud native migration incomplete: {channel}")),
             }
         }.await)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn auth_errors_use_the_electron_wording() {
+        assert_eq!(
+            super::auth_message("Invalid login credentials".into()),
+            "Wrong email or password."
+        );
+        assert_eq!(super::auth_message("Something new".into()), "Something new");
     }
 }
