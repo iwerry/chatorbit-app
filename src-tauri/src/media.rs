@@ -7,6 +7,42 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 
 const LIMIT: usize = 512 * 1024 * 1024;
+// Closest named ratio for a width/height pair, as in Electron's aspectOf().
+fn aspect_of(width: f64, height: f64) -> Option<&'static str> {
+    if width <= 0.0 || height <= 0.0 {
+        return None;
+    }
+    let ratio = width / height;
+    [
+        ("1:1", 1.0),
+        ("4:3", 4.0 / 3.0),
+        ("3:4", 3.0 / 4.0),
+        ("16:9", 16.0 / 9.0),
+        ("9:16", 9.0 / 16.0),
+        ("21:9", 21.0 / 9.0),
+        ("9:21", 9.0 / 21.0),
+        ("3:2", 1.5),
+        ("2:3", 2.0 / 3.0),
+        ("4:5", 0.8),
+        ("5:4", 1.25),
+        ("2:1", 2.0),
+        ("1:2", 0.5),
+    ]
+    .into_iter()
+    .min_by(|a, b| {
+        let distance = |r: f64| (r / ratio).ln().abs();
+        distance(a.1).total_cmp(&distance(b.1))
+    })
+    .map(|(name, _)| name)
+}
+// Optional request fields stay out of the body when the frontend leaves them empty, like Electron's
+// `value || undefined` (the provider rejects explicit nulls). Booleans such as generate_audio are kept.
+fn without_nulls(mut body: Value) -> Value {
+    if let Some(map) = body.as_object_mut() {
+        map.retain(|_, value| !(value.is_null() || value == "" || value == 0));
+    }
+    body
+}
 fn extension(mime: &str) -> &'static str {
     match mime.split(';').next().unwrap_or("") {
         "image/png" => "png",
@@ -144,7 +180,8 @@ pub async fn handle(backend: &Backend, channel: &str, args: &[Value]) -> Option<
                 save(backend,&data,&mime,&meta,kind)
             },
             "image:generate"=>{
-                let mut body=json!({"model":a["model"],"prompt":a["prompt"],"aspect_ratio":a["aspect"],"resolution":a["resolution"]});
+                let aspect=a["aspect"].as_str().or_else(||aspect_of(a["width"].as_f64().unwrap_or(0.0),a["height"].as_f64().unwrap_or(0.0)));
+                let mut body=without_nulls(json!({"model":a["model"],"prompt":a["prompt"],"aspect_ratio":aspect,"resolution":a["resolution"]}));
                 if let Some(refs)=a["refImages"].as_array(){body["input_references"]=json!(refs.iter().map(|url|json!({"type":"image_url","image_url":{"url":url}})).collect::<Vec<_>>());}
                 let result=backend.cloud.call("/v1/images",Some(body)).await?;
                 let image=result["data"].get(0).ok_or("No image came back.")?;
@@ -171,7 +208,7 @@ pub async fn handle(backend: &Backend, channel: &str, args: &[Value]) -> Option<
                 let mut item=save(backend,&data,&mime,&a,"audio")?;item["lyrics"]=json!(lyrics);Ok(item)
             },
             "cloud:video"=>{
-                let mut body=json!({"model":a["model"],"prompt":a["prompt"],"duration":a["duration"],"resolution":a["resolution"],"aspect_ratio":a["aspect"],"generate_audio":a["audio"]});
+                let mut body=without_nulls(json!({"model":a["model"],"prompt":a["prompt"],"duration":a["duration"],"resolution":a["resolution"],"aspect_ratio":a["aspect"],"generate_audio":a["audio"].as_bool()}));
                 if let Some(frame)=a["frameImage"].as_str(){body["frame_images"]=json!([{"type":"image_url","image_url":{"url":frame},"frame_type":"first_frame"}]);}
                 let job=backend.cloud.call("/v1/videos",Some(body)).await?;
                 let id=job["id"].as_str().ok_or("Video job ID is missing")?;
@@ -187,4 +224,22 @@ pub async fn handle(backend: &Backend, channel: &str, args: &[Value]) -> Option<
             _=>unreachable!(),
         }
     }.await)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn empty_optional_fields_are_left_out_like_electron() {
+        let body = without_nulls(
+            json!({"model":"m","resolution":null,"aspect_ratio":"","duration":0,"generate_audio":false}),
+        );
+        assert_eq!(body, json!({"model":"m","generate_audio":false}));
+    }
+    #[test]
+    fn aspect_follows_the_nearest_named_ratio() {
+        assert_eq!(aspect_of(1920.0, 1080.0), Some("16:9"));
+        assert_eq!(aspect_of(1000.0, 1250.0), Some("4:5"));
+        assert_eq!(aspect_of(0.0, 10.0), None);
+    }
 }

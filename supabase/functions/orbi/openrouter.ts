@@ -143,6 +143,8 @@ const imageParam = (m: unknown, key: string): string[] | undefined => {
 const num = (v: unknown) => (typeof v === 'number' ? v : Number(v || 0)) || 0
 const vendorOf = (id: string) => id.split('/')[0]
 const isFree = (m: OrModel) => m.id.endsWith(':free') || (num(m.pricing?.prompt) === 0 && num(m.pricing?.completion) === 0 && num(m.pricing?.request) === 0 && m.id !== 'openrouter/auto')
+// ":batch" variants are OpenRouter's deferred batch mode: they never answer a live chat or render.
+const isBatch = (m: { id: string }) => m.id.endsWith(':batch')
 
 // Model lists are public on OpenRouter, so they load even before the key is set on the server.
 async function listJson<T>(path: string): Promise<T[]> {
@@ -161,7 +163,7 @@ export type Catalog = Awaited<ReturnType<typeof buildCatalog>>
 async function buildCatalog() {
   const all = await listJson<OrModel & { supported_voices?: string[] | null }>('/models?output_modalities=all')
   const outs = (m: OrModel) => m.architecture?.output_modalities || ['text']
-  let chat = all.filter((m) => outs(m).includes('text') && !isFree(m))
+  let chat = all.filter((m) => outs(m).includes('text') && !isFree(m) && !isBatch(m))
   if (config.chatModels.length) chat = config.chatModels.map((id) => chat.find((m) => m.id === id)).filter((m): m is OrModel => !!m)
   else {
     const per = new Map<string, number>()
@@ -185,7 +187,7 @@ async function buildCatalog() {
       .forEach((m) => popular.add(m.id))
   chat = [...chat].sort((a, b) => vendorRank(a.id) - vendorRank(b.id) || Number(popular.has(b.id)) - Number(popular.has(a.id)) || (b.created || 0) - (a.created || 0))
   const imageRows = await listJson<OrModel & { supported_aspect_ratios?: string[]; supported_resolutions?: string[] }>('/images/models')
-  const images = (imageRows.length ? imageRows : all.filter((m) => (m.architecture?.output_modalities || []).includes('image') && !m.id.endsWith(':free'))).sort(
+  const images = (imageRows.length ? imageRows : all.filter((m) => (m.architecture?.output_modalities || []).includes('image') && !m.id.endsWith(':free'))).filter((m) => !isBatch(m)).sort(
     (a, b) => rankBy(POPULAR_IMAGE, a.id, a.name) - rankBy(POPULAR_IMAGE, b.id, b.name) || (b.created || 0) - (a.created || 0),
   )
   // Real cost per image: the endpoint price list, then what Orbi actually paid in the last 30 days.
@@ -198,7 +200,7 @@ async function buildCatalog() {
   }
   const imagePrice = new Map<string, number | undefined>(await Promise.all(images.map(async (m) => [m.id, paid.get(m.id) ?? (await imageUsd(m.id))] as const)))
   const videoRowsAll = await listJson<{ id: string; name?: string; supported_durations?: number[]; supported_resolutions?: string[]; supported_aspect_ratios?: string[]; pricing_skus?: unknown; allowed_passthrough_parameters?: string[] }>('/videos/models')
-  const videoRows = videoRowsAll.sort((a, b) => rankBy(POPULAR_VIDEO, a.id, a.name) - rankBy(POPULAR_VIDEO, b.id, b.name))
+  const videoRows = videoRowsAll.filter((m) => !isBatch(m)).sort((a, b) => rankBy(POPULAR_VIDEO, a.id, a.name) - rankBy(POPULAR_VIDEO, b.id, b.name))
   const tts = all.filter((m) => outs(m).includes('speech') && !m.id.endsWith(':free')).sort(byOrder(TTS_ORDER))
   const stt = all.filter((m) => outs(m).includes('transcription') && !m.id.endsWith(':free')).sort(byOrder(STT_ORDER))
   return {
