@@ -45,6 +45,13 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
 - **Instalador Windows do Tauri (prévia):** `npx --yes @tauri-apps/cli@2 build --bundles nsis --config src-tauri/tauri.preview.json --ci`. Gera "Orbi Preview", 8,6 MB, com dados e credenciais próprios (`com.orbix.orbi.preview`). Instalação, abertura e desinstalação foram testadas; o Electron não foi afetado. Feche qualquer `orbi-native.exe` aberto antes do build ("Acesso negado"). O instalador **não** foi publicado.
 - **Imagem e vídeo no Tauri:** `gpt-image-2` 1024² (7,47 créditos) e `tbc/mischief-1` 3 s/480p a partir da imagem (18,75 créditos). Ambos funcionaram depois da correção dos `null` em `media.rs`. O `mischief-1` exige imagem inicial e só aceita 16:9, mas o catálogo não informa isso.
 - **Função `orbi` v12 (02/11):** sem as variantes `:batch` (modo lote do OpenRouter) no chat, imagem e vídeo. Os arquivos publicados foram conferidos contra o repositório. Lista ao vivo: 171 modelos, 0 batch.
+- **Versão de transição (branch `claude/tauri-transition`, ainda não está na main):**
+  - `src-tauri/windows/hooks.nsh` remove o Orbi Electron em silêncio, instala o WebView2 se faltar e recria os atalhos (o `/UPDATE` do Tauri não os cria). O executável passa a ser `Orbi.exe`. A prévia fica sem ganchos.
+  - Workflows: Windows no canal assinado. A variável `ORBI_WINDOWS_NATIVE=true` faz a release estável sair com o instalador Tauri como `Orbi-Setup-<v>.exe`, e o `release.yml` para.
+  - Testado com um Electron falso (`/UPDATE /P`): remoção, instalação e atalhos funcionaram; o Orbi real não foi tocado.
+  - **Paridade testada no Tauri logado:** MCP interno conectado; DeepWiki conecta sob pedido (3 ferramentas); voz na nuvem (WAV de 1,5 s); terminal PowerShell (comando, saída e código 0; o ConPTY pede `ESC[6n`, que o xterm responde). **Falta:** ferramenta MCP dentro do chat e várias janelas.
+  - **Bloqueio (Daniel):** chave de assinatura do updater. Instalar `gh` e `pnpm`, rodar `gh auth login` e `build/configure-native-updates.ps1`, e guardar backup de `%LOCALAPPDATA%\OrbiBuildKeys`.
+  - O teste de ponta a ponta (Electron real → Tauri) só com ok explícito do Daniel, porque usa os dados reais.
 - O Rust agora traduz os erros de login como o Electron (`auth_message` em `cloud.rs`).
 - Os modelos de e-mail com código ainda **não** foram aplicados no Supabase (o script rodou na pasta errada). O Site URL continua `localhost:3000`.
 
