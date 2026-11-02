@@ -13,6 +13,20 @@ pub fn now() -> u64 {
 pub fn uid() -> String {
     uuid::Uuid::new_v4().to_string()
 }
+/// Data folder of an isolated test run (`ORBI_DATA_DIR`), if any.
+pub fn isolated_dir() -> Option<std::path::PathBuf> {
+    std::env::var_os("ORBI_DATA_DIR")
+        .filter(|dir| !dir.is_empty())
+        .map(Into::into)
+}
+/// OS credential store service name; isolated runs never read or replace the installed app's sign-in.
+pub fn credential_service() -> &'static str {
+    if isolated_dir().is_some() {
+        "com.orbix.orbi.isolated"
+    } else {
+        "com.orbix.orbi"
+    }
+}
 fn sql_value(value: &Value) -> SqlValue {
     match value {
         Value::Null => SqlValue::Null,

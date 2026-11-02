@@ -9,6 +9,14 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
 - Paridade de IPC: os 23 canais ausentes no Rust são `local:*`, `providers:*` e `voice:*`, que podem ser apagados no modo nuvem. Faltam os eventos `data:changed`, `find:result` e `update:done`. O `tauri.conf.json` não tem alvo Windows (`nsis`/`msi`) e a `pubkey` do updater está vazia.
 - Nova `src-tauri/src/legacy.rs`: importação única de `%APPDATA%\Orbi` ao abrir. Detalhes em `docs/TAURI_MIGRATION.md`. Testada com 19 testes Rust e com uma cópia dos dados reais (11 conversas, 97 mensagens, 34 mídias). A cópia foi apagada.
 - Eventos `data:changed`, `find:result` e `update:done` implementados no Rust (`lib.rs`, `window.rs`, `mcp.rs`). A contagem da busca foi testada no Node, mas os eventos ainda não foram vistos numa janela aberta.
+- **A prévia Tauri nunca tinha mostrado a interface** (tela em branco: o `api.ts` lia `window.orbi` antes do `tauriBridge`). Corrigido: o `api.ts` importa `./tauriBridge`. A CSP do `index.html` agora libera IPC e assets do Tauri.
+- Teste isolado sem tocar nos dados reais:
+
+  ```
+  $env:ORBI_DATA_DIR="<pasta>"; $env:ORBI_LEGACY_DIR="<cópia de %APPDATA%\Orbi>"; $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS="--remote-debugging-port=9333"
+  ```
+
+  Depois é só abrir o `orbi-native.exe`. A janela pode ser inspecionada por CDP em `127.0.0.1:9333`. Os três eventos e a migração foram verificados assim numa janela real. As telas que exigem login não foram vistas.
 - O Visual Studio 2026 Community está instalado neste PC (MSVC e depurador). Use-o quando precisar.
 - Atenção: abrir a prévia Tauri neste PC agora importaria um retrato dos dados e criaria `electron-migration.json`. A pasta `%APPDATA%\com.orbix.orbi` daqui só tem o banco vazio do teste de abertura, que a migração põe de lado sozinha.
 

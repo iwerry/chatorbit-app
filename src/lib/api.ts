@@ -1,5 +1,8 @@
 // Thin typed wrapper over the desktop bridge (window.orbi).
 // The same interface can later be implemented over HTTP for the web version.
+// The Tauri transport must define window.orbi before `bridge` below is read; importing it here keeps that
+// order even when the bundler puts this module in its own chunk, which runs before the entry module's body.
+import './tauriBridge'
 
 export type ProviderInfo = {
   id: string

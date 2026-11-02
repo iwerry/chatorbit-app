@@ -187,15 +187,28 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
-            let root = app.path().app_data_dir()?;
+            // ORBI_DATA_DIR runs an isolated copy for testing: its own database, media and credentials, and
+            // the Electron import reads ORBI_LEGACY_DIR only (never the real Electron folder).
+            let (root, legacy) = match storage::isolated_dir() {
+                Some(dir) => (dir, std::env::var_os("ORBI_LEGACY_DIR").map(Into::into)),
+                None => (
+                    app.path().app_data_dir()?,
+                    // Electron used the product name as its data folder.
+                    Some(app.path().config_dir()?.join("Orbi")),
+                ),
+            };
             std::fs::create_dir_all(root.join("media"))?;
-            // Electron used the product name as its data folder; import it once before the native database opens.
-            match legacy::migrate(&app.path().config_dir()?.join("Orbi"), &root) {
-                Ok(Some(report)) => eprintln!("Electron data migration: {report}"),
-                Ok(None) => (),
-                Err(error) => eprintln!(
+            // The configured asset scope is $APPDATA/media; an isolated folder must be allowed explicitly.
+            app.asset_protocol_scope()
+                .allow_directory(root.join("media"), true)
+                .map_err(std::io::Error::other)?;
+            // Import Electron data once, before the native database opens.
+            match legacy.map(|legacy| legacy::migrate(&legacy, &root)) {
+                Some(Ok(Some(report))) => eprintln!("Electron data migration: {report}"),
+                Some(Err(error)) => eprintln!(
                     "Electron data migration failed; it will retry on the next launch: {error}"
                 ),
+                _ => (),
             }
             let db = Storage::open(&root.join("orbi.db")).map_err(std::io::Error::other)?;
             let version = json!(env!("CARGO_PKG_VERSION"));

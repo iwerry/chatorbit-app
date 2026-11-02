@@ -23,8 +23,11 @@ impl Cloud {
         }
     }
     fn credential() -> Result<keyring::Entry> {
-        keyring::Entry::new("com.orbix.orbi", "supabase-refresh-token")
-            .map_err(|_| "The operating system credential store is unavailable.".into())
+        keyring::Entry::new(
+            crate::storage::credential_service(),
+            "supabase-refresh-token",
+        )
+        .map_err(|_| "The operating system credential store is unavailable.".into())
     }
     fn refresh_token() -> Result<Option<String>> {
         match Self::credential()?.get_password() {
