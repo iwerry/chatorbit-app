@@ -2,6 +2,14 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 10/11: 0.2.10-1 — controles de áudio (publicada, atualização rápida)
+
+- `AudioStudio.tsx`: grade de vozes com busca e ▶ (prévia "Hi! This is <voz>…", cerca de 4 s); interpretação (`⟦style: …⟧` no início do texto) nos modelos com `instructions` (Gemini TTS, Fish); música com estilo, clima, BPM, duração (Pro), vocal, idioma e marcadores de estrutura; efeitos com duração, intensidade, ambiente e loop. Tudo vira direções no prompt (o Lyria e o Seed Audio leem do texto).
+- Função `orbi` v13 (deploy pelo Supabase CLI já logado: `npx supabase functions deploy orbi --project-ref jtdkbtszyrqogmvznrig --no-verify-jwt --use-api --yes`): prévia em `public.voice_samples` (migração `20261110000000_voice_samples`), gerada uma vez por voz e grátis; `⟦style⟧` vira `instructions`. **Publique a função antes do front**, senão a voz lê o marcador.
+- Verificado em produção: prévia da Zephyr com 4,04 s, a segunda vez vinda do banco, 0 crédito; voz com estilo sem ler o marcador. Efeito sonoro de chuva gerado (o Seed Audio trata a duração como sugestão).
+- Release `v0.2.10-1` com a mesma `core` da 0.2.2-2: o Electron recebe só o pacote de interface.
+- A branch `claude/tauri-transition` está atrás da `main`; faça rebase antes de juntar.
+
 ## 02/11: 0.2.2-2 — trocar senha logado + e-mails com código
 
 - Novo canal `cloud:changePassword` (`PUT /auth/v1/user` com o token da sessão) no Electron (`cloud.cjs`, `main.cjs`) e no Rust (`cloud.rs`). Interface em Configurações › Geral (`ChangePassword` em `SettingsModal.tsx`), visível só com login. Testado no Electron contra um Supabase falso (troca, erro de senha repetida, recusa sem login). A tela ainda não foi vista com uma conta logada.
