@@ -1,13 +1,14 @@
 import { AccountPanel, CloudVoiceSettings } from './AccountPanel'
 import { useCloud } from '../lib/cloud'
 import { useEffect, useState } from 'react'
-import { Check, ExternalLink, FolderOpen, Info, KeyRound, Loader2, Mic, SlidersHorizontal, UserRound, Wallet, X } from 'lucide-react'
+import { BarChart3, Check, ExternalLink, FolderOpen, Info, KeyRound, Loader2, Mic, SlidersHorizontal, UserRound, Wallet, X } from 'lucide-react'
 import { api, type AppInfo } from '../lib/api'
 import { LANGUAGES, t, type Lang } from '../lib/i18n'
 import { OrbiMark } from './Logo'
+import { UsagePanel } from './UsagePanel'
 import { UpdateSection } from './UpdateCenter'
 
-export type SettingsTab = 'account' | 'general' | 'voice' | 'about' | 'profile'
+export type SettingsTab = 'account' | 'usage' | 'general' | 'voice' | 'about' | 'profile'
 
 const cleanErr = (e: unknown) => String((e as Error)?.message ?? e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
 
@@ -90,6 +91,7 @@ export function SettingsModal({
 
   const nav: { id: SettingsTab; label: string; icon: typeof Info }[] = [
     { id: 'account', label: 'Account & credits', icon: Wallet },
+    { id: 'usage', label: 'Usage', icon: BarChart3 },
     { id: 'general', label: 'General', icon: SlidersHorizontal },
     { id: 'voice', label: 'Voice', icon: Mic },
     { id: 'about', label: 'About', icon: Info },
@@ -118,6 +120,13 @@ export function SettingsModal({
             <>
               <h3>{t('Account & credits')}</h3>
               <AccountPanel />
+            </>
+          )}
+
+          {tab === 'usage' && (
+            <>
+              <h3>{t('Usage')}</h3>
+              <UsagePanel />
             </>
           )}
 

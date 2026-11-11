@@ -241,6 +241,7 @@ export const api = {
   cloudLogout: () => bridge.invoke('cloud:logout'),
   cloudPlans: (): Promise<CloudPlans> => bridge.invoke('cloud:plans'),
   cloudUsage: (): Promise<{ items: CloudUsageItem[] }> => bridge.invoke('cloud:usage'),
+  cloudUsageSummary: (days: number): Promise<CloudUsageSummary> => bridge.invoke('cloud:usageSummary', days),
   cloudCatalog: (): Promise<CloudCatalog> => bridge.invoke('cloud:catalog'),
   cloudCheckout: (item: string): Promise<{ url: string }> => bridge.invoke('cloud:checkout', item),
   cloudPortal: (): Promise<{ url: string }> => bridge.invoke('cloud:portal'),
@@ -420,6 +421,13 @@ export type CloudPlans = {
   credit: { usd: number }
 }
 export type CloudUsageItem = { created_at: number; kind: string; amount: number; model: string; note: string }
+export type CloudUsageSummary = {
+  days: number
+  total: { credits: number; calls: number }
+  byKind: { kind: string; credits: number; calls: number }[]
+  byModel: { model: string; kind: string; credits: number; calls: number }[]
+  byDay: { day: number; credits: number }[]
+}
 export type CloudCatalog = {
   chat: { id: string; name: string; vendor: string; featured?: boolean; created?: number; context: number; input: string[]; image: boolean; price: { in: number; out: number }; usd?: { in: number; out: number } }[]
   image: { id: string; name: string; vendor: string; featured?: boolean; price?: number; usd?: number; aspects?: string[]; resolutions?: string[] }[]

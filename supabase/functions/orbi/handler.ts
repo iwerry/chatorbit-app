@@ -1,6 +1,6 @@
 // Orbi Cloud request handler: one function, the same routes the Orbi apps use.
 //   GET  /health                              status (public)
-//   GET  /me · /me/usage                      account, credits, usage
+//   GET  /me · /me/usage · /me/usage/summary  account, credits, usage (list and totals per period)
 //   GET  /billing/plans · POST /billing/checkout · /billing/portal · GET /billing/done
 //   POST /stripe/webhook                      Stripe events (signature checked)
 //   GET  /v1/models · /v1/catalog             market models (no free models)
@@ -91,6 +91,26 @@ async function route(req: Request): Promise<Response> {
   if (is('GET', '/me/usage')) {
     const rows = await sql<{ created_at: Date; kind: string; amount: string; model: string; note: string }[]>`select created_at, kind, amount, model, note from public.ledger where user_id = ${c.id} order by id desc limit 100`
     return json({ items: rows.map((r) => ({ ...r, created_at: new Date(r.created_at).getTime(), amount: Number(r.amount) / MICRO })) })
+  }
+  if (is('GET', '/me/usage/summary')) {
+    // Credits spent in the period, by kind (Chat, Image, Video…), by model and by day. Estimates stay in USD apart.
+    const days = Math.min(365, Math.max(1, Number(url.searchParams.get('days')) || 30))
+    const since = new Date(Date.now() - days * 86_400_000)
+    const where = sql`user_id = ${c.id} and kind = 'usage' and created_at >= ${since}`
+    const [kinds, models, daily, [total]] = await Promise.all([
+      sql<{ note: string; credits: string; calls: number }[]>`select regexp_replace(note, ' \\(est\\.\\)$', '') as note, -sum(amount) as credits, count(*)::int as calls from public.ledger where ${where} group by 1 order by 2 desc`,
+      sql<{ model: string; note: string; credits: string; calls: number }[]>`select model, min(regexp_replace(note, ' \\(est\\.\\)$', '')) as note, -sum(amount) as credits, count(*)::int as calls from public.ledger where ${where} group by model order by 3 desc limit 25`,
+      sql<{ day: Date; credits: string }[]>`select date_trunc('day', created_at) as day, -sum(amount) as credits from public.ledger where ${where} group by 1 order by 1`,
+      sql<{ credits: string; calls: number }[]>`select coalesce(-sum(amount), 0) as credits, count(*)::int as calls from public.ledger where ${where}`,
+    ])
+    const cr = (v: string) => Number(v || 0) / MICRO
+    return json({
+      days,
+      total: { credits: cr(total.credits), calls: total.calls },
+      byKind: kinds.map((k) => ({ kind: k.note || 'Other', credits: cr(k.credits), calls: k.calls })),
+      byModel: models.map((m) => ({ model: m.model, kind: m.note || 'Other', credits: cr(m.credits), calls: m.calls })),
+      byDay: daily.map((d) => ({ day: new Date(d.day).getTime(), credits: cr(d.credits) })),
+    })
   }
   if (is('POST', '/billing/checkout')) return json(await checkout(c, String((await body(req)).item || '')))
   if (is('POST', '/billing/portal')) return json(await portal(c))

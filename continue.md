@@ -2,6 +2,16 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 11/11: plano de evolução e passo A1 (branch `claude/a1-shell`)
+
+- `docs/PLANO_EVOLUCAO_ORBI.md`: plano por passos dos dois relatórios (layout/workspace e Blender WASM), com as regras (UI em inglês com `t()` e pt-BR/es/fr; Impeccable antes e depois) e a ordem recomendada.
+- A1 feito:
+  - marca única: logo só na barra lateral (saiu da barra de título e do centro da tela inicial);
+  - menu do avatar com **Usage** e **Language** (submenu com a lista de idiomas);
+  - aba **Usage** nas Configurações (`UsagePanel.tsx`): 7/30/90 dias, total, por tipo (texto/imagem/vídeo/áudio), por dia e por modelo.
+- Rota nova no Edge Function: `GET /me/usage/summary?days=N` (agrega o `ledger`; junta "Voice (est.)" com "Voice") e canal Rust `cloud:usageSummary`. Enquanto a função não é publicada, o app monta o resumo com as últimas 100 transações.
+- Script de traduções faltantes agora varre todo o `src` (antes só NodeFlow e CreativeStudio).
+
 ## 11/11: Electron removido do repositório
 
 - Apagados:

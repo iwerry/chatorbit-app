@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronRight } from 'lucide-react'
-import { OrbiMark } from './Logo'
 import { platform } from '../lib/api'
 import { t } from '../lib/i18n'
 
@@ -64,7 +63,7 @@ function MenuList({ items, commands, onDone, sub = false }: { items: MenuItem[];
   )
 }
 
-export function TitleBar({ menus, commands, title, onLogo }: { menus: MenuDef[]; commands: Record<string, Command>; title: string; onLogo: () => void }) {
+export function TitleBar({ menus, commands, title }: { menus: MenuDef[]; commands: Record<string, Command>; title: string }) {
   const [open, setOpen] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -84,9 +83,6 @@ export function TitleBar({ menus, commands, title, onLogo }: { menus: MenuDef[];
 
   return (
     <div className={`titlebar ${isMac ? 'titlebar-mac' : ''}`} ref={ref}>
-      <button className="tb-logo" onClick={onLogo} title="Orbi" aria-label="Orbi home">
-        <OrbiMark width={15} height={15} />
-      </button>
       <nav className="tb-menus" aria-label="Application menu">
         {menus.map((m) => (
           <div key={m.label} className="tb-menu-root">

@@ -21,6 +21,8 @@ import {
   Copy,
   Cpu,
   Crown,
+  BarChart3,
+  Languages,
   FileText,
   FolderKanban,
   Image as ImageIcon,
@@ -77,7 +79,7 @@ import type { StudioIntent } from './components/CreatorStudio'
 import { Markdown } from './components/Markdown'
 import { GhostIcon, OrbiMark } from './components/Logo'
 import type { SettingsTab } from './components/SettingsModal'
-import { t, t as tr, setLang as applyLang, fmtDate, fmtTime, type Lang } from './lib/i18n'
+import { LANGUAGES, t, t as tr, setLang as applyLang, fmtDate, fmtTime, type Lang } from './lib/i18n'
 import { isPage, navItems, WorkspacePanel, type NavKey } from './components/WorkspacePanel'
 import { CommandPalette, FindBar, TitleBar, type Command, type MenuDef } from './components/TitleBar'
 import type { TerminalHandle } from './components/TerminalPanel'
@@ -222,6 +224,10 @@ export default function App() {
   const [panelOpen, setPanelOpen] = useState(false)
   const [activeNav, setActiveNav] = useState<NavKey>('chats')
   const [profileOpen, setProfileOpen] = useState(false)
+  const [profileLangOpen, setProfileLangOpen] = useState(false)
+  useEffect(() => {
+    if (!profileOpen) setProfileLangOpen(false)
+  }, [profileOpen])
   const [settingsOpen, setSettingsOpen] = useState<null | SettingsTab>(null)
   const [lang, setLangState] = useState<Lang>('en')
   const [webOn, setWebOn] = useState(false)
@@ -1518,7 +1524,6 @@ export default function App() {
       menus={menus}
       commands={commands}
       title={activeNav === 'creative' ? `Orbi — ${t('Creative')}` : activeNav === 'explore' ? `Orbi — ${t('Explore')}` : activeConversation ? `${activeConversation.title} — Orbi` : 'Orbi'}
-      onLogo={() => goNav('chats')}
     />
     <div className="app-frame">
     <div
@@ -1598,6 +1603,17 @@ export default function App() {
               role="menuitem"
               onClick={() => {
                 setProfileOpen(false)
+                setSettingsOpen('usage')
+              }}
+            >
+              <BarChart3 size={16} />
+              <span>{t('Usage')}</span>
+            </button>
+            <button
+              className="profile-menu-item"
+              role="menuitem"
+              onClick={() => {
+                setProfileOpen(false)
                 setSettingsOpen('profile')
               }}
             >
@@ -1615,6 +1631,31 @@ export default function App() {
               <Settings size={16} />
               <span>{t('Settings')}</span>
             </button>
+            <button className="profile-menu-item" role="menuitem" aria-haspopup="true" aria-expanded={profileLangOpen} onClick={() => setProfileLangOpen((v) => !v)}>
+              <Languages size={16} />
+              <span className="flex-1 text-left">{t('Language')}</span>
+              <small className="profile-menu-value">{LANGUAGES.find((l) => l.id === lang)?.name}</small>
+              <ChevronDown size={14} className={`profile-menu-caret ${profileLangOpen ? 'open' : ''}`} />
+            </button>
+            {profileLangOpen && (
+              <div className="profile-menu-sub" role="group" aria-label={t('Language')}>
+                {LANGUAGES.map((l) => (
+                  <button
+                    key={l.id}
+                    className={`profile-menu-item ${lang === l.id ? 'active' : ''}`}
+                    role="menuitemradio"
+                    aria-checked={lang === l.id}
+                    onClick={() => {
+                      changeLang(l.id)
+                      setProfileLangOpen(false)
+                    }}
+                  >
+                    <span className="profile-menu-check">{lang === l.id && <Check size={13} />}</span>
+                    <span>{l.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="profile-menu-separator" />
             <button
               className="profile-menu-item"
@@ -1980,9 +2021,6 @@ export default function App() {
                         <span className="hero-orbit hero-orbit-three">
                           <i />
                         </span>
-                      </div>
-                      <div className="standard-title-icon">
-                        <OrbiMark width={26} height={26} />
                       </div>
                       <h2>{themeMode === 'terminal' ? t('System ready, {name}.', { name: shownName }) : `${t(greeting())}, ${shownName}.`}</h2>
                       <p>{themeMode === 'terminal' ? t('Initialize a multimodal workflow.') : t('One workspace for your ideas. Chat, images, video and sound.')}</p>

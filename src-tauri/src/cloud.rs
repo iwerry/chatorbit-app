@@ -207,6 +207,7 @@ impl Cloud {
                 "cloud:catalog"=>self.call("/v1/catalog",None).await,
                 "cloud:plans"=>self.call("/billing/plans",None).await,
                 "cloud:usage"=>self.call("/me/usage",None).await,
+                "cloud:usageSummary"=>{let days=a.as_u64().unwrap_or(30).clamp(1,365); self.call(&format!("/me/usage/summary?days={days}"),None).await},
                 "cloud:stats"=>self.call("/admin/stats",None).await,
                 "cloud:grant"=>self.call("/admin/grant",Some(a.clone())).await,
                 "cloud:checkout"=>self.call("/billing/checkout",Some(json!({"item":a}))).await,

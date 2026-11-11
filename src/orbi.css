@@ -1015,17 +1015,6 @@ html[data-theme='terminal'] {
 .tb-menu {
   -webkit-app-region: no-drag;
 }
-.tb-logo {
-  display: grid;
-  height: 22px;
-  width: 22px;
-  margin-right: 6px;
-  place-items: center;
-  border-radius: 6px;
-  background: #c8f04a;
-  color: #172014;
-  --orbi-mark-gap: #c8f04a;
-}
 .tb-menus {
   display: flex;
   height: 100%;
@@ -2169,4 +2158,195 @@ html[data-theme='terminal'] .ab-create {
 .grip-workspace i {
   width: 2px;
   height: 22px;
+}
+
+/* ---------- Settings → Usage ---------- */
+.usage {
+  display: grid;
+  gap: 10px;
+}
+.usage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.usage-periods {
+  display: inline-flex;
+  gap: 4px;
+  border: 1px solid var(--neo-line);
+  border-radius: 10px;
+  padding: 3px;
+}
+.usage-periods button {
+  height: 28px;
+  border-radius: 7px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  color: var(--neo-muted);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+.usage-periods button:hover {
+  color: var(--neo-text);
+}
+.usage-periods button.active {
+  background: var(--neo-accent);
+  color: var(--neo-accent-text);
+  font-weight: 650;
+}
+.usage-total {
+  display: grid;
+  gap: 2px;
+  border: 1px solid var(--neo-line);
+  border-radius: 14px;
+  background: var(--neo-surface);
+  padding: 16px 18px;
+}
+.usage-total strong {
+  font-family: Manrope, sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--neo-text);
+}
+.usage-total span {
+  font-size: 13px;
+  color: var(--neo-muted);
+}
+.usage-total small {
+  font-size: 12px;
+  color: var(--neo-faint);
+}
+.usage-bars {
+  display: grid;
+  gap: 8px;
+}
+.usage-bars li {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 12px;
+  font-size: 12.5px;
+}
+.usage-bar-label {
+  color: var(--neo-text);
+}
+.usage-bar-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--neo-line);
+}
+.usage-bar-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: currentColor;
+  transition: width 240ms ease;
+}
+.usage-bars em {
+  font-style: normal;
+  font-weight: 650;
+  text-align: right;
+  color: var(--neo-text);
+}
+.usage-days {
+  display: flex;
+  height: 72px;
+  align-items: flex-end;
+  gap: 3px;
+  border-bottom: 1px solid var(--neo-line);
+  padding-bottom: 2px;
+}
+.usage-days i {
+  flex: 1;
+  min-width: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--neo-accent);
+  opacity: 0.85;
+}
+.usage-days i:hover {
+  opacity: 1;
+}
+.usage-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  vertical-align: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .usage-bar-track i,
+  .usage-periods button {
+    transition: none;
+  }
+}
+/* Usage reuses the kind hues from DESIGN.md (text plum, image blue, video teal, audio amber) without the chip fill. */
+.usage .kind-text,
+.usage .kind-image,
+.usage .kind-video,
+.usage .kind-audio {
+  background: transparent;
+  padding: 0;
+}
+.usage .kind-text { color: #8a6da0; }
+.usage .kind-audio { color: #c8743a; }
+html[data-theme='dark'] .usage .kind-text { color: #bba2d4; }
+html[data-theme='dark'] .usage .kind-audio { color: #f0a46b; }
+html[data-theme='light'] .usage .kind-text { color: #6b4f86; }
+html[data-theme='light'] .usage .kind-audio { color: #9a5420; }
+html[data-theme='terminal'] .usage .kind-text,
+html[data-theme='terminal'] .usage .kind-image,
+html[data-theme='terminal'] .usage .kind-video,
+html[data-theme='terminal'] .usage .kind-audio { color: var(--neo-accent); }
+.usage .usage-bar-label,
+.usage .usage-bars em { color: var(--neo-text); }
+
+/* ---------- Avatar menu: Language submenu ---------- */
+.profile-menu-value {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--neo-faint);
+}
+.profile-menu-caret {
+  flex: none;
+  color: var(--neo-faint);
+  transition: transform 160ms ease;
+}
+.profile-menu-caret.open {
+  transform: rotate(180deg);
+}
+.profile-menu-sub {
+  display: grid;
+  gap: 1px;
+  margin: 2px 0 4px 18px;
+  border-left: 1px solid var(--neo-line);
+  padding-left: 6px;
+}
+.profile-menu-sub .profile-menu-item {
+  padding: 7px 10px;
+}
+.profile-menu-sub .profile-menu-item.active {
+  color: var(--neo-text);
+  font-weight: 650;
+}
+.profile-menu-check {
+  display: inline-grid;
+  width: 14px;
+  place-items: center;
+  color: var(--neo-accent);
+}
+html[data-theme='light'] .profile-menu-check {
+  color: var(--neo-accent-text);
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-menu-caret {
+    transition: none;
+  }
 }
