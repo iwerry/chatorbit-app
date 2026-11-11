@@ -87,7 +87,7 @@ pub fn handle(db: &Storage, channel: &str, args: &[Value]) -> Option<Result<Valu
                 Ok(Value::Null)
             }
             "messages:add" => {
-                let mut input = json!({"role":"user","content":"","model":"","attachments":[],"tools":[],"bookmarked":0});
+                let mut input = json!({"role":"user","content":"","model":"","attachments":[],"tools":[],"context":{},"bookmarked":0});
                 if let Some(object) = a.as_object() {
                     for (key, value) in object {
                         input[key] = value.clone();
@@ -104,6 +104,7 @@ pub fn handle(db: &Storage, channel: &str, args: &[Value]) -> Option<Result<Valu
                         "model",
                         "attachments",
                         "tools",
+                        "context",
                         "bookmarked",
                         "created_at",
                     ],

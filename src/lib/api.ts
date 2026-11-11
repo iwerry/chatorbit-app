@@ -44,6 +44,7 @@ export type Conversation = {
 
 export type Attachment = { name: string; mime: string; dataUrl?: string; text?: string }
 
+export type MessageContext = { project?: { id: string; name: string } | null; skills?: string[]; connectors?: string[]; model?: string }
 export type Message = {
   id: string
   conversation_id: string
@@ -57,6 +58,8 @@ export type Message = {
   error?: boolean
   conversation_title?: string
   tools?: string | ToolEvent[]
+  /** What was active when the message was sent: project, skills, connectors and model. */
+  context?: string | MessageContext
 }
 
 export type Memory = { id: string; content: string; created_at: number }

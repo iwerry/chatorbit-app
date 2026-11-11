@@ -15,6 +15,7 @@ import {
   Clock3,
   Download,
   Film,
+  FolderClosed,
   Gem,
   Image as ImageIcon,
   Loader2,
@@ -22,6 +23,7 @@ import {
   MessageSquareText,
   Mic,
   Minus,
+  Plug,
   Plus,
   RotateCcw,
   Search,
@@ -33,7 +35,7 @@ import {
   Dices,
   X,
 } from 'lucide-react'
-import { api, type MediaItem } from '../lib/api'
+import { api, type McpServer, type MediaItem, type MessageContext, type Project, type Skill } from '../lib/api'
 import { t } from '../lib/i18n'
 import { aspectInfo, aspectsFor, estimateUsd, imageResValue, nearestAspect, ratio, resLabel, type CreativeOption } from '../lib/creative'
 import { creativeBus, type ChatMediaMeta, type GenUpdate } from '../lib/creativeBus'
@@ -832,6 +834,134 @@ export function GhostText({ value, ghost }: { value: string; ghost: string }) {
     <span className="ghost-text">
       <span className="ghost-typed">{value}</span>
       <span className="ghost-rest">{ghost}</span>
+    </span>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* Context bar: project, skills and connectors for this conversation   */
+/* ------------------------------------------------------------------ */
+
+export function ContextBar({
+  projects,
+  projectId,
+  onProject,
+  onManageProjects,
+  skills,
+  onToggleSkill,
+  onManageSkills,
+  connectors,
+  onToggleConnector,
+  onManageConnectors,
+}: {
+  projects: Project[]
+  projectId: string | null
+  onProject: (id: string | null) => void
+  onManageProjects: () => void
+  skills: Skill[]
+  onToggleSkill: (s: Skill) => void
+  onManageSkills: () => void
+  connectors: McpServer[]
+  onToggleConnector: (s: McpServer) => void
+  onManageConnectors: () => void
+}) {
+  const project = projects.find((p) => p.id === projectId)
+  const skillsOn = skills.filter((s) => s.enabled).length
+  const connectorsOn = connectors.filter((s) => s.enabled).length
+  const count = (n: number) => (n ? <b className="ctx-count num">{n}</b> : null)
+  return (
+    <div className="composer-context" role="toolbar" aria-label={t('Conversation context')}>
+      <PopPill label={project ? project.name : t('No project')} icon={<FolderClosed size={13} />} title={t('Project')} active={!!project} className="ctx-pill">
+        {(close) => (
+          <div className="cpop-list ctx-list">
+            <p className="cpop-head">{t('Project')}</p>
+            <button type="button" className={!project ? 'on' : ''} onClick={() => (onProject(null), close())}>
+              <span>{t('No project')}</span>
+              {!project && <Check size={13} />}
+            </button>
+            {projects.map((p) => (
+              <button type="button" key={p.id} className={p.id === projectId ? 'on' : ''} onClick={() => (onProject(p.id), close())}>
+                <span className="truncate">{p.name}</span>
+                {p.id === projectId && <Check size={13} />}
+              </button>
+            ))}
+            <button type="button" className="ctx-manage" onClick={() => (onManageProjects(), close())}>
+              <Plus size={13} /> <span>{t('New project')}</span>
+            </button>
+          </div>
+        )}
+      </PopPill>
+      <PopPill label={<>{t('Skills')}{count(skillsOn)}</>} icon={<Blocks size={13} />} title={t('Skills')} active={skillsOn > 0} className="ctx-pill">
+        {(close) => (
+          <div className="cpop-list ctx-list">
+            <p className="cpop-head">{t('Skills shape every answer while they are on')}</p>
+            {skills.length === 0 && <p className="ctx-empty">{t('No skills yet.')}</p>}
+            {skills.map((s) => (
+              <button type="button" key={s.id} role="menuitemcheckbox" aria-checked={!!s.enabled} className={s.enabled ? 'on' : ''} onClick={() => onToggleSkill(s)}>
+                <span className={`ctx-check ${s.enabled ? 'on' : ''}`}>{!!s.enabled && <Check size={11} />}</span>
+                <span className="ctx-text">
+                  <span className="truncate">{s.name}</span>
+                  {s.description && <small className="truncate">{s.description}</small>}
+                </span>
+              </button>
+            ))}
+            <button type="button" className="ctx-manage" onClick={() => (onManageSkills(), close())}>
+              <Settings2 size={13} /> <span>{t('Manage skills')}</span>
+            </button>
+          </div>
+        )}
+      </PopPill>
+      <PopPill label={<>{t('Connectors')}{count(connectorsOn)}</>} icon={<Plug size={13} />} title={t('Connectors')} active={connectorsOn > 0} className="ctx-pill">
+        {(close) => (
+          <div className="cpop-list ctx-list">
+            <p className="cpop-head">{t('Connectors')}</p>
+            <p className="ctx-note">{t('When the AI uses a connector, it can read and send what that tool needs from this chat.')}</p>
+            {connectors.length === 0 && <p className="ctx-empty">{t('No connectors yet.')}</p>}
+            {connectors.map((s) => (
+              <button type="button" key={s.id} role="menuitemcheckbox" aria-checked={s.enabled} className={s.enabled ? 'on' : ''} onClick={() => onToggleConnector(s)}>
+                <span className={`ctx-check ${s.enabled ? 'on' : ''}`}>{s.enabled && <Check size={11} />}</span>
+                <span className="ctx-text">
+                  <span className="truncate">{s.name}</span>
+                  <small className={`ctx-status ctx-status-${s.status}`}>{s.enabled ? t(s.status === 'connected' ? 'Connected' : s.status === 'error' ? 'Error' : 'Connecting…') : t('Off')}</small>
+                </span>
+              </button>
+            ))}
+            <button type="button" className="ctx-manage" onClick={() => (onManageConnectors(), close())}>
+              <Settings2 size={13} /> <span>{t('Manage connectors')}</span>
+            </button>
+          </div>
+        )}
+      </PopPill>
+    </div>
+  )
+}
+
+/** Under a sent message: the project, skills and connectors that were active when it was written. */
+export function MessageContextNote({ context }: { context?: string | MessageContext }) {
+  let c: MessageContext | null = null
+  try {
+    c = typeof context === 'string' ? (context ? (JSON.parse(context) as MessageContext) : null) : context ?? null
+  } catch {
+    c = null
+  }
+  const skills = c?.skills ?? []
+  const connectors = c?.connectors ?? []
+  if (!c || (!c.project && !skills.length && !connectors.length)) return null
+  const parts = [
+    c.project?.name,
+    skills.length ? (skills.length === 1 ? t('1 skill') : t('{n} skills', { n: skills.length })) : '',
+    connectors.length ? (connectors.length === 1 ? t('1 connector') : t('{n} connectors', { n: connectors.length })) : '',
+  ].filter(Boolean)
+  const detail = [
+    c.project ? `${t('Project')}: ${c.project.name}` : '',
+    skills.length ? `${t('Skills')}: ${skills.join(', ')}` : '',
+    connectors.length ? `${t('Connectors')}: ${connectors.join(', ')}` : '',
+    c.model ? `${t('Model')}: ${c.model}` : '',
+  ].filter(Boolean).join('\n')
+  return (
+    <span className="message-context" title={detail} aria-label={detail}>
+      {c.project ? <FolderClosed size={11} /> : skills.length ? <Blocks size={11} /> : <Plug size={11} />}
+      {parts.join(' · ')}
     </span>
   )
 }

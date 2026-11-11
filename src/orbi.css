@@ -2350,3 +2350,147 @@ html[data-theme='light'] .profile-menu-check {
     transition: none;
   }
 }
+
+/* ---------- Composer context bar: Project · Skills · Connectors ---------- */
+.composer-context {
+  /* Same column as the composer (max-width 700px, centered), so the pills line up with the box above. */
+  display: flex;
+  max-width: 700px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px auto 0;
+  padding: 0 2px;
+}
+.composer-context .cpill {
+  height: 28px;
+  max-width: 220px;
+  border-color: transparent;
+  background: transparent;
+  font-weight: 600;
+}
+.composer-context .cpill:hover,
+.composer-context .cpill.open {
+  border-color: var(--neo-line);
+  background: var(--neo-surface);
+  color: var(--neo-text);
+}
+.composer-context .cpill.on {
+  border-color: color-mix(in srgb, var(--neo-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--neo-accent) 10%, transparent);
+  color: var(--neo-text);
+}
+.composer-context .cpill-label {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ctx-count {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--neo-accent);
+  padding: 0 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--neo-accent-text);
+}
+.cpop-list.ctx-list button > :last-child:not(:first-child) {
+  margin-left: 0;
+}
+.cpop-list.ctx-list button > svg:last-child:not(:first-child) {
+  margin-left: auto;
+}
+.ctx-text {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 1px;
+}
+.ctx-text small {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--neo-faint);
+}
+.ctx-check {
+  display: grid;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  place-items: center;
+  border: 1px solid var(--neo-line);
+  border-radius: 5px;
+  color: var(--neo-accent-text);
+}
+.ctx-check.on {
+  border-color: var(--neo-accent);
+  background: var(--neo-accent);
+}
+.ctx-status-connected {
+  color: var(--neo-accent) !important;
+}
+html[data-theme='light'] .ctx-status-connected {
+  color: #3f6a1e !important;
+}
+.ctx-status-error {
+  color: #e0705f !important;
+}
+.ctx-note,
+.ctx-empty {
+  margin: 0 9px 6px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--neo-faint);
+}
+.ctx-list .ctx-manage {
+  margin-top: 4px;
+  border-top: 1px solid var(--neo-line);
+  border-radius: 0 0 9px 9px;
+  padding-top: 10px;
+  color: var(--neo-muted);
+}
+.message-context {
+  display: inline-flex;
+  max-width: 260px;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--neo-faint);
+}
+.message-context svg {
+  flex: none;
+}
+
+/* Narrow windows: the context pills keep their icon and count, the words go to the tooltip. */
+@media (max-width: 720px) {
+  .composer-context .ctx-pill .cpill-label > :not(.ctx-count) {
+    display: none;
+  }
+  .composer-context .ctx-pill .cpill-label {
+    font-size: 0;
+  }
+  .composer-context .ctx-pill .ctx-count {
+    font-size: 10.5px;
+  }
+  .composer-context .cpill {
+    padding: 0 8px;
+  }
+}
+/* Multi-select lists: the checkbox shows the state, so a chosen row keeps a calm background. */
+.cpop-list.ctx-list button[role='menuitemcheckbox'].on {
+  background: transparent;
+}
+.cpop-list.ctx-list button[role='menuitemcheckbox'].on:hover {
+  background: var(--neo-surface);
+}
+.cpop-list.ctx-list .ctx-check svg,
+.cpop-list.ctx-list button.on .ctx-check svg {
+  color: var(--neo-accent-text);
+}

@@ -39,8 +39,8 @@ Cada passo termina em algo testável e vira uma versão (`0.M.D-N`) quando toca 
 - [ ] A1.4 Revisar duplicações de comando (topo × lateral × rodapé), tooltips, foco e atalhos. Impeccable antes/depois.
 
 ### A2. Composer contextual (~1–2 dias)
-- [ ] A2.1 Barra do composer com **Project** (projeto ativo), **Skills** e **Connectors** (MCP ativos), compactos; em tela estreita viram um menu "Ferramentas".
-- [ ] A2.2 Cada mensagem enviada grava um snapshot (projeto, skills, conectores, modelo) para reabrir conversas sem ambiguidade (coluna JSON em `messages`).
+- [x] A2.1 Barra do composer com **Project** (projeto ativo), **Skills** e **Connectors** (MCP ativos), compactos; em tela estreita viram um menu "Ferramentas".
+- [x] A2.2 Cada mensagem enviada grava um snapshot (projeto, skills, conectores, modelo) para reabrir conversas sem ambiguidade (coluna JSON em `messages`).
 
 ### A3. Painéis reorganizáveis (~3–4 dias)
 - [ ] A3.1 Dock manager próprio e leve: regiões esquerda/direita/baixo, abas, arrastar entre regiões, redimensionar, recolher, "restaurar padrão".

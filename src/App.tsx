@@ -59,6 +59,7 @@ import {
   type MediaItem,
   type Memory,
   type Message,
+  type MessageContext,
   type ModelInfo,
   type Project,
   type Skill,
@@ -104,6 +105,8 @@ import {
   ChatMediaCard,
   CommandGuide,
   CreateControls,
+  ContextBar,
+  MessageContextNote,
   DEFAULT_CREATE,
   EffortControl,
   GhostText,
@@ -149,7 +152,7 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
 
 type ResponseType = 'Instant' | 'Thinking'
 type ReasoningEffort = 'Fast' | 'Medium' | 'High'
-type HeaderMenu = 'models' | 'skills' | 'agents' | 'add' | null
+type HeaderMenu = 'models' | 'agents' | 'add' | null
 
 type ChatMessage = Message & { streaming?: boolean; temp?: boolean }
 
@@ -389,6 +392,16 @@ export default function App() {
     if (activeNav === 'creative') setCreativeMounted(true)
   }, [activeNav])
   const currentModel = models.find((m) => m.key === selectedModel)
+  const activeProject = projects.find((p) => p.id === activeProjectId) ?? null
+  // Connectors are the MCP servers the person turned on (Orbi's built-in tools are always there).
+  const connectors = useMemo(() => servers.filter((s) => s.type !== 'builtin'), [servers])
+  // Saved with each message, so an old conversation shows what was active when it was written.
+  const contextSnapshot = (modelName?: string): MessageContext => ({
+    project: activeProject ? { id: activeProject.id, name: activeProject.name } : null,
+    skills: activeSkills,
+    connectors: connectors.filter((s) => s.enabled).map((s) => s.name),
+    model: modelName,
+  })
   const chatModels = useMemo(() => models.filter((m) => !m.image || !/image/i.test(m.id)), [models])
 
   // ---------- loading ----------
@@ -882,6 +895,7 @@ export default function App() {
         attachments,
         bookmarked: 0,
         created_at: Date.now(),
+        context: contextSnapshot(currentModel.name),
       }
       history = [...messages, userMsg]
       setMessages(history)
@@ -1081,7 +1095,7 @@ export default function App() {
     const count = req.mode === 'image' ? createSet.count : 1
     const aspect = req.mode === 'upscale' ? undefined : createSet.aspect[kind]
     const meta: ChatMediaMeta = { req: reqId, mode: req.mode, model: req.mode === 'upscale' ? 'Real-ESRGAN 4×' : o!.label, prompt: req.prompt, ids: [], count, aspect }
-    const userMsg: ChatMessage = { id: uid(), conversation_id: convId ?? 'temp', role: 'user', content: userContent, model: '', attachments: img ? [img] : [], bookmarked: 0, created_at: Date.now() }
+    const userMsg: ChatMessage = { id: uid(), conversation_id: convId ?? 'temp', role: 'user', content: userContent, model: '', attachments: img ? [img] : [], bookmarked: 0, created_at: Date.now(), context: contextSnapshot(o?.label) }
     const botMsg: ChatMessage = { id: uid(), conversation_id: convId ?? 'temp', role: 'assistant', content: encodeChatMedia(meta), model: meta.model, attachments: [], bookmarked: 0, created_at: Date.now() + 1 }
     setMessages((cur) => [...cur, userMsg, botMsg])
     setMessage('')
@@ -1803,11 +1817,6 @@ export default function App() {
                     <span className="config-label">{currentModel?.name ?? (models.length ? t('Choose model') : t('Connect a model'))}</span>
                     <ChevronDown size={13} />
                   </button>
-                  <button className={`config-trigger ${headerMenu === 'skills' ? 'config-trigger-active' : ''}`} onClick={() => toggleHeaderMenu('skills')} aria-label={t('Skills')} title={t('Skills')} aria-expanded={headerMenu === 'skills'}>
-                    <Blocks size={16} />
-                    <span className="config-label">{t('Skills')}</span>
-                    {activeSkills.length > 0 && <span className="config-count">{activeSkills.length}</span>}
-                  </button>
                   <button className={`config-trigger ${headerMenu === 'agents' ? 'config-trigger-active' : ''}`} onClick={() => toggleHeaderMenu('agents')} aria-label={t('Agents')} title={t('Agents')} aria-expanded={headerMenu === 'agents'}>
                     <Bot size={16} />
                     <span className="config-label">{t('Agents')}</span>
@@ -1853,29 +1862,6 @@ export default function App() {
                                 <RotateCcw size={15} />
                                 <span>{t('Refresh list')}</span>
                               </button>
-                            </div>
-                          </>
-                        )}
-
-                        {headerMenu === 'skills' && (
-                          <>
-                            <div className="config-popover-heading">
-                              <div>
-                                <p>{t('Active Skills')}</p>
-                                <span>{t('Type / in the message box to use one')}</span>
-                              </div>
-                              <Blocks size={17} />
-                            </div>
-                            <div className="config-options">
-                              {skills.map((skill) => (
-                                <button className="config-option" key={skill.id} onClick={() => api.toggleSkill(skill.id, !skill.enabled).then(refreshLists)}>
-                                  <span className={`config-checkbox ${activeSkills.includes(skill.name) ? 'config-checkbox-active' : ''}`}>{activeSkills.includes(skill.name) && <Check size={11} />}</span>
-                                  <span className="min-w-0 flex-1 text-left">
-                                    <strong>{skill.name}</strong>
-                                    <small>{skill.description}</small>
-                                  </span>
-                                </button>
-                              ))}
                             </div>
                           </>
                         )}
@@ -2142,6 +2128,7 @@ export default function App() {
                           )}
                           {!item.streaming && (
                             <div className="message-meta">
+                              {item.role === 'user' && <MessageContextNote context={item.context} />}
                               <span>{timeOf(item.created_at)}</span>
                               {item.role === 'user' && <Check size={12} />}
                               {item.role === 'assistant' && !item.error && !gen && (
@@ -2471,6 +2458,24 @@ export default function App() {
                   </div>
                 )}
               </form>
+              {composeMode === 'chat' && !recording && (
+                <ContextBar
+                  projects={projects}
+                  projectId={activeProjectId}
+                  onProject={(id) => {
+                    setActiveProjectId(id)
+                    // An open conversation moves to the chosen project; a new one starts there.
+                    if (conversationId) api.updateConversation(conversationId, { project_id: id }).then(refreshLists)
+                  }}
+                  onManageProjects={() => goNav('chats')}
+                  skills={skills}
+                  onToggleSkill={(k) => api.toggleSkill(k.id, !k.enabled).then(refreshLists)}
+                  onManageSkills={() => goNav('studio')}
+                  connectors={connectors}
+                  onToggleConnector={(c) => api.saveMcp({ id: c.id, enabled: !c.enabled }).then((list) => list && setServers(list))}
+                  onManageConnectors={() => goNav('mcp')}
+                />
+              )}
               {emptyLanding && catalogHint && <div className="composer-model-tip"><Sparkles size={13} /><RotatingHint lines={[catalogHint, t('Open the model menu to compare prices and choose.'), t('Use Image or Video to create without leaving the chat.')]} /></div>}
               {emptyLanding && !temporaryChat && !modelsLoading && models.length === 0 && (
                 <div className="connect-options connect-banner-below">
@@ -2672,12 +2677,7 @@ export default function App() {
       )}
     </div>
     </div>
-    {!termOpen && !(cloud.state && !cloud.state.signedIn) && (
-      <button className="grip grip-term" onPointerDown={startTermGrip} title={t('Pull up to open the terminal (Ctrl+`)')} aria-label={t('Open the terminal')}>
-        <i />
-        <i />
-      </button>
-    )}
+    {/* The terminal opens from the Terminal menu or Ctrl+`; it moves into the session panel (plan step A3). */}
     {!isPage(activeNav) && messages.length > 0 && !temporaryChat && !contextOpen && (
       <button className="grip grip-workspace" onPointerDown={startWorkspaceGrip} title={t('Pull to open the workspace panel (Ctrl+Alt+B)')} aria-label={t('Open the workspace panel')}>
         <i />

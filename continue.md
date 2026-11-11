@@ -2,6 +2,23 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 11/11: passo A2 — barra de contexto no composer
+
+- `ContextBar` em `ComposerKit.tsx`, abaixo do composer no modo Chat e alinhada com ele (700px). Três botões:
+  - **Project:** escolhe o projeto (move a conversa aberta ou define onde a próxima começa) e tem "New project".
+  - **Skills:** liga e desliga skills, com contador. O botão Skills do topo saiu.
+  - **Connectors:** liga e desliga os servidores MCP que não são built-in, com status e um aviso de privacidade.
+  - Em janelas estreitas, ficam só o ícone e o contador.
+- Registro por mensagem:
+  - coluna `messages.context` (JSON com projeto, skills, conectores e modelo), salva em toda mensagem do usuário;
+  - `MessageContextNote` mostra "Projeto · N skills · N conectores" abaixo da mensagem, com os nomes no tooltip.
+- Puxador do terminal no rodapé removido (o terminal vai para a Session no A3; continua no menu Terminal e no Ctrl+`).
+- Bug corrigido no `mcp.rs`:
+  - `mcp:save` com dados parciais (`{id, enabled}`) substituía o registro inteiro e apagava nome, tipo e URL;
+  - agora mescla e mantém a ordem;
+  - `repair()` devolve os campos que faltam aos servidores padrão (DeepWiki, Context7) já danificados.
+- Próximo: A3 — uma Session flutuante à direita (abas Context, Terminal, Outputs) que substitui o painel de contexto, o puxador do workspace e o terminal do rodapé.
+
 ## 11/11: plano de evolução e passo A1 (branch `claude/a1-shell`)
 
 - `docs/PLANO_EVOLUCAO_ORBI.md`: plano por passos dos dois relatórios (layout/workspace e Blender WASM), com as regras (UI em inglês com `t()` e pt-BR/es/fr; Impeccable antes e depois) e a ordem recomendada.

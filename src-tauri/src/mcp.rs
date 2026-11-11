@@ -40,12 +40,27 @@ fn profiles() -> Result<Vec<Value>> {
         .map_err(|_| "Credential store is unavailable")?
         .get_password()
     {
-        Ok(text) => {
-            serde_json::from_str(&text).map_err(|_| "Saved MCP configuration is invalid".into())
-        }
+        Ok(text) => serde_json::from_str::<Vec<Value>>(&text)
+            .map(repair)
+            .map_err(|_| "Saved MCP configuration is invalid".into()),
         Err(keyring::Error::NoEntry) => Ok(defaults()),
         Err(_) => Err("Unable to open secure MCP configuration.".into()),
     }
+}
+// Older builds replaced a whole server with a partial save ({id, enabled}), dropping its name, type and URL.
+// Built-in and pre-connected servers get the missing fields back from the defaults.
+fn repair(mut list: Vec<Value>) -> Vec<Value> {
+    let defaults = defaults();
+    for server in list.iter_mut() {
+        let Some(default) = defaults.iter().find(|d| d["id"] == server["id"]) else { continue };
+        let (Some(fields), Some(target)) = (default.as_object(), server.as_object_mut()) else { continue };
+        for (key, value) in fields {
+            if target.get(key).map_or(true, Value::is_null) {
+                target.insert(key.clone(), value.clone());
+            }
+        }
+    }
+    list
 }
 fn save_profiles(profiles: &[Value]) -> Result<()> {
     keyring::Entry::new(&crate::storage::credential_service(), "mcp-servers")
@@ -494,12 +509,21 @@ impl Mcp {
                     "mcp:save" => {
                         let id = a["id"].as_str().ok_or("Missing server ID")?;
                         let mut servers = profiles()?;
-                        servers.retain(|s| s["id"] != id);
-                        servers.push(a.clone());
+                        // A partial save (for example {id, enabled}) updates the saved server instead of replacing it.
+                        let mut server = servers.iter().find(|s| s["id"] == id).cloned().unwrap_or_else(|| json!({}));
+                        if let (Some(target), Some(changes)) = (server.as_object_mut(), a.as_object()) {
+                            for (key, value) in changes {
+                                target.insert(key.clone(), value.clone());
+                            }
+                        }
+                        match servers.iter().position(|s| s["id"] == id) {
+                            Some(i) => servers[i] = server.clone(),
+                            None => servers.push(server.clone()),
+                        }
                         save_profiles(&servers)?;
                         self.clients.lock().await.remove(id);
-                        if a["enabled"] == true && a["type"] != "builtin" {
-                            let _ = self.connect(&a).await;
+                        if server["enabled"] == true && server["type"] != "builtin" {
+                            let _ = self.connect(&server).await;
                         }
                         self.status().await
                     }
