@@ -298,6 +298,15 @@ const ratioOf = (id: string): [number, number] => {
 }
 const VOICES = ['alloy', 'ash', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer']
 
+// An infinite board: zoom far out to see everything, or in to read a node.
+const ZOOM_MIN = 0.1
+const ZOOM_MAX = 3
+// Dot spacing on screen: far out, the grid steps up 4× instead of turning into noise.
+const gridStep = (z: number) => {
+  let s = 22 * z
+  while (s < 11) s *= 4
+  return s
+}
 const NODE_W = 280
 const HEAD_H = 42
 const PORT_H = 26
@@ -898,12 +907,13 @@ function WorkflowEditor({
     window.addEventListener('pointerup', up)
   }
   const onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).closest('textarea, select, .flow-node-body-scroll')) return
+    // Panels floating over the canvas scroll themselves; only the canvas (and the nodes on it) zooms.
+    if ((e.target as HTMLElement).closest('textarea, select, .flow-node-body-scroll, .flow-lib, .flow-quick, .flow-fly, .flow-rail, .flow-zoom')) return
     const r = stageRef.current!.getBoundingClientRect()
     const mx = e.clientX - r.left
     const my = e.clientY - r.top
     setView((v) => {
-      const z = Math.min(1.8, Math.max(0.3, v.z * (e.deltaY < 0 ? 1.1 : 0.9)))
+      const z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v.z * (e.deltaY < 0 ? 1.1 : 0.9)))
       return { z, x: mx - ((mx - v.x) * z) / v.z, y: my - ((my - v.y) * z) / v.z }
     })
   }
@@ -970,7 +980,7 @@ function WorkflowEditor({
     const maxX = Math.max(...boxes.map((b) => b[2]))
     const maxY = Math.max(...boxes.map((b) => b[3]))
     const left = 76 // keeps clear of the floating tool rail
-    const z = Math.min(1.2, Math.max(0.3, Math.min((r.width - left - 40) / (maxX - minX), (r.height - 80) / (maxY - minY))))
+    const z = Math.min(1.2, Math.max(ZOOM_MIN, Math.min((r.width - left - 40) / (maxX - minX), (r.height - 80) / (maxY - minY))))
     setView({ z, x: left - minX * z + (r.width - left - 40 - (maxX - minX) * z) / 2, y: 40 - minY * z })
   }
 
@@ -982,13 +992,23 @@ function WorkflowEditor({
     return p
   }
 
+  // Everything a node makes joins the library and this canvas's own list (so Load nodes see it at once).
+  const created = (item: MediaItem) => {
+    onMediaCreated(item)
+    setMedia((cur) => [item, ...cur.filter((x) => x.id !== item.id)])
+  }
+  // Coming back to the tab picks up what was made or imported elsewhere meanwhile.
+  useEffect(() => {
+    if (visible && loaded) api.media().then(setMedia)
+  }, [visible])
+
   const execNode = async (n: FNode, ins: Record<string, Val[]>): Promise<Val> => {
     const firstText = (k: string) => ins[k]?.map((v) => v.text).filter(Boolean).join('\n\n') || ''
     const firstMedia = (k: string) => ins[k]?.find((v) => v.media)?.media
     // The node's own switch turns the negative input off without unwiring it.
     const negativeText = () => (n.data.negOff ? undefined : firstText('negative') || (n.data.negative ? String(n.data.negative) : '') || undefined)
     const done = (item: MediaItem): Val => {
-      onMediaCreated(item)
+      created(item)
       return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
     }
     const cloudImage = (key: string) => {
@@ -1121,7 +1141,7 @@ function WorkflowEditor({
             activeMediaNode.current = null
           }
         })
-        onMediaCreated(item)
+        created(item)
         return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
       }
       case 'video': {
@@ -1157,7 +1177,7 @@ function WorkflowEditor({
             activeMediaNode.current = null
           }
         })
-        onMediaCreated(item)
+        created(item)
         return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
       }
       case 'edit':
@@ -1203,7 +1223,7 @@ function WorkflowEditor({
             seed: Math.floor(Math.random() * 2 ** 31),
           }),
         )
-        onMediaCreated(item)
+        created(item)
         return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
       }
       case 'upscale': {
@@ -1233,11 +1253,11 @@ function WorkflowEditor({
               source: 'creative',
             }),
           )
-          onMediaCreated(item)
+          created(item)
           return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
         }
         const item = await withMediaLock(() => api.upscale({ mediaId: img.id, modelId: String(n.data.model || upscalers[0].key), jobId: jobFor(n.id) }))
-        onMediaCreated(item)
+        created(item)
         return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
       }
       case 'voice': {
@@ -1246,7 +1266,7 @@ function WorkflowEditor({
         if (CLOUD_ONLY) {
           const cv = parseCloudVoice(n.data.voice, cloud.catalog)
           const item = await api.speech({ text: withStyle(cv.model, String(n.data.style || ''), text), model: cv.model || undefined, voice: cv.voice || undefined, source: 'creative' })
-          onMediaCreated(item)
+          created(item)
           return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
         }
         const v = parseVoice(n.data.voice, ttsVoices)
@@ -1256,7 +1276,7 @@ function WorkflowEditor({
             : v.type === 'native'
               ? await api.speakSystemToMedia({ text, system: v.id })
               : await api.speech({ text, voice: v.voice })
-        onMediaCreated(item)
+        created(item)
         return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
       }
       case 'output': {
@@ -1480,7 +1500,7 @@ function WorkflowEditor({
           const w = toWorld(e.clientX, e.clientY)
           setQuickAdd({ sx: Math.max(8, Math.min(e.clientX - r.left, r.width - 296)), sy: Math.max(8, Math.min(e.clientY - r.top, r.height - 340)), wx: w.x, wy: w.y, q: '' })
         }}
-        style={{ backgroundPosition: `${view.x}px ${view.y}px`, backgroundSize: `${22 * view.z}px ${22 * view.z}px` }}
+        style={{ backgroundPosition: `${view.x}px ${view.y}px`, backgroundSize: `${gridStep(view.z)}px ${gridStep(view.z)}px` }}
       >
         <div className="flow-world" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})` }}>
           <svg className={`flow-marks ${tool === 'select' ? 'pickable' : ''}`} width="1" height="1">
@@ -1652,6 +1672,19 @@ function WorkflowEditor({
             <div className="flow-fly" style={{ top: 0 }}>
               <FlyItem on={tool === 'select'} icon={MousePointer2} label={t('Select')} keys="V" onClick={() => (setTool('select'), setFly(null))} />
               <FlyItem on={tool === 'hand'} icon={Hand} label={t('Hand')} keys="H" onClick={() => (setTool('hand'), setFly(null))} />
+              {marks.length > 0 && (
+                <FlyItem
+                  icon={Trash2}
+                  label={t('Clear notes and drawings')}
+                  onClick={() => {
+                    setFly(null)
+                    if (confirm(t('Remove all {n} notes and drawings from this canvas? The nodes stay.', { n: marks.length }))) {
+                      setMarks([])
+                      setMarkSel(null)
+                    }
+                  }}
+                />
+              )}
             </div>
           )}
           {fly === 'templates' && (
@@ -1771,11 +1804,11 @@ function WorkflowEditor({
         )}
 
         <div className="flow-zoom" onPointerDown={(e) => e.stopPropagation()}>
-          <button onClick={() => setView((v) => ({ ...v, z: Math.max(0.3, v.z * 0.9) }))} aria-label={t('Zoom out')}>
+          <button onClick={() => setView((v) => ({ ...v, z: Math.max(ZOOM_MIN, v.z * 0.9) }))} aria-label={t('Zoom out')}>
             <Minus size={13} />
           </button>
           <span className="num">{Math.round(view.z * 100)}%</span>
-          <button onClick={() => setView((v) => ({ ...v, z: Math.min(1.8, v.z * 1.1) }))} aria-label={t('Zoom in')}>
+          <button onClick={() => setView((v) => ({ ...v, z: Math.min(ZOOM_MAX, v.z * 1.1) }))} aria-label={t('Zoom in')}>
             <Plus size={13} />
           </button>
           <button onClick={fit} aria-label={t('Fit to screen')} title={t('Fit to screen')}>
@@ -2323,15 +2356,10 @@ function NodeBody({
       const current = media.find((m) => m.id === n.data.mediaId)
       return (
         <>
-          <div className="flow-row">
-            <label className="orbi-field flow-search">
-              <Search size={12} />
-              <input value={String(n.data.q || '')} onChange={(e) => setData({ q: e.target.value })} placeholder={t('Search your library')} aria-label={t('Search your library')} />
-            </label>
-            <button className="orbi-btn" onClick={() => extra.onUpload(n.id, want)} title={t('Upload a file from this computer')}>
-              <Upload size={12} /> {t('Upload')}
-            </button>
-          </div>
+          <label className="orbi-field flow-search">
+            <Search size={12} />
+            <input value={String(n.data.q || '')} onChange={(e) => setData({ q: e.target.value })} placeholder={t('Search your library')} aria-label={t('Search your library')} />
+          </label>
           {items.length ? (
             want === 'audio' ? (
               <div className="flow-audio-list flow-node-body-scroll">
@@ -2353,6 +2381,9 @@ function NodeBody({
           ) : (
             <p className="flow-hint-text">{q ? t('Nothing matches this search.') : t('Nothing here yet — upload a file or drop it on the canvas.')}</p>
           )}
+          <button className="flow-missing flow-upload" onClick={() => extra.onUpload(n.id, want)} title={t('Upload a file from this computer')}>
+            <Upload size={13} /> {want === 'image' ? t('Image from this computer') : want === 'video' ? t('Video from this computer') : t('Audio from this computer')}
+          </button>
           {current?.kind === 'image' && <img className="flow-preview" src={current.url} alt={current.name} draggable={false} />}
           {current?.kind === 'video' && <video className="flow-preview" src={current.url} controls loop muted />}
           {current?.kind === 'audio' && <audio className="flow-audio" src={current.url} controls />}

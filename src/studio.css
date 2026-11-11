@@ -2217,8 +2217,13 @@ html[data-theme='light'] .update-card-head > svg {
 }
 .flow-search {
   min-width: 0;
-  flex: 1;
   height: 30px;
+}
+.flow-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 .flow-play {
   flex: none;
