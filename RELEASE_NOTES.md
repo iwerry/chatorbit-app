@@ -1,4 +1,14 @@
-## Orbi 0.2.11-3
+## Orbi 0.2.11-4
+
+- **Contexto direto na caixa de mensagem:** abaixo dela, três botões.
+  - **Project:** a conversa vai para um projeto (ou comece uma nova já dentro dele).
+  - **Skills:** ligue e desligue skills sem sair do chat.
+  - **Connectors:** ligue e desligue suas ferramentas MCP e veja se estão conectadas.
+- **Cada mensagem guarda o contexto:** embaixo de cada mensagem sua aparece o projeto, as skills e os conectores que estavam ativos (passe o mouse para ver os nomes).
+- **Topo mais limpo:** o botão Skills foi para a caixa de mensagem. O puxador do terminal no rodapé saiu; o terminal continua no menu Terminal e em Ctrl+`.
+- **Correção:** ligar ou desligar um conector não apaga mais o nome e o endereço dele. DeepWiki e Context7 se recuperam sozinhos.
+
+## Orbi 0.2.11-3 (previous)
 
 - **Uso de créditos (Usage):** nova tela em Configurações e no menu do seu avatar.
   - Mostra quanto você gastou em 7, 30 ou 90 dias.
@@ -9,7 +19,7 @@
   - A dica de preço abaixo da caixa de mensagem não mostra mais valores quebrados de roteadores.
   - Um exemplo do composer ainda citava IA local.
 
-## Orbi 0.2.11-2 (previous)
+## Orbi 0.2.11-2
 
 - **Orbi agora é 100% nuvem.** Toda a IA vem do Orbi Cloud: chat, imagem, vídeo, voz e ditado. Não existe mais modelo rodando no seu computador.
   - Saíram as telas de modelos locais, o assistente que baixava modelos, as vozes offline, os motores locais e as conexões com Ollama e LM Studio.
