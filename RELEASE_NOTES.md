@@ -1,4 +1,16 @@
-## Orbi 0.2.10-2
+## Orbi 0.2.11-1
+
+- **Surprise me de verdade, com IA:** os botões de prompt deixaram de sortear frases fixas. Agora um modelo de texto rápido e barato (Claude Haiku, Gemini Flash ou GPT mini) escreve o prompt, e só quando você clica.
+- **Canvas (Imagem e Vídeo):** um botão só, **Surprise me**.
+  - Com texto: mantém a sua ideia, corrige o que está vago e acrescenta um toque criativo.
+  - Com a caixa vazia: inventa uma ideia nova a cada clique, sem repetir as últimas.
+  - Preenche o prompt positivo e o negativo ao mesmo tempo, com o negativo feito para aquela cena.
+- **Tela principal:**
+  - No modo Imagem ou Vídeo, o botão vira **Enhance prompt** quando há texto e **Surprise me** quando a caixa está vazia.
+  - No Chat, o mesmo botão melhora a sua mensagem para a IA entender de primeira, mantendo o seu jeito de escrever, ou sugere algo criativo para perguntar.
+- O prompt sai no idioma em que você escreveu (ou no idioma do app) e segue o que funciona melhor em cada tipo de modelo.
+
+## Orbi 0.2.10-2 (previous)
 
 - **Creative › Node (antes "Workflows"):** canvas livre no espírito do ComfyUI e do Firefly Boards.
   - Barra de ferramentas flutuante à esquerda, que fica no lugar mesmo com zoom: selecionar e mão (V/H), adicionar nó (N), templates, texto (T), formas (retângulo, elipse, linha e seta), lápis com espessuras e cores, e mídia.

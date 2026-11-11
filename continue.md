@@ -2,6 +2,16 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 11/11: 0.2.11-1 — Enhance prompt e Surprise me com IA
+
+- `lib/promptTools.ts`:
+  - `pickWriter` escolhe um modelo barato (Haiku → Gemini Flash → GPT mini → DeepSeek) em vez do modelo do chat.
+  - `enhancePrompt` (com a caixa vazia chama `surprisePrompt`) e `surprisePrompt`, que usa uma faísca aleatória e as últimas 8 ideias para não repetir. Para imagem e vídeo devolve sempre `{prompt, negative}`.
+  - `CRAFT` reúne as regras de escrita por modo. Sem conexão, imagem e vídeo usam `randomPrompt` (offline).
+- `PromptTools.tsx`: a prop `single` (Canvas) mostra só o Surprise me. O Node continua com Improve e Surprise.
+- `ComposerKit` `CreateControls` com a prop `empty`: o rótulo alterna entre Enhance prompt e Surprise me. Botão novo no composer do chat (`enhanceComposer` no `App.tsx`).
+- Só front-end: a `core` é a mesma, então vai como atualização rápida.
+
 ## 10–11/11: 0.2.10-2 — Creative › Node (publicada, atualização rápida)
 
 - `NodeFlow.tsx`:

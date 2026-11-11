@@ -973,8 +973,10 @@ export function CreativeStudio({
                   onKeyDown={(e) => e.key === 'Enter' && (e.ctrlKey || e.metaKey) && invokeNow()}
                 />
                 <PromptTools
+                  single
                   models={models}
                   mode={mode}
+                  modelName={current?.label}
                   prompt={prompt}
                   negative={negative}
                   onChange={(r) => {

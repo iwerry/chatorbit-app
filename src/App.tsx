@@ -43,6 +43,7 @@ import {
   Square,
   UserRound,
   Video,
+  WandSparkles,
   X,
 } from 'lucide-react'
 import {
@@ -99,7 +100,7 @@ import { ModelMenu } from './components/ModelMenu'
 import { ContextIdeas } from './components/ContextIdeas'
 import { chatItems, creativeItems } from './lib/menuItems'
 import { AccountGate } from './components/AccountPanel'
-import { enhancePrompt } from './lib/promptTools'
+import { enhancePrompt, surprisePrompt } from './lib/promptTools'
 import { DEFAULT_NEGATIVE, IDEAS } from './lib/ideas'
 import {
   AudioMenu,
@@ -1140,12 +1141,14 @@ export default function App() {
       }),
     [],
   )
+  // On click only: with text it improves the message or prompt; with an empty box it surprises with a new idea.
   const enhanceComposer = async () => {
     if (enhancing) return
-    const kind = composeMode === 'video' ? 'video' : 'image'
+    const kind = composeMode
+    const target = kind === 'chat' ? undefined : (creativeOpts.find((o) => o.kind === kind && o.key === createSet.modelKey[kind]) ?? creativeOpts.find((o) => o.kind === kind))?.label
     setEnhancing(true)
     try {
-      const r = await enhancePrompt(models, { prompt: message.trim() || IDEAS.filter((x) => x.mode === kind)[Math.floor(Math.random() * 8)]?.prompt || '', negative: '', mode: kind })
+      const r = message.trim() ? await enhancePrompt(models, { prompt: message.trim(), negative: '', mode: kind, target }) : await surprisePrompt(models, { prompt: '', mode: kind, target })
       if (r?.prompt) setMessage(r.prompt)
     } catch (e) {
       setNotice(cleanError(e))
@@ -2417,6 +2420,7 @@ export default function App() {
                     onOpenModels={() => setSettingsOpen('models')}
                     enhancing={enhancing}
                     onEnhance={enhanceComposer}
+                    empty={!message.trim()}
                   />
                 )}
                 {!recording && (
@@ -2442,6 +2446,19 @@ export default function App() {
                         >
                           <Globe size={17} />
                           {webOn && <span>{t('Web')}</span>}
+                        </button>
+                      )}
+                      {composeMode === 'chat' && (
+                        <button
+                          type="button"
+                          className={`composer-tool composer-web ${enhancing ? 'composer-tool-on' : ''}`}
+                          disabled={enhancing}
+                          title={message.trim() ? t('Improve my message: AI makes it clear for the assistant, keeping your idea') : t('Surprise me: AI suggests something creative to ask')}
+                          aria-label={message.trim() ? t('Improve my message') : t('Surprise me')}
+                          onClick={enhanceComposer}
+                        >
+                          {enhancing ? <Loader2 size={17} className="animate-spin" /> : <WandSparkles size={17} />}
+                          <span>{enhancing ? t('Thinking…') : message.trim() ? t('Enhance prompt') : t('Surprise me')}</span>
                         </button>
                       )}
                     </div>

@@ -30,6 +30,7 @@ import {
   Speaker,
   Square,
   Wand2,
+  Dices,
   X,
 } from 'lucide-react'
 import { api, type MediaItem } from '../lib/api'
@@ -529,6 +530,7 @@ export function CreateControls({
   onOpenModels,
   enhancing,
   onEnhance,
+  empty,
 }: {
   mode: 'image' | 'video'
   options: CreativeOption[]
@@ -538,6 +540,7 @@ export function CreateControls({
   onOpenModels: () => void
   enhancing: boolean
   onEnhance: () => void
+  empty?: boolean
 }) {
   const list = options.filter((o) => o.kind === mode)
   const current = list.find((o) => o.key === settings.modelKey[mode]) ?? list[0]
@@ -604,9 +607,9 @@ export function CreateControls({
           <span className="cpill-label">{t('Audio')}</span>
         </button>
       )}
-      <button type="button" className={`cpill enhance-chip ${enhancing ? 'busy' : ''}`} onClick={onEnhance} disabled={enhancing} title={t('Rewrite the prompt with more detail (magic wand)')}>
-        {enhancing ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}
-        <span className="cpill-label">{t('Enhance prompt')}</span>
+      <button type="button" className={`cpill enhance-chip ${enhancing ? 'busy' : ''}`} onClick={onEnhance} disabled={enhancing} title={empty ? t('Surprise me: AI invents a new idea every time') : t('Improve the prompt with AI — with an empty box it surprises you with a new idea')}>
+        {enhancing ? <Loader2 size={13} className="animate-spin" /> : empty ? <Dices size={13} /> : <Wand2 size={13} />}
+        <span className="cpill-label">{enhancing ? t('Thinking…') : empty ? t('Surprise me') : t('Enhance prompt')}</span>
       </button>
       <CostChip usd={estimateUsd(current, { count: mode === 'image' ? settings.count : 1, seconds: mode === 'video' && current?.video ? nearestDuration(current.video.durations, settings.duration) : settings.duration, res })} />
       {mode === 'image' && (
