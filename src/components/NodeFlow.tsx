@@ -1,6 +1,6 @@
 // Node workflows in the spirit of ComfyUI: typed ports, drag a wire from an output to an input,
 // and every node really runs (text AI, image and video generation, voiceover, save to board).
-import { CLOUD_ONLY, nearestDuration, nearestRes, refreshCloud, useCloud, vendorLabel } from '../lib/cloud'
+import { nearestDuration, nearestRes, refreshCloud, useCloud, vendorLabel } from '../lib/cloud'
 import { aspectInfo, aspectsFor, nearestAspect, ratio, type CreativeOption } from '../lib/creative'
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentProps, type PointerEvent as RPointerEvent } from 'react'
 import { WorkflowTabs } from './WorkflowTabs'
@@ -53,11 +53,10 @@ import {
   ImagePlus,
   Check,
 } from 'lucide-react'
-import { api, on, type Board, type CloudCatalog, type LocalStatus, type MediaItem, type ModelInfo, type TtsChoice } from '../lib/api'
+import { api, type Board, type CloudCatalog, type MediaItem, type ModelInfo } from '../lib/api'
 import { CostChip, ModelSelect, type MenuItem } from './ModelMenu'
 import { audioItems, chatItems } from '../lib/menuItems'
-import { VoiceButton } from './VoiceLibrary'
-import { getLang, t } from '../lib/i18n'
+import { t } from '../lib/i18n'
 import { activity } from '../lib/activity'
 import { importComfy } from '../lib/comfy'
 import { DEFAULT_NEGATIVE } from '../lib/ideas'
@@ -291,12 +290,10 @@ const PRESETS: Record<string, { label: string; system: string }> = {
   script: { label: 'Write a voiceover script', system: 'Write a short, natural voiceover script (max 60 words) for the user brief, in the same language as the brief. Reply with the script only.' },
   custom: { label: 'Custom instruction', system: '' },
 }
-const ASPECTS: Record<string, [number, number]> = { '1:1': [1, 1], '4:3': [4, 3], '3:4': [3, 4], '16:9': [16, 9], '9:16': [9, 16] }
 const ratioOf = (id: string): [number, number] => {
   const r = ratio(id)
   return [r.w, r.h]
 }
-const VOICES = ['alloy', 'ash', 'coral', 'echo', 'fable', 'nova', 'onyx', 'sage', 'shimmer']
 
 // An infinite board: zoom far out to see everything, or in to read a node.
 const ZOOM_MIN = 0.1
@@ -486,7 +483,6 @@ export function NodeFlow(props: Omit<ComponentProps<typeof WorkflowEditor>, 'sto
 
 function WorkflowEditor({
   models,
-  localStatus,
   onMediaCreated,
   onOpenModels,
   visible = true,
@@ -497,7 +493,6 @@ function WorkflowEditor({
   onBusyChange,
 }: {
   models: ModelInfo[]
-  localStatus: LocalStatus | null
   onMediaCreated: (m: MediaItem) => void
   onOpenModels: () => void
   visible?: boolean
@@ -554,29 +549,22 @@ function WorkflowEditor({
   const chatModels = useMemo(() => models.filter((m) => !m.image || !/image/i.test(m.id)), [models])
   const imageChoices = useMemo(
     () => [
-      ...(CLOUD_ONLY ? [] : localStatus?.models.filter((m) => m.kind === 'image' && m.installed).map((m) => ({ key: `local::${m.id}`, label: `${m.name} · ${t('this PC')}` })) ?? []),
       ...models.filter((m) => m.image).map((m) => ({ key: `cloud::${m.key}`, label: `${m.name} · ${m.providerName}` })),
     ],
-    [models, localStatus],
+    [models],
   )
   // Recraft's vector models get their own node; the editing nodes keep the raster ones.
   const vectorChoices = useMemo(() => models.filter((m) => m.image && /-vector$/.test(m.id)).map((m) => ({ key: `cloud::${m.key}`, label: m.name.replace(/^[^:]+:\s*/, '') })).sort((a, b) => VECTOR_MODELS.findIndex((id) => a.key.endsWith(id)) - VECTOR_MODELS.findIndex((id) => b.key.endsWith(id))), [models])
   const editChoices = useMemo(
     () =>
-      CLOUD_ONLY
-        ? models.filter((m) => m.image && !/-vector$/.test(m.id)).map((m) => ({ key: `cloud::${m.key}`, label: m.name.replace(/^[^:]+:\s*/, '') }))
-        : (localStatus?.models.filter((m) => m.kind === 'image' && m.installed && m.gen?.ref).map((m) => ({ key: m.id, label: m.name })) ?? []),
-    [localStatus, models],
+      models.filter((m) => m.image && !/-vector$/.test(m.id)).map((m) => ({ key: `cloud::${m.key}`, label: m.name.replace(/^[^:]+:\s*/, '') })),
+    [models],
   )
-  const localImageChoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'image' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
-  const ttsVoices = useMemo(() => localStatus?.models.filter((m) => m.kind === 'tts' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [], [localStatus])
   // Orbi Cloud: upscaling is done by the image models that redraw at 4K from a reference (best ones first).
   const upscalers = useMemo(
     () =>
-      CLOUD_ONLY
-        ? editChoices.filter((c) => UPSCALE_MODELS.some((id) => c.key.endsWith(`::${id}`))).sort((a, b) => UPSCALE_MODELS.findIndex((id) => a.key.endsWith(`::${id}`)) - UPSCALE_MODELS.findIndex((id) => b.key.endsWith(`::${id}`)))
-        : (localStatus?.models.filter((m) => m.kind === 'upscale' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? []),
-    [localStatus, editChoices],
+      editChoices.filter((c) => UPSCALE_MODELS.some((id) => c.key.endsWith(`::${id}`))).sort((a, b) => UPSCALE_MODELS.findIndex((id) => a.key.endsWith(`::${id}`)) - UPSCALE_MODELS.findIndex((id) => b.key.endsWith(`::${id}`))),
+    [editChoices],
   )
   const [maskFor, setMaskFor] = useState<string | null>(null)
   const inputImageOf = (id: string) => {
@@ -588,10 +576,9 @@ function WorkflowEditor({
   const cloud = useCloud()
   const videoChoices = useMemo(
     () => [
-      ...(CLOUD_ONLY ? [] : (localStatus?.models.filter((m) => m.kind === 'video' && m.installed).map((m) => ({ key: m.id, label: m.name })) ?? [])),
       ...(cloud.catalog?.video ?? []).map((v) => ({ key: `cloudvideo::${v.id}`, label: v.name.replace(/^[^:]+:\s*/, '') })),
     ],
-    [localStatus, cloud.catalog],
+    [cloud.catalog],
   )
 
   // load / save
@@ -623,14 +610,6 @@ function WorkflowEditor({
     const tm = setTimeout(() => setToast(null), 4200)
     return () => clearTimeout(tm)
   }, [toast])
-  useEffect(
-    () =>
-      on('local:progress', (p: { jobId?: string; step: number; total: number }) => {
-        const id = p.jobId ? jobNode.current.get(p.jobId) : undefined
-        if (id && p.total) patch(id, { progress: p.step / p.total })
-      }),
-    [],
-  )
 
   const patch = useCallback((id: string, p: Partial<FNode>) => {
     nodesRef.current = nodesRef.current.map((n) => (n.id === id ? { ...n, ...p } : n))
@@ -687,30 +666,28 @@ function WorkflowEditor({
     }
     if (negative) for (const x of tpl.nodes) if (x.kind === 'negative') x.data.text = negative
     // Orbi Cloud: every template starts on the best models for the job (the person can change any node).
-    if (CLOUD_ONLY) {
-      const pick = (choices: Choice[], ids: string[]) => ids.map((id) => choices.find((c) => c.key.endsWith(`::${id}`))?.key).find(Boolean)
-      const bestChat = (chatModels.find((m) => /anthropic\/claude-sonnet/.test(m.id)) || chatModels.find((m) => /anthropic\/claude/.test(m.id)) || chatModels.find((m) => /openai\/gpt-5/.test(m.id)))?.key
-      for (const x of tpl.nodes) {
-        if (x.data.model) continue
-        const model =
-          x.kind === 'image'
-            ? pick(imageChoices, BEST.image)
-            : x.kind === 'edit' || x.kind === 'recompose' || x.kind === 'inpaint'
-              ? pick(editChoices, BEST.edit)
-              : x.kind === 'vector'
-                ? pick(vectorChoices, VECTOR_MODELS)
-                : x.kind === 'extend'
-                  ? pick(videoChoices, BEST.video)
-              : x.kind === 'upscale'
-                ? pick(upscalers, UPSCALE_MODELS)
-                : x.kind === 'video'
-                  ? pick(videoChoices, BEST.video)
-                  : x.kind === 'llm'
-                    ? bestChat
-                    : undefined
-        if (model) x.data.model = model
-        if (x.kind === 'video') x.data = { ...x.data, res: 1080, frames: 128, fps: 16 }
-      }
+    const pick = (choices: Choice[], ids: string[]) => ids.map((id) => choices.find((c) => c.key.endsWith(`::${id}`))?.key).find(Boolean)
+    const bestChat = (chatModels.find((m) => /anthropic\/claude-sonnet/.test(m.id)) || chatModels.find((m) => /anthropic\/claude/.test(m.id)) || chatModels.find((m) => /openai\/gpt-5/.test(m.id)))?.key
+    for (const x of tpl.nodes) {
+      if (x.data.model) continue
+      const model =
+        x.kind === 'image'
+          ? pick(imageChoices, BEST.image)
+          : x.kind === 'edit' || x.kind === 'recompose' || x.kind === 'inpaint'
+            ? pick(editChoices, BEST.edit)
+            : x.kind === 'vector'
+              ? pick(vectorChoices, VECTOR_MODELS)
+              : x.kind === 'extend'
+                ? pick(videoChoices, BEST.video)
+            : x.kind === 'upscale'
+              ? pick(upscalers, UPSCALE_MODELS)
+              : x.kind === 'video'
+                ? pick(videoChoices, BEST.video)
+                : x.kind === 'llm'
+                  ? bestChat
+                  : undefined
+      if (model) x.data.model = model
+      if (x.kind === 'video') x.data = { ...x.data, res: 1080, frames: 128, fps: 16 }
     }
     setNodes(tpl.nodes)
     setEdges(tpl.edges)
@@ -1061,7 +1038,7 @@ function WorkflowEditor({
         if (!prompt) throw new Error(t('Connect a prompt to this node.'))
         const modelId = String(n.data.model || pickBest(videoChoices, BEST.video) || videoChoices[0]?.key || '').replace(/^cloudvideo::/, '')
         const spec = cloud.catalog?.video.find((v) => v.id === modelId)
-        if (!spec) throw new Error(t('No video model yet — download one in Models.'))
+        if (!spec) throw new Error(t('The video models did not load from Orbi Cloud. Check your internet and try again.'))
         const frame = await lastFrame(clip.url)
         const neg = negativeText()
         const text = `Continuing from the previous shot: ${prompt}${neg ? `\n\nAvoid: ${neg}` : ''}`
@@ -1106,7 +1083,7 @@ function WorkflowEditor({
         const prompt = firstText('prompt')
         if (!prompt) throw new Error(t('Connect a prompt to this node.'))
         const choice = String(n.data.model || imageChoices[0]?.key || '')
-        if (!choice) throw new Error(t('No image model yet — download one in Models or connect a provider.'))
+        if (!choice) throw new Error(t('The image models did not load from Orbi Cloud. Check your internet and try again.'))
         const [w0, h0] = ratioOf(String(n.data.aspect || '1:1'))
         const base = 768
         const width = snap64(Math.sqrt((base * base * w0) / h0))
@@ -1115,21 +1092,6 @@ function WorkflowEditor({
         const item = await withMediaLock(async () => {
           activeMediaNode.current = n.id
           try {
-            if (choice.startsWith('local::')) {
-              const initImage = init && init.kind === 'image' ? (await api.mediaDataUrl(init.id)) || undefined : undefined
-              return await api.generateLocal({
-                jobId: jobFor(n.id),
-                modelId: choice.slice(7),
-                negative: negativeText(),
-                prompt,
-                width,
-                height,
-                steps: Number(n.data.steps) || undefined,
-                seed: n.data.seed === '' || n.data.seed === undefined ? Math.floor(Math.random() * 2 ** 31) : Number(n.data.seed),
-                initImage,
-                strength: Number(n.data.strength) || 0.65,
-              })
-            }
             const m = models.find((x) => x.key === choice.slice(7))
             if (!m) throw new Error(t('That image model is not connected anymore.'))
             const ref = init && init.kind === 'image' ? (await api.mediaDataUrl(init.id)) || undefined : undefined
@@ -1172,7 +1134,7 @@ function WorkflowEditor({
                 source: 'creative',
               })
             }
-            return await api.generateLocal({ jobId: jobFor(n.id), modelId, prompt, negative: negativeText(), frames: Number(n.data.frames) || 33, fps: Number(n.data.fps) || undefined, initImage, seed: Math.floor(Math.random() * 2 ** 31) })
+            throw new Error(t('That video model is not available anymore.'))
           } finally {
             activeMediaNode.current = null
           }
@@ -1186,7 +1148,7 @@ function WorkflowEditor({
         if (!img || img.kind !== 'image') throw new Error(t('Connect an image to this node.'))
         const prompt = firstText('prompt')
         if (!prompt) throw new Error(t('Connect a prompt to this node.'))
-        const list = n.kind === 'edit' || CLOUD_ONLY ? editChoices : localImageChoices
+        const list = editChoices
         const modelId = String(n.data.model || list[0]?.key || '')
         if (!modelId) throw new Error(n.kind === 'edit' ? t('Image editing needs an editing model (FLUX.2 or FLUX.3 Klein, Mage-Flow Edit or Qwen Image Edit) — download one in Models.') : t('No image model yet — download one in Models or connect a provider.'))
         if (n.kind === 'inpaint' && !n.data.mask) throw new Error(t('Paint the area to change first (Paint mask).'))
@@ -1211,25 +1173,12 @@ function WorkflowEditor({
                 : prompt
           return done(await withMediaLock(() => api.generateImage({ providerId: m.provider, model: m.id, prompt: text, width: snap64(size.w * scaleTo), height: snap64(size.h * scaleTo), refImages: refs, source: 'creative' })))
         }
-        const item = await withMediaLock(() =>
-          api.generateLocal({
-            jobId: jobFor(n.id),
-            modelId,
-            prompt,
-            negative: negativeText(),
-            width: snap64(size.w * scaleTo),
-            height: snap64(size.h * scaleTo),
-            ...(n.kind === 'edit' ? { refImages: dataUrl ? [dataUrl] : [] } : { initImage: dataUrl, mask: String(n.data.mask), strength: Number(n.data.strength) || 0.85 }),
-            seed: Math.floor(Math.random() * 2 ** 31),
-          }),
-        )
-        created(item)
-        return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
+        throw new Error(t('That image model is not available anymore.'))
       }
       case 'upscale': {
         const img = firstMedia('image')
         if (!img || img.kind !== 'image') throw new Error(t('Connect an image to this node.'))
-        if (!upscalers.length) throw new Error(CLOUD_ONLY ? t('The image models did not load from Orbi Cloud. Check your internet and try again.') : t('Download an upscaler in Models (Image → Upscalers).'))
+        if (!upscalers.length) throw new Error(t('The image models did not load from Orbi Cloud. Check your internet and try again.'))
         const upKey = String(n.data.model || upscalers[0].key)
         if (upKey.startsWith('cloud::')) {
           const m = models.find((x) => x.key === upKey.slice(7))
@@ -1256,26 +1205,13 @@ function WorkflowEditor({
           created(item)
           return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
         }
-        const item = await withMediaLock(() => api.upscale({ mediaId: img.id, modelId: String(n.data.model || upscalers[0].key), jobId: jobFor(n.id) }))
-        created(item)
-        return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
+        throw new Error(t('That image model is not available anymore.'))
       }
       case 'voice': {
         const text = firstText('text')
         if (!text) throw new Error(t('Connect a script to this node.'))
-        if (CLOUD_ONLY) {
-          const cv = parseCloudVoice(n.data.voice, cloud.catalog)
-          const item = await api.speech({ text: withStyle(cv.model, String(n.data.style || ''), text), model: cv.model || undefined, voice: cv.voice || undefined, source: 'creative' })
-          created(item)
-          return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
-        }
-        const v = parseVoice(n.data.voice, ttsVoices)
-        const item =
-          v.type === 'local'
-            ? await api.speakToMedia({ text, modelId: v.modelId, voice: v.voice, lang: getLang() })
-            : v.type === 'native'
-              ? await api.speakSystemToMedia({ text, system: v.id })
-              : await api.speech({ text, voice: v.voice })
+        const cv = parseCloudVoice(n.data.voice, cloud.catalog)
+        const item = await api.speech({ text: withStyle(cv.model, String(n.data.style || ''), text), model: cv.model || undefined, voice: cv.voice || undefined, source: 'creative' })
         created(item)
         return { media: { id: item.id, url: item.url, name: item.name, kind: item.kind } }
       }
@@ -1305,7 +1241,7 @@ function WorkflowEditor({
       try {
         const out = await execNode(nodesRef.current.find((x) => x.id === id)!, ins)
         patch(id, { status: 'done', out, progress: undefined })
-        if (CLOUD_ONLY && n.kind !== 'prompt' && n.kind !== 'negative' && n.kind !== 'note' && n.kind !== 'load' && n.kind !== 'output') setTimeout(() => refreshCloud(), 2500)
+        if (n.kind !== 'prompt' && n.kind !== 'negative' && n.kind !== 'note' && n.kind !== 'load' && n.kind !== 'output') setTimeout(() => refreshCloud(), 2500)
         return out
       } catch (err) {
         const msg = cleanErr(err)
@@ -1354,31 +1290,10 @@ function WorkflowEditor({
   }
   const stopAll = () => {
     stopRef.current = true
-    for (const j of jobNode.current.keys()) api.cancelLocalGenerate(j)
   }
 
   // ---------- files: Orbi workflow JSON and ComfyUI import ----------
   const fileRef = useRef<HTMLInputElement>(null)
-  const pickLocal = (names: string[], kind: 'image' | 'video') => {
-    const installed = localStatus?.models.filter((m) => m.kind === kind && m.installed) ?? []
-    const hint = names.join(' ').toLowerCase()
-    const rules: [RegExp, string][] = [
-      [/flux[_.-]?3|image[_-]?klein/, 'flux3-klein'],
-      [/krea/, 'krea2-turbo'],
-      [/mage[_-]?flow[_-]?edit/, 'mage-flow-edit-turbo'],
-      [/mage[_-]?flow/, 'mage-flow-turbo'],
-      [/qwen[_-]?image[_-]?edit/, 'qwen-image-edit-2511'],
-      [/klein[_-]?9b/, 'flux2-klein-9b'],
-      [/ltx/, 'ltx2.3'],
-      [/z[_-]?image/, 'z-image-turbo'],
-      [/flux[_.-]?2|klein/, 'flux2-klein-4b'],
-      [/flux/, 'flux-schnell'],
-      [/wan2[._]?2|ti2v/, 'wan2.2-5b-q4'],
-      [/wan/, 'wan2.1-1.3b'],
-    ]
-    for (const [re, id] of rules) if (re.test(hint) && installed.some((m) => m.id === id)) return id
-    return installed[0]?.id
-  }
   const importFile = async (file: File) => {
     try {
       const json = JSON.parse(await file.text())
@@ -1388,14 +1303,8 @@ function WorkflowEditor({
         setToast(t('Workflow imported.'))
       } else {
         const r = importComfy(json)
-        const img = pickLocal(r.models, 'image')
-        const vid = pickLocal(r.models, 'video')
-        setNodes(
-          r.nodes.map((n) => ({
-            ...n,
-            data: { ...DEFS[n.kind as Kind].data(), ...n.data, ...(n.kind === 'image' && img ? { model: `local::${img}` } : {}), ...(n.kind === 'video' && vid ? { model: vid } : {}) },
-          })) as FNode[],
-        )
+        // The ComfyUI checkpoints are not used: each node starts on the default cloud model.
+        setNodes(r.nodes.map((n) => ({ ...n, data: { ...DEFS[n.kind as Kind].data(), ...n.data } })) as FNode[])
         // Negative texts from ComfyUI samplers become Negative prompt nodes.
         const extraNodes: FNode[] = []
         const extraEdges: FEdge[] = []
@@ -1644,7 +1553,7 @@ function WorkflowEditor({
                     media={media}
                     boards={boards}
                     onOpenModels={onOpenModels}
-                    extra={{ vectorChoices, onUpload: (id, kind) => onUpload(id, kind), editChoices, localImageChoices, upscalers, ttsVoices, onPaintMask: () => setMaskFor(n.id), hasInputImage: !!inputImageOf(n.id), localStatus, models, promptContext, catalog: cloud.catalog, admin: !!cloud.state?.user?.admin }}
+                    extra={{ vectorChoices, onUpload: (id, kind) => onUpload(id, kind), editChoices, upscalers, onPaintMask: () => setMaskFor(n.id), hasInputImage: !!inputImageOf(n.id), models, promptContext, catalog: cloud.catalog, admin: !!cloud.state?.user?.admin }}
                   />
                   {n.status === 'running' && n.progress !== undefined && (
                     <div className="local-bar">
@@ -1918,12 +1827,9 @@ type Extra = {
   vectorChoices: Choice[]
   onUpload: (nodeId: string, kind: 'image' | 'video' | 'audio') => void
   editChoices: Choice[]
-  localImageChoices: Choice[]
   upscalers: Choice[]
-  ttsVoices: Choice[]
   onPaintMask: () => void
   hasInputImage: boolean
-  localStatus: LocalStatus | null
   models: ModelInfo[]
   promptContext: (id: string) => { mode: 'image' | 'video'; positive: string }
   catalog: CloudCatalog | null
@@ -1936,18 +1842,6 @@ function parseCloudVoice(raw: unknown, catalog: CloudCatalog | null) {
   const [model, voice] = s.startsWith('cloud:') ? s.slice(6).split('#') : ['', '']
   const m = catalog?.tts.find((x) => x.id === model) ?? catalog?.tts[0]
   return { model: m?.id || '', voice: m && m.voices.includes(voice) ? voice : m?.voices[0] || '', spec: m }
-}
-
-// Voice node value: 'local:<model>#<voice>' (offline) or 'openai:<voice>'.
-function parseVoice(raw: unknown, local: Choice[]): { type: 'local'; modelId: string; voice?: string | number } | { type: 'openai'; voice: string } | { type: 'native'; id: string; name: string } {
-  const s = String(raw || (local[0] ? `local:${local[0].key}` : 'openai:alloy'))
-  if (s.startsWith('openai:')) return { type: 'openai', voice: s.slice(7) }
-  if (s.startsWith('native:')) {
-    const [id, name] = s.slice(7).split('|')
-    return { type: 'native', id, name: name || id }
-  }
-  const [modelId, voice] = s.slice(6).split('#')
-  return { type: 'local', modelId, voice: voice == null ? undefined : /^\d+$/.test(voice) ? Number(voice) : voice }
 }
 
 function NodeBody({
@@ -1984,7 +1878,6 @@ function NodeBody({
   const imgIcon = <ImageIcon size={14} />
   // The aspect ratios the chosen model accepts.
   const nodeAspects = (kind: 'image' | 'video', key: string) => {
-    if (!CLOUD_ONLY) return Object.keys(ASPECTS)
     const id = key.split('::').pop()
     const spec = kind === 'video' ? cat?.video.find((v) => v.id === id) : cat?.image.find((v) => v.id === id)
     return aspectsFor({ aspects: spec?.aspects } as CreativeOption)
@@ -2095,18 +1988,7 @@ function NodeBody({
     case 'llm':
       return (
         <>
-          {CLOUD_ONLY ? (
             <ModelSelect items={chatItems(chatModels, cat)} value={String(n.data.model || chatModels[0]?.key || '')} onPick={(k) => setData({ model: k })} />
-          ) : (
-            <select className="ab-input" value={String(n.data.model || chatModels[0]?.key || '')} onChange={(e) => setData({ model: e.target.value })}>
-              {!chatModels.length && <option value="">{t('No chat model connected')}</option>}
-              {chatModels.map((m) => (
-                <option key={m.key} value={m.key}>
-                  {m.name} · {m.providerName}
-                </option>
-              ))}
-            </select>
-          )}
           <select className="ab-input" value={String(n.data.preset || 'image')} onChange={(e) => setData({ preset: e.target.value })}>
             {Object.entries(PRESETS).map(([k, p]) => (
               <option key={k} value={k}>
@@ -2121,19 +2003,11 @@ function NodeBody({
     case 'image':
       return (
         <>
-          {imageChoices.length && CLOUD_ONLY ? (
+          {imageChoices.length ? (
             <>
               <ModelSelect items={mediaItems(imageChoices, 'image')} value={String(n.data.model || imageChoices[0].key)} onPick={(k) => setData({ model: k })} icon={imgIcon} />
               <CostChip usd={nodeUsd('image', String(n.data.model || imageChoices[0].key))} className="flow-cost" />
             </>
-          ) : imageChoices.length ? (
-            <select className="ab-input" value={String(n.data.model || imageChoices[0].key)} onChange={(e) => setData({ model: e.target.value })}>
-              {imageChoices.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
           ) : (
             missing(t('Download an image model'))
           )}
@@ -2145,7 +2019,7 @@ function NodeBody({
                 </option>
               ))}
             </select>
-            {CLOUD_ONLY ? (
+            {
               !!imageSpec(String(n.data.model || imageChoices[0]?.key || ''))?.resolutions?.length && (
                 <select className="ab-input" value={String(n.data.resolution || '')} onChange={(e) => setData({ resolution: e.target.value })} aria-label={t('Resolution')}>
                   <option value="">{t('Default size')}</option>
@@ -2156,12 +2030,7 @@ function NodeBody({
                   ))}
                 </select>
               )
-            ) : (
-              <>
-                <input className="ab-input num" type="number" min={0} max={50} value={Number(n.data.steps) || 0} onChange={(e) => setData({ steps: Number(e.target.value) })} title={t('Steps (0 = model default)')} />
-                <input className="ab-input num" placeholder={t('Seed')} value={String(n.data.seed ?? '')} onChange={(e) => setData({ seed: e.target.value.replace(/\D/g, '') })} title={t('Empty = random')} />
-              </>
-            )}
+            }
           </div>
           {negToggle}
           {preview}
@@ -2294,23 +2163,14 @@ function NodeBody({
     case 'video':
       return (
         <>
-          {videoChoices.length && CLOUD_ONLY ? (
+          {videoChoices.length ? (
             <>
               <ModelSelect items={mediaItems(videoChoices, 'video')} value={String(n.data.model || videoChoices[0].key)} onPick={(k) => setData({ model: k })} icon={<Film size={14} />} />
               <CostChip usd={nodeUsd('video', String(n.data.model || videoChoices[0].key))} className="flow-cost" />
             </>
-          ) : videoChoices.length ? (
-            <select className="ab-input" value={String(n.data.model || videoChoices[0].key)} onChange={(e) => setData({ model: e.target.value })}>
-              {videoChoices.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
           ) : (
             missing(t('Download a video model'))
           )}
-          {CLOUD_ONLY && (
             <label className="flow-row flow-label">
               <span>{t('Aspect ratio')}</span>
               <select className="ab-input" value={nearestAspect(nodeAspects('video', String(n.data.model || videoChoices[0]?.key || '')), String(n.data.aspect || '16:9'))} onChange={(e) => setData({ aspect: e.target.value })}>
@@ -2321,28 +2181,9 @@ function NodeBody({
                 ))}
               </select>
             </label>
-          )}
-          {CLOUD_ONLY ? (
+          {
             videoParams(String(n.data.model || videoChoices[0]?.key || ''), false)
-          ) : (
-            <>
-              <label className="flow-row flow-label">
-                <span>{t('Frames')}</span>
-                <input className="ab-input num" type="number" min={5} max={241} step={4} value={Number(n.data.frames) || 33} onChange={(e) => setData({ frames: Number(e.target.value) })} />
-              </label>
-              <label className="flow-row flow-label">
-                <span>FPS</span>
-                <select className="ab-input" value={Number(n.data.fps) || 16} onChange={(e) => setData({ fps: Number(e.target.value) })}>
-                  {[8, 12, 16, 24, 30, 60].map((f) => (
-                    <option key={f} value={f}>
-                      {f}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <p className="flow-hint-text num">{t('≈ {s} s of video', { s: ((Number(n.data.frames) || 33) / (Number(n.data.fps) || 16)).toFixed(1) })}</p>
-            </>
-          )}
+          }
           {negToggle}
           {preview}
         </>
@@ -2392,22 +2233,14 @@ function NodeBody({
     }
     case 'edit':
     case 'inpaint': {
-      const list = n.kind === 'edit' || CLOUD_ONLY ? extra.editChoices : extra.localImageChoices
+      const list = extra.editChoices
       return (
         <>
-          {list.length && CLOUD_ONLY ? (
+          {list.length ? (
             <>
               <ModelSelect items={mediaItems(list, 'image')} value={String(n.data.model || list[0].key)} onPick={(k) => setData({ model: k })} icon={imgIcon} />
               <CostChip usd={nodeUsd('image', String(n.data.model || list[0].key))} className="flow-cost" />
             </>
-          ) : list.length ? (
-            <select className="ab-input" value={String(n.data.model || list[0].key)} onChange={(e) => setData({ model: e.target.value })}>
-              {list.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
           ) : (
             missing(n.kind === 'edit' ? t('Download an image editing model') : t('Download an image model'))
           )}
@@ -2416,12 +2249,6 @@ function NodeBody({
               <button className="flow-missing" onClick={extra.onPaintMask} disabled={!extra.hasInputImage} title={extra.hasInputImage ? '' : t('Run the node that feeds the image first.')}>
                 <Paintbrush size={12} className="inline" /> {n.data.mask ? t('Edit mask') : t('Paint mask')}
               </button>
-              {!CLOUD_ONLY && (
-                <label className="flow-row flow-label">
-                  <span>{t('Change')}</span>
-                  <input className="ab-input num" type="number" min={0.1} max={1} step={0.05} value={Number(n.data.strength) || 0.85} onChange={(e) => setData({ strength: Number(e.target.value) })} />
-                </label>
-              )}
             </>
           )}
           {negToggle}
@@ -2432,19 +2259,11 @@ function NodeBody({
     case 'upscale':
       return (
         <>
-          {extra.upscalers.length && CLOUD_ONLY ? (
+          {extra.upscalers.length ? (
             <>
               <ModelSelect items={mediaItems(extra.upscalers, 'image')} value={String(n.data.model || extra.upscalers[0].key)} onPick={(k) => setData({ model: k })} icon={imgIcon} />
               <CostChip usd={nodeUsd('image', String(n.data.model || extra.upscalers[0].key))} className="flow-cost" />
             </>
-          ) : extra.upscalers.length ? (
-            <select className="ab-input" value={String(n.data.model || extra.upscalers[0].key)} onChange={(e) => setData({ model: e.target.value })}>
-              {extra.upscalers.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
           ) : (
             missing(t('Download an upscaler'))
           )}
@@ -2452,66 +2271,28 @@ function NodeBody({
         </>
       )
     case 'voice': {
-      if (CLOUD_ONLY) {
-        const cv = parseCloudVoice(n.data.voice, extra.catalog)
-        return (
-          <>
-            <ModelSelect items={audioItems(extra.catalog?.tts ?? [], 'k')} value={cv.model} onPick={(k) => setData({ voice: `cloud:${k}#${extra.catalog?.tts.find((x) => x.id === k)?.voices[0] || ''}` })} icon={<Volume2 size={14} />} />
-            {!!cv.spec?.voices.length && (
-              <div className="flow-row">
-                <select className="ab-input" value={cv.voice} onChange={(e) => setData({ voice: `cloud:${cv.model}#${e.target.value}` })}>
-                  {cv.spec.voices.map((x) => (
-                    <option key={x} value={x}>
-                      {voiceName(x)}
-                    </option>
-                  ))}
-                </select>
-                <VoicePreview model={cv.model} voice={cv.voice} />
-              </div>
-            )}
-            {takesStyle(cv.model) && (
-              <>
-                <input className="ab-input" value={String(n.data.style || '')} onChange={(e) => setData({ style: e.target.value })} placeholder={t('Delivery: tone, pace, emotion')} maxLength={300} />
-                <FlowChips options={STYLES} value={n.data.style ? [String(n.data.style)] : []} onChange={(v) => setData({ style: v[0] || '' })} />
-              </>
-            )}
-            {preview}
-          </>
-        )
-      }
-      const v = parseVoice(n.data.voice, extra.ttsVoices)
-      const value: TtsChoice | null = v.type === 'local' ? { type: 'local', modelId: v.modelId, voice: v.voice, rate: 1 } : v.type === 'native' ? { type: 'native', id: v.id, name: v.name, rate: 1 } : null
+      const cv = parseCloudVoice(n.data.voice, extra.catalog)
       return (
         <>
-          <VoiceButton
-            status={extra.localStatus}
-            onLocalChanged={() => {}}
-            value={value}
-            hideSystem
-            label={v.type === 'openai' ? `OpenAI · ${v.voice}` : undefined}
-            onPick={(c) => {
-              if (c.type === 'native') setData({ voice: `native:${c.id}|${c.name}` })
-              else if (c.type === 'cloud') setData({ voice: `openai:${c.voice}` })
-              else if (c.type !== 'system') setData({ voice: `local:${c.modelId}${c.voice != null ? `#${c.voice}` : ''}` })
-            }}
-            extra={
-              <div className="voice-option">
-                <div className="voice-option-head">
-                  <strong>{t('OpenAI (key needed)')}</strong>
-                </div>
-                {VOICES.map((o) => (
-                  <div key={o} className={`voice-model ${v.type === 'openai' && v.voice === o ? 'active' : ''}`}>
-                    <div className="min-w-0 flex-1">
-                      <strong>{o}</strong>
-                    </div>
-                    <button className={`orbi-btn ${v.type === 'openai' && v.voice === o ? 'orbi-btn-primary' : ''}`} onClick={() => setData({ voice: `openai:${o}` })}>
-                      {v.type === 'openai' && v.voice === o ? t('Chosen') : t('Use')}
-                    </button>
-                  </div>
+          <ModelSelect items={audioItems(extra.catalog?.tts ?? [], 'k')} value={cv.model} onPick={(k) => setData({ voice: `cloud:${k}#${extra.catalog?.tts.find((x) => x.id === k)?.voices[0] || ''}` })} icon={<Volume2 size={14} />} />
+          {!!cv.spec?.voices.length && (
+            <div className="flow-row">
+              <select className="ab-input" value={cv.voice} onChange={(e) => setData({ voice: `cloud:${cv.model}#${e.target.value}` })}>
+                {cv.spec.voices.map((x) => (
+                  <option key={x} value={x}>
+                    {voiceName(x)}
+                  </option>
                 ))}
-              </div>
-            }
-          />
+              </select>
+              <VoicePreview model={cv.model} voice={cv.voice} />
+            </div>
+          )}
+          {takesStyle(cv.model) && (
+            <>
+              <input className="ab-input" value={String(n.data.style || '')} onChange={(e) => setData({ style: e.target.value })} placeholder={t('Delivery: tone, pace, emotion')} maxLength={300} />
+              <FlowChips options={STYLES} value={n.data.style ? [String(n.data.style)] : []} onChange={(v) => setData({ style: v[0] || '' })} />
+            </>
+          )}
           {preview}
         </>
       )

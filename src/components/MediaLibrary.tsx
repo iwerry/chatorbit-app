@@ -1,8 +1,8 @@
 // Media Library as a full page: every image, video, audio and file made or imported anywhere in Orbi.
 // Search, boards, kind filters, the full-screen viewer, and quick follow-ups (make a video, upscale, edit, use prompt).
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, Clapperboard, Download, FileText, FolderOpen, Image as ImageIcon, Library, Maximize, Maximize2, MessageSquareText, Music, Search, Trash2, Upload, Video, Wand2, WandSparkles, X } from 'lucide-react'
-import { api, type Board, type LocalStatus, type MediaItem } from '../lib/api'
+import { ChevronLeft, Clapperboard, Download, FileText, FolderOpen, Image as ImageIcon, Library, Maximize, MessageSquareText, Music, Search, Trash2, Upload, Video, Wand2, WandSparkles, X } from 'lucide-react'
+import { api, type Board, type MediaItem } from '../lib/api'
 import { fmtDate, t } from '../lib/i18n'
 import { creativeBus, openInCreative } from '../lib/creativeBus'
 import { DEFAULT_NEGATIVE } from '../lib/ideas'
@@ -31,20 +31,16 @@ function shapeOf(m: MediaItem): string | undefined {
 
 export function MediaLibrary({
   media,
-  localStatus,
   onRefresh,
   onBack,
   onOpenCreative,
-  onOpenModels,
   themeMode,
   setThemeMode,
 }: {
   media: MediaItem[]
-  localStatus: LocalStatus | null
   onRefresh: () => void
   onBack: () => void
   onOpenCreative: () => void
-  onOpenModels: () => void
   themeMode: ThemeMode
   setThemeMode: Dispatch<SetStateAction<ThemeMode>>
 }) {
@@ -80,8 +76,6 @@ export function MediaLibrary({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const hasUpscaler = !!localStatus?.models.some((m) => m.kind === 'upscale' && m.installed)
-  const hasVideo = !!localStatus?.models.some((m) => m.kind === 'video' && m.installed)
   const kindOf = (m: MediaItem): Exclude<Kind, 'all'> => (m.kind === 'image' || m.kind === 'video' || m.kind === 'audio' ? m.kind : 'file')
   const inScope = media.filter((m) => (!board || m.board === board) && (!source || (source === 'creative' ? m.source === 'creative' || m.source === 'canvas' : m.source === source)))
   const q = query.trim().toLowerCase()
@@ -89,25 +83,8 @@ export function MediaLibrary({
   const count = (k: Kind) => (k === 'all' ? inScope.length : inScope.filter((m) => kindOf(m) === k).length)
 
   const makeVideo = (m: MediaItem) => {
-    if (!hasVideo) {
-      setViewing(null)
-      setToast(t('Download a video model in Models first'))
-      onOpenModels()
-      return false
-    }
     creativeBus.request({ id: rid(), mode: 'video', prompt: m.prompt || t('Gentle camera move, natural motion'), negative: DEFAULT_NEGATIVE.video, initMediaId: m.id, aspect: '16:9', source: 'creative' })
     setToast(t('Video queued in Creative — it will show up here when it is ready.'))
-    return true
-  }
-  const upscale = (m: MediaItem) => {
-    if (!hasUpscaler) {
-      setViewing(null)
-      setToast(t('Download an upscaler in Models first (Real-ESRGAN).'))
-      onOpenModels()
-      return false
-    }
-    creativeBus.request({ id: rid(), mode: 'upscale', prompt: m.prompt || m.name, initMediaId: m.id })
-    setToast(t('Upscale queued in Creative — the sharper copy lands here.'))
     return true
   }
   const edit = (m: MediaItem) => {
@@ -255,11 +232,8 @@ export function MediaLibrary({
                   <div className="media-tile-tools">
                     {m.kind === 'image' && (
                       <>
-                        <button title={hasVideo ? t('Make a video from this image') : t('Download a video model in Models first')} onClick={() => makeVideo(m)}>
+                        <button title={t('Make a video from this image')} onClick={() => makeVideo(m)}>
                           <Clapperboard size={12} />
-                        </button>
-                        <button title={hasUpscaler ? t('Upscale 4×') : t('Download an upscaler in Models to enlarge images')} onClick={() => upscale(m)}>
-                          <Maximize2 size={12} />
                         </button>
                       </>
                     )}
@@ -307,7 +281,6 @@ export function MediaLibrary({
             setViewing(null)
             onOpenCreative()
           }}
-          onUpscale={upscale}
           onMakeVideo={makeVideo}
           onEdit={(m) => {
             setViewing(null)

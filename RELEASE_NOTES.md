@@ -1,4 +1,13 @@
-## Orbi 0.2.11-1
+## Orbi 0.2.11-2
+
+- **Orbi agora é 100% nuvem.** Toda a IA vem do Orbi Cloud: chat, imagem, vídeo, voz e ditado. Não existe mais modelo rodando no seu computador.
+  - Saíram as telas de modelos locais, o assistente que baixava modelos, as vozes offline, os motores locais e as conexões com Ollama e LM Studio.
+  - Se você tinha escolhido uma voz ou um ditado local, o Orbi passa a usar o padrão do Orbi Cloud sozinho.
+  - Workflows do ComfyUI continuam podendo ser importados, e cada nó começa num modelo da nuvem.
+- **Windows:** esta versão chega como o novo Orbi, mais leve e rápido. A atualização instala por cima e mantém suas conversas, mídias, workflows e o login.
+- **Biblioteca de mídia:** o botão "Fazer um vídeo desta imagem" funciona direto com os modelos de vídeo da nuvem.
+
+## Orbi 0.2.11-1 (previous)
 
 - **Surprise me de verdade, com IA:** os botões de prompt deixaram de sortear frases fixas. Agora um modelo de texto rápido e barato (Claude Haiku, Gemini Flash ou GPT mini) escreve o prompt, e só quando você clica.
 - **Canvas (Imagem e Vídeo):** um botão só, **Surprise me**.
@@ -10,7 +19,7 @@
   - No Chat, o mesmo botão melhora a sua mensagem para a IA entender de primeira, mantendo o seu jeito de escrever, ou sugere algo criativo para perguntar.
 - O prompt sai no idioma em que você escreveu (ou no idioma do app) e segue o que funciona melhor em cada tipo de modelo.
 
-## Orbi 0.2.10-2 (previous)
+## Orbi 0.2.10-2
 
 - **Creative › Node (antes "Workflows"):** canvas livre no espírito do ComfyUI e do Firefly Boards.
   - Barra de ferramentas flutuante à esquerda, que fica no lugar mesmo com zoom: selecionar e mão (V/H), adicionar nó (N), templates, texto (T), formas (retângulo, elipse, linha e seta), lápis com espessuras e cores, e mídia.

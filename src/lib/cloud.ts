@@ -2,8 +2,7 @@
 import { useEffect, useState } from 'react'
 import { api, type CloudCatalog, type CloudState } from './api'
 
-/** Orbi runs on Orbi Cloud: market models, no personal API keys, no local engines in the interface. */
-export const CLOUD_ONLY = true
+// Orbi runs only on Orbi Cloud: market models, no personal API keys, no local engines.
 
 let state: CloudState | null = null
 let catalog: CloudCatalog | null = null

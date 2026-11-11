@@ -37,7 +37,7 @@ import { api, type MediaItem } from '../lib/api'
 import { t } from '../lib/i18n'
 import { aspectInfo, aspectsFor, estimateUsd, imageResValue, nearestAspect, ratio, resLabel, type CreativeOption } from '../lib/creative'
 import { creativeBus, type ChatMediaMeta, type GenUpdate } from '../lib/creativeBus'
-import { CLOUD_ONLY, fmtCredits, nearestDuration } from '../lib/cloud'
+import { fmtCredits, nearestDuration } from '../lib/cloud'
 import { setAudioPref, useAudioDevices } from '../lib/audioDevices'
 import type { Recording } from '../lib/voice'
 import { Lightbox } from './Lightbox'
@@ -394,7 +394,7 @@ export function AudioMenu({ onVoiceSettings, onTest }: { onVoiceSettings: () => 
                 onVoiceSettings()
               }}
             >
-              <Settings2 size={12} /> {CLOUD_ONLY ? t('Voices and dictation…') : t('Dictation engine…')}
+              <Settings2 size={12} /> {t('Voices and dictation…')}
             </button>
           </div>
         </div>
@@ -660,11 +660,6 @@ function ModelPickerPop({ list, current, mode, onPick, onOpenModels }: { list: C
   return (
     <div className="model-pop">
       <ModelMenu items={creativeItems(list)} value={current} onPick={onPick} icon={mode === 'video' ? <Film size={14} /> : <ImageIcon size={14} />} empty={mode === 'video' ? t('No video model is installed yet.') : t('No image model is installed yet.')} />
-      {!CLOUD_ONLY && (
-        <button type="button" className="model-pop-more" onClick={onOpenModels}>
-          <Plus size={13} /> {t('Get more models')}
-        </button>
-      )}
     </div>
   )
 }

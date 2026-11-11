@@ -7,7 +7,6 @@ import {
   ChevronDown,
   ChevronLeft,
   Clock3,
-  Dice5,
   Download,
   Eraser,
   Eye,
@@ -18,7 +17,6 @@ import {
   LayoutGrid,
   Loader2,
   Maximize,
-  Maximize2,
   Plus,
   Rocket,
   Search,
@@ -30,10 +28,10 @@ import {
   Wand2,
   Workflow,
   X, RefreshCw } from 'lucide-react'
-import { api, on, type Board, type LocalStatus, type MediaItem, type ModelInfo } from '../lib/api'
-import { ASPECTS, CLOUD_GEN, creativeOptions, sizeFor, snap, type CreativeOption } from '../lib/creative'
+import { api, type Board, type MediaItem, type ModelInfo } from '../lib/api'
+import { CLOUD_GEN, creativeOptions, sizeFor, snap, type CreativeOption } from '../lib/creative'
 import { creativeBus, takePendingUse, type GenRequest } from '../lib/creativeBus'
-import { CLOUD_ONLY, fmtCredits, nearestDuration, nearestRes, useCloud } from '../lib/cloud'
+import { fmtCredits, nearestDuration, nearestRes, useCloud } from '../lib/cloud'
 import { CostChip, ModelSelect } from './ModelMenu'
 import { creativeItems } from '../lib/menuItems'
 import { aspectInfo, aspectsFor, estimateUsd, imageResValue, nearestAspect, ratio, resLabel, resolutionsFor } from '../lib/creative'
@@ -50,7 +48,6 @@ const NodeFlow = lazy(() => import('./NodeFlow').then((m) => ({ default: m.NodeF
 
 type Tab = 'launchpad' | 'canvas' | 'workflows' | 'gallery'
 type Mode = 'image' | 'video'
-type Quality = 0 | 1 | 2 | 3 // fast, balanced, best, custom
 type Option = CreativeOption
 type Job = {
   id: string
@@ -66,14 +63,12 @@ type Job = {
   error?: string
   media?: MediaItem
   run: (jobId: string) => Promise<MediaItem>
-  local: boolean
   /** Request id when the render was asked from the chat or the library. */
   origin?: string
   from?: 'chats'
 }
 
 const FPS = [8, 12, 16, 24, 30, 60]
-const QUALITY = ['Fast', 'Balanced', 'Best', 'Custom'] as const
 
 // Scales an image to cover width × height (centered crop), as the engines expect for a start frame.
 async function coverTo(dataUrl: string, width: number, height: number) {
@@ -105,23 +100,11 @@ function Section({ title, children, open: initial = true, right }: { title: stri
   )
 }
 
-function Slider({ label, value, min, max, step = 1, onChange, suffix }: { label: string; value: number; min: number; max: number; step?: number; onChange: (v: number) => void; suffix?: string }) {
-  return (
-    <label className="studio-slider">
-      <span>{label}</span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
-      <input className="studio-num num" type="number" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
-      {suffix && <em>{suffix}</em>}
-    </label>
-  )
-}
-
 export function CreativeStudio({
   themeMode,
   setThemeMode,
   onBack,
   models,
-  localStatus,
   onOpenModels,
   onMediaCreated,
   onOpenLibrary,
@@ -131,7 +114,6 @@ export function CreativeStudio({
   setThemeMode: Dispatch<SetStateAction<ThemeMode>>
   onBack: () => void
   models: ModelInfo[]
-  localStatus: LocalStatus | null
   onOpenModels: () => void
   onMediaCreated: (m: MediaItem) => void
   onOpenLibrary: () => void
@@ -170,12 +152,7 @@ export function CreativeStudio({
   const [modelKeys, setModelKeys] = useState<Record<Mode, string>>({ image: '', video: '' })
   const [aspect, setAspect, setAspectFor] = useModeState(mode, '1:1')
   const [size, setSize, setSizeFor] = useModeState(mode, { w: 768, h: 768 })
-  const [quality, setQuality] = useModeState<Quality>(mode, 1)
-  const [customSteps, setCustomSteps] = useModeState(mode, 20)
-  const [seed, setSeed] = useModeState<number>(mode, 42)
-  const [randomSeed, setRandomSeed] = useModeState(mode, true)
   const [count, setCount] = useModeState(mode, 1)
-  const [strength, setStrength] = useModeState(mode, 0.65)
   const [useInit, setUseInit, setUseInitFor] = useModeState(mode, false)
   const [duration, setDuration] = useState(2)
   const [cloudRes, setCloudRes] = useState<Record<Mode, number>>({ image: 1024, video: 720 })
@@ -198,8 +175,6 @@ export function CreativeStudio({
   const startedIds = useRef(new Set<string>())
   const [, tick] = useState(0)
 
-  const hw = localStatus?.hardware
-  const maxLocal = (hw?.vram ?? 0) >= 12 ? 2 : 1
 
   const loadMedia = useCallback(async () => {
     const [m, b] = await Promise.all([api.media(), api.boards()])
@@ -219,7 +194,6 @@ export function CreativeStudio({
       if (s.modelKeys && typeof s.modelKeys === 'object') setModelKeys((c) => ({ ...c, ...(s.modelKeys as Record<Mode, string>) }))
       if (s.mode === 'video' || s.mode === 'image') setMode(s.mode)
       if (typeof s.aspect === 'string') setAspect(s.aspect)
-      if (typeof s.quality === 'number') setQuality(s.quality as Quality)
       if (typeof s.fps === 'number') setFps(s.fps)
       if (typeof s.duration === 'number') setDuration(s.duration)
     })
@@ -250,16 +224,6 @@ export function CreativeStudio({
     return () => window.removeEventListener('orbi:use-prompt', onUse)
   }, [])
 
-  // live progress for each job
-  useEffect(
-    () =>
-      on('local:progress', (p: { jobId?: string; step: number; total: number; phase?: string }) => {
-        if (!p.jobId) return
-        setJobs((cur) => cur.map((j) => (j.id === p.jobId ? { ...j, step: p.step || j.step, total: p.total || j.total, phase: p.phase || (p.total ? 'sampling' : j.phase) } : j)))
-        if (p.total) activity.update(p.jobId, { progress: p.step / p.total })
-      }),
-    [],
-  )
   // elapsed-time ticker while something renders
   useEffect(() => {
     if (!jobs.some((j) => j.status === 'running')) return
@@ -269,12 +233,12 @@ export function CreativeStudio({
 
   // ---------- models ----------
   const cloud = useCloud()
-  const options: Option[] = useMemo(() => creativeOptions(localStatus, models, cloud.catalog), [localStatus, models, cloud.catalog])
+  const options: Option[] = useMemo(() => creativeOptions(models, cloud.catalog), [models, cloud.catalog])
   const modeOptions = options.filter((o) => o.kind === mode)
   const current = modeOptions.find((o) => o.key === modelKeys[mode]) ?? modeOptions[0]
   const gen = current?.gen ?? CLOUD_GEN
   // Cloud models: the provider sets steps and fps; you pick resolution, length and sound.
-  const isCloud = !!current && !current.local
+  const isCloud = !!current
   const spec = current?.video
   const cloudResList = isCloud ? resolutionsFor(current, mode) : []
   const cloudShort = cloudResList.includes(cloudRes[mode]) ? cloudRes[mode] : cloudResList[Math.min(1, cloudResList.length - 1)] ?? 720
@@ -303,17 +267,14 @@ export function CreativeStudio({
           source: r.source,
         })
       : api.generateImage({ providerId: o.providerId!, model: o.modelId, prompt: withAvoid(r.prompt, r.negative), board, ...((({ w, h }) => ({ width: w, height: h }))(sizeFor(r.aspect, 1024))), aspect: r.aspect, resolution: imageResValue(r.short), refImages: r.init ? [r.init] : undefined, source: r.source || 'creative' })
-  const steps = gen.fixedSteps ? gen.presets[0] : quality === 3 ? customSteps : gen.presets[quality]
   const frames = Math.max(5, Math.round((duration * fps) / 4) * 4 + 1)
   const width = size.w
   const height = size.h
 
-  // Default size follows the model; on a PC without GPU, start smaller so it finishes in reasonable time.
+  // Default size follows the model.
   useEffect(() => {
     if (!current) return
-    const cpuOnly = !hw?.gpuAccel
-    const base = Math.min(gen.width, gen.height) || 768
-    const target = cpuOnly && current.local ? Math.min(base, 512) : base
+    const target = Math.min(gen.width, gen.height) || 768
     const a = ratio(aspect)
     const area = mode === 'video' ? gen.width * gen.height : target * target
     const w = snap(Math.sqrt((area * a.w) / a.h))
@@ -322,18 +283,8 @@ export function CreativeStudio({
   }, [current?.key, mode])
 
   useEffect(() => {
-    api.setSetting('studio2', { modelKeys, mode, aspect, quality, fps, duration })
-  }, [modelKeys, mode, aspect, quality, fps, duration])
-
-  // How heavy this render is for this PC (never blocks — it only warns).
-  const load = useMemo(() => {
-    if (!current?.local) return null
-    const px = (width * height) / (768 * 768)
-    const work = mode === 'video' ? (frames / 33) * px * (steps / 20) : px * (steps / 8) * count
-    const power = hw?.gpuAccel ? Math.max(1, (hw.vram || 2) / 4) : 0.25
-    const score = work / power
-    return score < 1.2 ? 'ok' : score < 3 ? 'heavy' : 'very-heavy'
-  }, [current?.key, width, height, frames, steps, count, mode, hw])
+    api.setSetting('studio2', { modelKeys, mode, aspect, fps, duration })
+  }, [modelKeys, mode, aspect, fps, duration])
 
   // ---------- canvas sizing ----------
   useEffect(() => {
@@ -444,9 +395,7 @@ export function CreativeStudio({
   // ---------- queue ----------
   const patchJob = (id: string, p: Partial<Job>) => setJobs((cur) => cur.map((j) => (j.id === id ? { ...j, ...p } : j)))
   useEffect(() => {
-    const running = jobs.filter((j) => j.status === 'running')
-    const runningLocal = running.filter((j) => j.local).length
-    const next = jobs.find((j) => j.status === 'queued' && !startedIds.current.has(j.id) && (j.local ? runningLocal < maxLocal : true))
+    const next = jobs.find((j) => j.status === 'queued' && !startedIds.current.has(j.id))
     if (!next) return
     startedIds.current.add(next.id)
     patchJob(next.id, { status: 'running', started: Date.now(), phase: 'loading' })
@@ -467,7 +416,7 @@ export function CreativeStudio({
         patchJob(next.id, { status: 'error', error: stopped ? t('Stopped.') : msg, ended: Date.now() })
         activity.end(next.id, { ok: false, message: stopped ? t('Stopped.') : msg })
       })
-  }, [jobs, maxLocal])
+  }, [jobs])
 
   const invokeNow = async () => {
     if (!current || !prompt.trim()) return
@@ -477,54 +426,24 @@ export function CreativeStudio({
     const n = mode === 'video' ? 1 : count
     const created: Job[] = []
     for (let i = 0; i < n; i++) {
-      const s = randomSeed ? Math.floor(Math.random() * 2 ** 31) : seed + i
       const label = `${mode === 'video' ? t('Video') : t('Image')}${n > 1 ? ` ${i + 1}/${n}` : ''} · ${current.label}`
       const run = (jobId: string) =>
-        current.local
-          ? api.generateLocal({
-              jobId,
-              modelId: current.modelId,
-              prompt: p,
-              negative: negative.trim() || undefined,
-              width,
-              height,
-              steps: steps || undefined,
-              seed: s,
-              initImage: init,
-              mask: init && mode === 'image' ? mask : undefined,
-              strength,
-              frames: mode === 'video' ? frames : undefined,
-              fps: mode === 'video' ? fps : undefined,
-              board,
-            })
-          : cloudRender(jobId, current, { prompt: p, negative: negative.trim() || undefined, aspect, short: cloudShort, duration: cloudDur, init, audio })
-      created.push({ id: Math.random().toString(36).slice(2, 10), mode, label, prompt: p, status: 'queued', run, local: current.local })
+        cloudRender(jobId, current, { prompt: p, negative: negative.trim() || undefined, aspect, short: cloudShort, duration: cloudDur, init, audio })
+      created.push({ id: Math.random().toString(36).slice(2, 10), mode, label, prompt: p, status: 'queued', run })
     }
     setJobs((cur) => [...cur.filter((j) => j.status === 'queued' || j.status === 'running' || Date.now() - (j.ended || 0) < 10 * 60000).slice(-30), ...created])
   }
   const cancelJob = (j: Job) => {
     if (j.status === 'queued') setJobs((cur) => cur.filter((x) => x.id !== j.id))
-    else if (!j.local && j.mode === 'video') api.cloudCancelVideo(j.id)
-    else api.cancelLocalGenerate(j.id)
+    else if (j.mode === 'video') api.cloudCancelVideo(j.id)
   }
-  const upscale = (m: MediaItem) => {
-    const id = Math.random().toString(36).slice(2, 10)
-    setJobs((cur) => [...cur, { id, mode: 'image', label: `${t('Upscale 4×')} · ${m.name}`, prompt: m.prompt || m.name, status: 'queued', local: true, run: (jobId) => api.upscale({ mediaId: m.id, jobId, board }) }])
-    setTab('canvas')
-  }
-  const hasUpscaler = !!localStatus?.models.some((m) => m.kind === 'upscale' && m.installed)
-
   // ---------- renders asked from the chat or the Media Library ----------
   const serveRef = useRef<(r: GenRequest) => void>(() => {})
   serveRef.current = async (r: GenRequest) => {
     const fail = (error: string) => creativeBus.emit({ id: r.id, status: 'error', error })
     try {
       if (r.mode === 'upscale') {
-        if (!r.initMediaId) return fail(t('Pick an image first.'))
-        if (!hasUpscaler) return fail(t('Download an upscaler in Models first (Real-ESRGAN).'))
-        const id = Math.random().toString(36).slice(2, 10)
-        setJobs((cur) => [...cur, { id, origin: r.id, from: r.source === 'chat' ? 'chats' : undefined, mode: 'image', label: t('Upscale 4×'), prompt: r.prompt, status: 'queued', local: true, run: (jobId) => api.upscale({ mediaId: r.initMediaId!, jobId, board }) }])
-        return
+        return fail(t('Upscaling is not available yet.'))
       }
       const mode: Mode = r.mode
       const list = options.filter((o) => o.kind === mode)
@@ -533,21 +452,15 @@ export function CreativeStudio({
       const g = o.gen ?? CLOUD_GEN
       const short = r.res || Math.min(g.width, g.height) || 768
       const { w, h } = sizeFor(r.aspect || '1:1', short)
-      const stepsN = g.fixedSteps ? g.presets[0] : g.presets[1]
-      const fpsN = g.fps || 16
-      const framesN = Math.max(5, Math.round(((r.duration || 2) * fpsN) / 4) * 4 + 1)
       const src = r.initDataUrl || (r.initMediaId ? await api.mediaDataUrl(r.initMediaId) : null)
       const init = src ? await coverTo(src, w, h) : undefined
       const n = mode === 'video' ? 1 : Math.max(1, Math.min(4, r.count || 1))
       const created: Job[] = []
       for (let i = 0; i < n; i++) {
         const label = `${mode === 'video' ? t('Video') : t('Image')}${n > 1 ? ` ${i + 1}/${n}` : ''} · ${o.label}`
-        const s = Math.floor(Math.random() * 2 ** 31)
         const run = (jobId: string) =>
-          o.local
-            ? api.generateLocal({ jobId, modelId: o.modelId, prompt: r.prompt, negative: r.negative?.trim() || undefined, width: w, height: h, steps: stepsN || undefined, seed: s, initImage: init, strength: init && mode === 'image' ? 0.65 : undefined, frames: mode === 'video' ? framesN : undefined, fps: mode === 'video' ? fpsN : undefined, board, source: r.source })
-            : cloudRender(jobId, o, { prompt: r.prompt, negative: r.negative, aspect: r.aspect || '1:1', short: r.res || resolutionsFor(o, mode)[0], duration: r.duration || 5, init, audio: r.audio !== false, source: r.source })
-        created.push({ id: Math.random().toString(36).slice(2, 10), origin: r.id, from: r.source === 'chat' ? 'chats' : undefined, mode, label, prompt: r.prompt, status: 'queued', run, local: o.local })
+          cloudRender(jobId, o, { prompt: r.prompt, negative: r.negative, aspect: r.aspect || '1:1', short: r.res || resolutionsFor(o, mode)[0], duration: r.duration || 5, init, audio: r.audio !== false, source: r.source })
+        created.push({ id: Math.random().toString(36).slice(2, 10), origin: r.id, from: r.source === 'chat' ? 'chats' : undefined, mode, label, prompt: r.prompt, status: 'queued', run })
       }
       setJobs((cur) => [...cur, ...created])
     } catch (e) {
@@ -595,8 +508,6 @@ export function CreativeStudio({
     { id: 'workflows', label: 'Node', icon: Workflow },
     { id: 'gallery', label: 'Gallery', icon: Images },
   ]
-  const localImage = options.filter((o) => o.local && o.kind === 'image').length
-  const localVideo = options.filter((o) => o.local && o.kind === 'video').length
 
   const BoardsPanel = (
     <div className="studio-boards">
@@ -702,14 +613,6 @@ export function CreativeStudio({
       )}
       <span className={`studio-thumb-kind kind-${m.kind}`}>{m.kind === 'video' ? <Video size={10} /> : <ImageIcon size={10} />}</span>
       <div className="media-tile-tools">
-        {m.kind === 'image' && (!CLOUD_ONLY || hasUpscaler) && (
-          <button
-            title={hasUpscaler ? t('Upscale 4×') : t('Download an upscaler in Models to enlarge images')}
-            onClick={() => (hasUpscaler ? upscale(m) : onOpenModels())}
-          >
-            <Maximize2 size={12} />
-          </button>
-        )}
         <button title={t('View full screen')} onClick={() => openViewer(m)}>
           <Maximize size={12} />
         </button>
@@ -753,21 +656,13 @@ export function CreativeStudio({
     j.status === 'queued'
       ? t('Waiting in line')
       : j.status === 'running'
-        ? !j.local
-          ? j.mode === 'video'
-            ? j.phase === 'decoding'
-              ? t('Downloading…')
-              : j.phase === 'cloud'
-                ? t('Rendering in the cloud…')
-                : t('Waiting at the provider…')
-            : t('Generating…')
-          : j.total
-          ? t('Step {s} of {n}', { s: j.step || 0, n: j.total })
-          : j.phase === 'decoding'
-            ? t('Finishing…')
-            : j.phase === 'upscaling'
-              ? t('Upscaling…')
-              : t('Loading model…')
+        ? j.mode === 'video'
+          ? j.phase === 'decoding'
+            ? t('Downloading…')
+            : j.phase === 'cloud'
+              ? t('Rendering in the cloud…')
+              : t('Waiting at the provider…')
+          : t('Generating…')
         : j.status === 'done'
           ? t('Done')
           : j.error || t('Failed')
@@ -795,15 +690,9 @@ export function CreativeStudio({
           </nav>
         </div>
         <div className="flex items-center gap-2">
-          {CLOUD_ONLY ? (
-            <button className="orbi-btn" onClick={onOpenModels} title={t('Open your account')}>
-              <Wallet size={13} /> <span className="num">{fmtCredits(cloud.state?.user?.credits.total ?? 0)}</span> {t('credits')}
-            </button>
-          ) : (
-            <button className="orbi-btn" onClick={onOpenModels}>
-              <Sparkles size={13} /> {t('Models')}
-            </button>
-          )}
+          <button className="orbi-btn" onClick={onOpenModels} title={t('Open your account')}>
+            <Wallet size={13} /> <span className="num">{fmtCredits(cloud.state?.user?.credits.total ?? 0)}</span> {t('credits')}
+          </button>
           <ThemeSwitcher themeMode={themeMode} setThemeMode={setThemeMode} />
         </div>
       </header>
@@ -817,7 +706,6 @@ export function CreativeStudio({
                 <em className="num">{c.id === 'all' ? IDEAS.length : IDEAS.filter((x) => x.cat === c.id).length}</em>
               </button>
             ))}
-            {CLOUD_ONLY ? (
             <div className="launchpad-status">
               <p>
                 <strong>{t('Orbi Cloud')}</strong>
@@ -840,30 +728,6 @@ export function CreativeStudio({
                 <Wallet size={13} /> {t('Plans and credits')}
               </button>
             </div>
-            ) : (
-            <div className="launchpad-status">
-            <p>
-              <strong>{t('Ready on this PC')}</strong>
-            </p>
-            <ul>
-              <li>
-                <span className={`mcp-dot ${localStatus?.engines.sd.installed ? 'mcp-dot-connected' : ''}`} /> {t('Image & video engine')} · {localStatus?.engines.sd.installed ? t('installed') : t('downloads with the first model')}
-              </li>
-              <li>
-                <span className={`mcp-dot ${localImage ? 'mcp-dot-connected' : ''}`} /> {t('Image models')} · <span className="num">{localImage}</span>
-              </li>
-              <li>
-                <span className={`mcp-dot ${localVideo ? 'mcp-dot-connected' : ''}`} /> {t('Video models')} · <span className="num">{localVideo}</span>
-              </li>
-              <li>
-                <span className={`mcp-dot ${options.some((o) => !o.local) ? 'mcp-dot-connected' : ''}`} /> {t('Cloud image models')} · <span className="num">{options.filter((o) => !o.local).length}</span>
-              </li>
-            </ul>
-            <button className="orbi-btn orbi-btn-primary mt-3" onClick={onOpenModels}>
-              <Download size={13} /> {t('Get image & video models')}
-            </button>
-          </div>
-            )}
           </nav>
           <div className="launchpad-main">
             <h2>{t('What do you want to create?')}</h2>
@@ -887,7 +751,7 @@ export function CreativeStudio({
             >
               <Video size={20} />
               <strong>{t('Generate a video')}</strong>
-              <span>{CLOUD_ONLY ? t('Veo, Seedance, Wan and more — with sound.') : localVideo ? t('Short clips with Wan on this PC.') : t('Install a video model first.')}</span>
+              <span>{t('Veo, Seedance, Wan and more — with sound.')}</span>
             </button>
             <button
               onClick={() => {
@@ -991,21 +855,12 @@ export function CreativeStudio({
               </Section>
               <Section title={t('Model')}>
                 {!modeOptions.length ? (
-                  CLOUD_ONLY ? (
                     <div className="studio-empty">
                       <p>{cloud.state?.user ? t('The models did not load from Orbi Cloud. Check your internet and try again.') : t('Sign in to your Orbi account to see the models.')}</p>
                       <button className="orbi-btn orbi-btn-primary" onClick={() => (cloud.state?.user ? cloud.refresh() : onOpenModels())}>
                         <RefreshCw size={13} /> {cloud.state?.user ? t('Try again') : t('Open your account')}
                       </button>
                     </div>
-                  ) : (
-                    <div className="studio-empty">
-                      <p>{mode === 'video' ? t('No video model yet.') : t('No image models yet.')}</p>
-                      <button className="orbi-btn orbi-btn-primary" onClick={onOpenModels}>
-                        <Download size={13} /> {t('Get a model')}
-                      </button>
-                    </div>
-                  )
                 ) : (
                   <ModelSelect items={creativeItems(modeOptions)} value={current?.key} onPick={(k) => setModelKeys((c) => ({ ...c, [mode]: k }))} icon={mode === 'video' ? <Video size={14} /> : <ImageIcon size={14} />} />
                 )}
@@ -1038,20 +893,7 @@ export function CreativeStudio({
                     ))}
                   </div>
                 </Section>
-              ) : (
-              <Section title={t('Size')}>
-                <div className="studio-aspects">
-                  {ASPECTS.map((a) => (
-                    <button key={a.id} className={aspect === a.id ? 'active' : ''} onClick={() => applyAspect(a.id)}>
-                      <i style={{ aspectRatio: `${a.w}/${a.h}` }} />
-                      {a.id}
-                    </button>
-                  ))}
-                </div>
-                <Slider label={t('Width')} value={width} min={256} max={1536} step={64} onChange={(v) => setSize((c) => ({ ...c, w: snap(v) }))} />
-                <Slider label={t('Height')} value={height} min={256} max={1536} step={64} onChange={(v) => setSize((c) => ({ ...c, h: snap(v) }))} />
-              </Section>
-              )}
+              ) : null}
               {isCloud ? (
                 <Section title={mode === 'video' ? t('Length & sound') : t('Images')}>
                   {spec ? (
@@ -1086,74 +928,14 @@ export function CreativeStudio({
                     {cloud.state?.user ? ` · ${t('You have {n}', { n: fmtCredits(cloud.state.user.credits.total) })}` : ''}
                   </p>
                 </Section>
-              ) : (
-              <Section title={mode === 'video' ? t('Motion & quality') : t('Quality')}>
-                {!current ? null : gen.fixedSteps ? (
-                  <p className="studio-hint">{current?.local ? t('This model always renders in {n} step — quality is already set.', { n: gen.presets[0] }) : t('The provider decides the quality of cloud images.')}</p>
-                ) : (
-                  <>
-                    <div className="studio-seg">
-                      {QUALITY.map((q, i) => (
-                        <button key={q} className={quality === i ? 'active' : ''} onClick={() => setQuality(i as Quality)}>
-                          {t(q)}
-                          {i < 3 && <small className="num">{gen.presets[i]}</small>}
-                        </button>
-                      ))}
-                    </div>
-                    {quality === 3 ? (
-                      <Slider label={t('Steps')} value={customSteps} min={1} max={60} onChange={setCustomSteps} />
-                    ) : (
-                      <p className="studio-hint">{t('{n} steps — recommended for {model}. Distilled “turbo” models look best with few steps; more steps mostly add time.', { n: steps, model: current?.label || '' })}</p>
-                    )}
-                  </>
-                )}
-                {mode === 'video' ? (
-                  <>
-                    <Slider label={t('Seconds')} value={duration} min={1} max={10} step={0.5} onChange={setDuration} />
-                    <label className="studio-slider">
-                      <span>FPS</span>
-                      <div className="studio-fps">
-                        {FPS.map((f) => (
-                          <button key={f} className={fps === f ? 'active' : ''} onClick={() => setFps(f)}>
-                            {f}
-                          </button>
-                        ))}
-                      </div>
-                    </label>
-                    <p className="studio-hint num">{t('{f} frames · {fps} fps{native}', { f: frames, fps, native: gen.fps ? ` · ${t('model native: {n} fps', { n: gen.fps })}` : '' })}</p>
-                  </>
-                ) : (
-                  <div className="studio-count">
-                    <span>{t('Images')}</span>
-                    {[1, 2, 3, 4, 6, 8].map((n) => (
-                      <button key={n} className={count === n ? 'active' : ''} onClick={() => setCount(n)}>
-                        {n}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div className="studio-seed">
-                  <span>{t('Seed')}</span>
-                  <input className="studio-num num" type="number" value={seed} disabled={randomSeed} onChange={(e) => setSeed(Number(e.target.value))} />
-                  <button className={`orbi-btn ${randomSeed ? 'orbi-btn-primary' : ''}`} onClick={() => setRandomSeed((v) => !v)} title={t('Random seed')}>
-                    <Dice5 size={13} /> {t('Random')}
-                  </button>
-                </div>
-                {load && load !== 'ok' && (
-                  <p className={`studio-load load-${load}`}>
-                    {load === 'heavy' ? t('Heavy for this PC — it will take a while.') : t('Very heavy for this PC — it may take a long time or run out of memory. You can still try.')}
-                  </p>
-                )}
-              </Section>
-              )}
+              ) : null}
               {mode === 'image' ? (
                 <Section title={t('Start from an image')} open={useInit || maskDirty}>
                   <label className="studio-check">
                     <input type="checkbox" checked={useInit} onChange={(e) => setUseInit(e.target.checked)} disabled={!base || base.kind !== 'image'} />
                     {t('Use the canvas image as the starting point')}
                   </label>
-                  {useInit && !isCloud && <Slider label={t('Change')} value={strength} min={0.1} max={1} step={0.05} onChange={setStrength} />}
-                  <p className="studio-hint">{current && !current.local ? (useInit ? t('The model uses this image as a reference for the new one.') : t('Pick an image in the gallery, then turn this on to edit it.')) : useInit ? t('Low = keep the original, high = reimagine it. Paint a mask to change only one area.') : t('Pick an image in the gallery, then turn this on to edit it.')}</p>
+                  <p className="studio-hint">{useInit ? t('The model uses this image as a reference for the new one.') : t('Pick an image in the gallery, then turn this on to edit it.')}</p>
                 </Section>
               ) : gen.image || spec ? (
                 <Section title={t('First frame')} open={useInit}>
@@ -1212,7 +994,7 @@ export function CreativeStudio({
                     <img src={base.dataUrl} alt={base.name} draggable={false} />
                   )
                 ) : (
-                  <div className="studio-bbox-empty">{!modeOptions.length ? (CLOUD_ONLY ? t('Sign in to your Orbi account to see the models.') : mode === 'video' ? t('Install a video model to start') : t('Install an image model to start')) : mode === 'video' ? t('Your video appears here') : t('Your image appears here')}</div>
+                  <div className="studio-bbox-empty">{!modeOptions.length ? t('Sign in to your Orbi account to see the models.') : mode === 'video' ? t('Your video appears here') : t('Your image appears here')}</div>
                 )}
                 <canvas ref={maskRef} width={width} height={height} className={`studio-mask tool-${tool}`} style={{ opacity: maskVisible ? 1 : 0 }} onPointerDown={paint} />
                 {focusJob && (
@@ -1307,7 +1089,7 @@ export function CreativeStudio({
       {/* The workflow stays mounted after the first visit so a run continues while you use other tabs. */}
       {(flowMounted || tab === 'workflows') && (
         <Suspense fallback={tab === 'workflows' ? <div className="hub-skeleton" /> : null}>
-          <NodeFlow visible={tab === 'workflows'} models={models} localStatus={localStatus} onOpenModels={onOpenModels} onMediaCreated={onMediaCreated} pendingTemplate={flowTemplate} onTemplateLoaded={() => setFlowTemplate(null)} />
+          <NodeFlow visible={tab === 'workflows'} models={models} onOpenModels={onOpenModels} onMediaCreated={onMediaCreated} pendingTemplate={flowTemplate} onTemplateLoaded={() => setFlowTemplate(null)} />
         </Suspense>
       )}
 
@@ -1369,7 +1151,6 @@ export function CreativeStudio({
             usePromptOf(m)
             setViewing(null)
           }}
-          onUpscale={hasUpscaler ? upscale : undefined}
           onMakeVideo={options.some((o) => o.kind === 'video') ? makeVideoFrom : undefined}
           onEdit={editInCanvas}
         />

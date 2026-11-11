@@ -115,77 +115,9 @@ export type CatalogEntry = Omit<McpServer, 'status' | 'error' | 'tools' | 'enabl
 export type Plugin = { id: string; name: string; description: string; servers: string[]; skills: string[]; enabled: boolean }
 
 export type ModelKind = 'text' | 'image' | 'video' | 'stt' | 'upscale' | 'tts'
-export type Tier = 'light' | 'medium' | 'heavy' | 'custom'
-export type Fit = { level: 'ok' | 'slow' | 'no'; reason: string; vars?: Record<string, string | number> }
-export type LocalModel = {
-  id: string
-  kind: ModelKind
-  tier: Tier
-  name: string
-  badge: string
-  size: number
-  ram: string
-  req: { ram: number; vram: number }
-  license: string
-  description: string
-  fit: Fit
-  installed: boolean
-  engineSupported: boolean
-  downloading: { received: number; total: number; label?: string } | null
-  vision?: boolean
-  visionReady?: boolean
-  gen?: GenInfo | null
-  lang?: string
-  partial?: number
-  engine?: string
-  family?: 'kokoro' | 'supertonic' | 'kitten' | 'pocket'
-  voices?: VoiceInfo[]
-  langs?: string[]
-  clone?: boolean
-  nonCommercial?: boolean
-  isNew?: boolean
-  licenseNotice?: string
-}
 export type GenInfo = { presets: [number, number, number]; fixedSteps: boolean; width: number; height: number; fps: number; image: boolean; ref: boolean; end: boolean }
-export type Hardware = {
-  platform: string
-  arch: string
-  os: string
-  cpu: string
-  cores: number
-  ram: number
-  gpus: { name: string; vendor: string; vram: number }[]
-  vram: number
-  gpuAccel: boolean
-  diskFree: number
-}
-// 'piper' is the old name for a downloaded voice; 'local' covers every downloaded voice (voice = speaker inside a pack).
-export type TtsChoice =
-  | { type: 'cloud'; model: string; voice: string; rate?: number }
-  | { type: 'piper' | 'local'; modelId: string; voice?: number | string; rate: number }
-  | { type: 'system'; name: string; rate: number }
-  | { type: 'native'; id: string; name: string; rate: number }
-export type NativeVoice = { id: string; name: string; lang: string; gender: 'f' | 'm' | ''; engine: string }
-export type VoiceInfo = { id: number | string; name: string; lang: string; gender: 'f' | 'm'; top?: boolean }
-export type VoiceClone = { id: string; name: string; created: number }
-export type EngineState = { name: string; tag: string; supported: boolean; installed: boolean; downloading: { received: number; total: number } | null }
-export type LocalStatus = {
-  hardware: Hardware | null
-  engines: Record<'llama' | 'sd' | 'whisper' | 'piper' | 'sherpa', EngineState>
-  engineInstalled: boolean
-  engineTag: string
-  running: { modelId: string; port: number } | null
-  starting: boolean
-  models: LocalModel[]
-  recommended: Partial<Record<ModelKind, string | null>>
-  engineDownloading: { received: number; total: number } | null
-  paths: { root: string; models: string; engines: string } | null
-  orphans?: { files: { file: string; bytes: number }[]; bytes: number }
-  queue: string[]
-  clones?: VoiceClone[]
-}
-export type HfRepo = { repo: string; downloads: number; likes: number; updated: string }
-export type HfFile = { file: string; size: number; fits: boolean; quant: string }
+// Read-aloud voice: always an Orbi Cloud voice (empty model/voice = the account default).
+export type TtsChoice = { type: 'cloud'; model: string; voice: string; rate?: number }
 export type UpdateInfo = {
   status: 'idle' | 'checking' | 'current' | 'available' | 'available-manual' | 'downloading' | 'ready' | 'installing' | 'error'
   current: string
@@ -202,7 +134,7 @@ export type LibraryLink = { id: string; repo: string; profession: string; name: 
 export type LibraryAgent = { id: string; profession: string; handle: string; name: string; description: string; instructions: string; starters: string[]; category: string; installed: boolean; author: string; kind?: 'own' | 'official' | 'community' | 'orbi'; source?: string; license?: string; rating: number; signals: SkillSignals }
 export type LibraryKit = { id: string; profession: string; name: string; description: string; servers: string[]; skills: string[]; agents: string[]; installed: boolean }
 export type Library = { professions: { id: string; name: string; icon: string; description: string }[]; skills: LibrarySkill[]; agents: LibraryAgent[]; kits: LibraryKit[]; links: LibraryLink[]; directories: { repo: string; description: string; source: string }[] }
-export type VoiceMode = { type: 'local'; modelId: string } | { type: 'api'; provider: 'openai' | 'groq' } | { type: 'cloud'; model?: string }
+export type VoiceMode = { type: 'cloud'; model?: string }
 
 export function parseJSON<T>(v: unknown, fallback: T): T {
   if (Array.isArray(v)) return v as T
@@ -381,25 +313,6 @@ export const api = {
   approveTool: (id: string, ok: boolean) => bridge.invoke('tool:approveReply', id, ok),
   cancelTerminalJob: (id: string) => bridge.invoke('term:cancelJob', id),
 
-  localStatus: (): Promise<LocalStatus> => bridge.invoke('local:status'),
-  installLocalModel: (id: string): Promise<LocalStatus> => bridge.invoke('local:installModel', id),
-  addCustomLocal: (input: string | { repo?: string; file?: string; url?: string; size?: number; kind?: 'text' | 'image'; name?: string }, name?: string): Promise<LocalStatus> =>
-    bridge.invoke('local:addCustom', input, name),
-  hfSearch: (q: string, kind: 'text' | 'image'): Promise<HfRepo[]> => bridge.invoke('local:hfSearch', q, kind),
-  hfFiles: (repo: string, kind: 'text' | 'image'): Promise<HfFile[]> => bridge.invoke('local:hfFiles', repo, kind),
-  enqueueLocal: (ids: string[]): Promise<LocalStatus> => bridge.invoke('local:enqueue', ids),
-  clearLocalQueue: (): Promise<LocalStatus> => bridge.invoke('local:clearQueue'),
-  removeAllLocal: (): Promise<LocalStatus> => bridge.invoke('local:removeAll'),
-  cleanOrphans: (): Promise<LocalStatus> => bridge.invoke('local:cleanOrphans'),
-  speakLocal: (p: { text: string; modelId: string; rate?: number; voice?: number | string; lang?: string }): Promise<string> => bridge.invoke('voice:speak', p),
-  speakToMedia: (p: { text: string; modelId: string; rate?: number; voice?: number | string; lang?: string }): Promise<MediaItem> => bridge.invoke('voice:speakToMedia', p),
-  voiceClones: (): Promise<VoiceClone[]> => bridge.invoke('voice:clones'),
-  systemVoices: (refresh?: boolean): Promise<{ voices: NativeVoice[]; hint: string | null; platform: string }> => bridge.invoke('voice:systemList', refresh),
-  speakSystem: (p: { text: string; system: string; rate?: number }): Promise<string> => bridge.invoke('voice:speak', p),
-  speakSystemToMedia: (p: { text: string; system: string; rate?: number }): Promise<MediaItem> => bridge.invoke('voice:speakToMedia', p),
-  saveVoiceClone: (p: { name: string; wav: string }): Promise<VoiceClone[]> => bridge.invoke('voice:saveClone', p),
-  deleteVoiceClone: (id: string): Promise<VoiceClone[]> => bridge.invoke('voice:deleteClone', id),
-  openModelsFolder: () => bridge.invoke('local:openFolder'),
   complete: (p: { providerId: string; model: string; system?: string; prompt: string; maxTokens?: number }): Promise<string> => bridge.invoke('ai:complete', p),
   speech: (p: { text: string; voice?: string; model?: string; purpose?: 'voice' | 'sfx'; source?: string }): Promise<MediaItem> => bridge.invoke('ai:speech', p),
   cloudMusic: (p: { model: string; prompt: string; source?: string }): Promise<MediaItem & { lyrics?: string }> => bridge.invoke('cloud:music', p),
@@ -409,32 +322,6 @@ export const api = {
   cancelUpdate: () => bridge.invoke('update:cancel'),
   activeWork: (): Promise<ActiveWork[]> => bridge.invoke('update:activeWork'),
   installUpdate: (): Promise<boolean> => bridge.invoke('update:install'),
-  removeLocal: (id: string): Promise<LocalStatus> => bridge.invoke('local:remove', id),
-  cancelLocal: (id: string) => bridge.invoke('local:cancel', id),
-  stopLocal: () => bridge.invoke('local:stop'),
-  installEngine: (key: 'llama' | 'sd' | 'whisper'): Promise<LocalStatus> => bridge.invoke('local:installEngine', key),
-  refreshHardware: (): Promise<LocalStatus> => bridge.invoke('local:refreshHardware'),
-  generateLocal: (p: {
-    modelId: string
-    prompt: string
-    negative?: string
-    width?: number
-    height?: number
-    steps?: number
-    seed?: number | ''
-    initImage?: string
-    mask?: string
-    strength?: number
-    frames?: number
-    fps?: number
-    refImages?: string[]
-    endImage?: string
-    jobId?: string
-    board?: string
-    source?: string
-  }): Promise<MediaItem> => bridge.invoke('local:generate', p),
-  cancelLocalGenerate: (jobId?: string) => bridge.invoke('local:cancelGenerate', jobId),
-  upscale: (p: { mediaId: string; modelId?: string; jobId?: string; board?: string }): Promise<MediaItem> => bridge.invoke('local:upscale', p),
   mediaDataUrl: (id: string): Promise<string | null> => bridge.invoke('media:dataUrl', id),
   saveCanvas: (dataUrl: string, meta: { name?: string; board?: string; prompt?: string }): Promise<MediaItem | null> => bridge.invoke('media:saveCanvas', dataUrl, meta),
   setMediaBoard: (id: string, board: string) => bridge.invoke('media:setBoard', id, board),

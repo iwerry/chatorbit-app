@@ -1,22 +1,9 @@
 use crate::{storage::Result, Backend};
 use serde_json::{json, Value};
 
-// Cloud-only builds do not advertise Electron's local-engine binaries or ASAR updater.
+// Orbi runs only on Orbi Cloud: there are no local AI engines to report.
 pub async fn handle(backend: &Backend, channel: &str) -> Option<Result<Value>> {
     Some(match channel {
-        "local:status" => {
-            let mut engines = serde_json::Map::new();
-            for name in ["llama", "sd", "whisper", "piper", "sherpa"] {
-                engines.insert(name.into(), json!({"name":name,"tag":"","supported":false,"installed":false,"downloading":null}));
-            }
-            Ok(
-                json!({"hardware":null,"engines":engines,"engineInstalled":false,"engineTag":"","running":null,"starting":false,"models":[],"recommended":{},"engineDownloading":null,"paths":null,"queue":[],"clones":[]}),
-            )
-        }
-        "voice:clones" => Ok(json!([])),
-        "voice:systemList" => Ok(
-            json!({"voices":[],"platform":std::env::consts::OS,"hint":"System voices are not yet available in the native preview. Use Orbi Cloud voices."}),
-        ),
         "update:activeWork" => {
             let mut work = Vec::new();
             for _ in backend.chats.lock().await.values() {

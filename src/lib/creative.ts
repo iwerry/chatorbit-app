@@ -1,11 +1,11 @@
 // Shared by the Creative studio and the chat composer: which image/video models exist, sizes and aspect ratios.
-import type { CloudCatalog, GenInfo, LocalStatus, ModelInfo } from './api'
-import { CLOUD_ONLY, vendorLabel } from './cloud'
+import type { CloudCatalog, GenInfo, ModelInfo } from './api'
+import { vendorLabel } from './cloud'
 import { t } from './i18n'
 
 export type CreativeMode = 'image' | 'video'
 export type CloudVideoSpec = { durations: number[]; resolutions: string[]; aspects: string[]; audio: boolean; pricePerSecond?: number; usdBySecond?: Record<string, number> }
-export type CreativeOption = { key: string; label: string; group: string; kind: CreativeMode; local: boolean; providerId?: string; modelId: string; gen?: GenInfo | null; isNew?: boolean; video?: CloudVideoSpec; price?: number; usd?: number; featured?: boolean; aspects?: string[]; resolutions?: string[] }
+export type CreativeOption = { key: string; label: string; group: string; kind: CreativeMode; providerId?: string; modelId: string; gen?: GenInfo | null; video?: CloudVideoSpec; price?: number; usd?: number; featured?: boolean; aspects?: string[]; resolutions?: string[] }
 
 /** The aspect ratios offered when a model does not list its own (models on this PC). */
 export const ASPECTS = [
@@ -70,23 +70,16 @@ export const snap = (n: number) => Math.max(256, Math.round(n / 64) * 64)
 // Popular models come first in their own group; the rest are grouped by maker.
 const groupFor = (vendor: string, featured?: boolean) => (featured ? t('Popular') : vendorLabel(vendor))
 
-export function creativeOptions(localStatus: LocalStatus | null, models: ModelInfo[], catalog?: CloudCatalog | null): CreativeOption[] {
+export function creativeOptions(models: ModelInfo[], catalog?: CloudCatalog | null): CreativeOption[] {
   const out: CreativeOption[] = []
-  if (CLOUD_ONLY) {
-    const order = new Map((catalog?.image ?? []).map((m, i) => [m.id, i]))
-    const images = models.filter((x) => x.image).sort((a, b) => (order.get(a.id) ?? 1e6) - (order.get(b.id) ?? 1e6))
-    for (const m of images) {
-      const c = catalog?.image.find((x) => x.id === m.id)
-      out.push({ key: `cloud::${m.key}`, label: m.name.replace(/^[^:]+:\s*/, ''), group: groupFor(m.id.split('/')[0], c?.featured), kind: 'image', local: false, providerId: m.provider, modelId: m.id, gen: CLOUD_GEN, price: c?.price, usd: c?.usd, featured: c?.featured, aspects: c?.aspects, resolutions: c?.resolutions })
-    }
-    for (const v of catalog?.video ?? [])
-      out.push({ key: `cloudvideo::${v.id}`, label: v.name.replace(/^[^:]+:\s*/, ''), group: groupFor(v.vendor, v.featured), kind: 'video', local: false, providerId: 'orbicloud', modelId: v.id, gen: CLOUD_GEN, usd: v.usdPerSecond, featured: v.featured, video: { durations: v.durations, resolutions: v.resolutions, aspects: v.aspects, audio: v.audio, pricePerSecond: v.pricePerSecond, usdBySecond: v.usdBySecond } })
-    return out
+  const order = new Map((catalog?.image ?? []).map((m, i) => [m.id, i]))
+  const images = models.filter((x) => x.image).sort((a, b) => (order.get(a.id) ?? 1e6) - (order.get(b.id) ?? 1e6))
+  for (const m of images) {
+    const c = catalog?.image.find((x) => x.id === m.id)
+    out.push({ key: `cloud::${m.key}`, label: m.name.replace(/^[^:]+:\s*/, ''), group: groupFor(m.id.split('/')[0], c?.featured), kind: 'image', providerId: m.provider, modelId: m.id, gen: CLOUD_GEN, price: c?.price, usd: c?.usd, featured: c?.featured, aspects: c?.aspects, resolutions: c?.resolutions })
   }
-  for (const m of localStatus?.models ?? []) {
-    if ((m.kind === 'image' || m.kind === 'video') && m.installed) out.push({ key: `local::${m.id}`, label: m.name, group: t('On this PC'), kind: m.kind, local: true, modelId: m.id, gen: m.gen, isNew: m.isNew })
-  }
-  for (const m of models.filter((x) => x.image)) out.push({ key: `cloud::${m.key}`, label: m.name, group: m.providerName, kind: 'image', local: false, providerId: m.provider, modelId: m.id, gen: CLOUD_GEN })
+  for (const v of catalog?.video ?? [])
+    out.push({ key: `cloudvideo::${v.id}`, label: v.name.replace(/^[^:]+:\s*/, ''), group: groupFor(v.vendor, v.featured), kind: 'video', providerId: 'orbicloud', modelId: v.id, gen: CLOUD_GEN, usd: v.usdPerSecond, featured: v.featured, video: { durations: v.durations, resolutions: v.resolutions, aspects: v.aspects, audio: v.audio, pricePerSecond: v.pricePerSecond, usdBySecond: v.usdBySecond } })
   return out
 }
 
@@ -96,7 +89,7 @@ export function resolutionsFor(o: CreativeOption | undefined, mode: CreativeMode
     const px = o.video.resolutions.map((r) => (/^(\d+)p$/i.test(r) ? Number(r.slice(0, -1)) : /^(\d)K$/i.test(r) ? Number(r[0]) * 1080 : 0)).filter(Boolean)
     if (px.length) return [...new Set(px)].sort((a, b) => a - b)
   }
-  if (o && !o.local && mode === 'image') {
+  if (o && mode === 'image') {
     // Image models list "1K", "2K", "4K"…: short side in pixels.
     const px = (o.resolutions ?? []).map((r) => (/^(\d+(\.\d+)?)K$/i.test(r) ? Math.round(parseFloat(r) * 1024) : /^\d+$/.test(r) ? Number(r) : 0)).filter(Boolean)
     return px.length ? [...new Set(px)].sort((a, b) => a - b) : [1024, 2048]
@@ -116,7 +109,7 @@ export function sizeFor(aspect: string, short: number) {
 
 /** OpenRouter US$ for one run: images × count, or video seconds at the chosen resolution. */
 export function estimateUsd(o: CreativeOption | undefined, p: { count?: number; seconds?: number; res?: number }) {
-  if (!o || o.local) return undefined
+  if (!o) return undefined
   if (o.kind === 'video') {
     const label = p.res ? `${p.res}p` : '720p'
     const perSec = o.video?.usdBySecond?.[label] ?? o.usd

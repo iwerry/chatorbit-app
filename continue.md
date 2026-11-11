@@ -2,6 +2,19 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 11/11: 0.2.11-2 — sem IA local (100% Orbi Cloud)
+
+- Removidos:
+  - `ModelHub.tsx`, `SetupWizard.tsx`, `VoiceLibrary.tsx`, `VoiceInput.tsx`;
+  - a chave `CLOUD_ONLY` e todos os seus ramos (provedores com chave própria, Ollama/LM Studio, modelos locais, vozes offline e do sistema, upscale local, passos/seed/força);
+  - os tipos e chamadas `local:*`/`voice:*` locais de `api.ts`;
+  - os eventos `local:*` do `tauriBridge`;
+  - os stubs `local:status`, `voice:clones` e `voice:systemList` do `runtime.rs`.
+- `tts.speak` usa só as vozes do Orbi Cloud. `startVoice` força `{type:'cloud'}` (escolhas antigas locais são ignoradas). `creativeOptions(models, catalog)`.
+- Importar do ComfyUI continua, sem mapear checkpoints (cada nó usa o modelo da nuvem).
+- A pasta `electron/` ainda existe (o código local do Electron não é mais publicado, porque `ORBI_WINDOWS_NATIVE=true`). Pode ser apagada numa limpeza futura junto com os workflows do Electron.
+- Primeira release com o Windows só pelo Tauri: o updater do Electron baixa `Orbi-Setup-0.2.11-2.exe` (Tauri) e instala por cima.
+
 ## 11/11: decisão — só Tauri (o Electron sai)
 
 - O branch `claude/tauri-transition` foi rebaseado sobre o main (0.2.11-1) e ainda não foi mesclado. Ele contém:

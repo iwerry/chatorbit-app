@@ -5,7 +5,6 @@ import {
   Bookmark,
   BookmarkCheck,
   Bot,
-  Download,
   ExternalLink,
   Globe,
   Volume2,
@@ -33,11 +32,9 @@ import {
   MoreHorizontal,
   Paperclip,
   PanelLeftClose,
-  Plug,
   Plus,
   RotateCcw,
   Search,
-  Server,
   Settings,
   Sparkles,
   Square,
@@ -70,14 +67,12 @@ import {
   type StudioKind,
   type McpServer,
   type Plugin,
-  type LocalStatus,
   type ToolEvent,
   type VoiceMode,
   type TtsChoice,
   on,
   parseJSON,
 } from './lib/api'
-import { VoiceDialog, VoiceLibrary, defaultVoiceFor } from './components/VoiceLibrary'
 import type { StudioIntent } from './components/CreatorStudio'
 import { Markdown } from './components/Markdown'
 import { GhostIcon, OrbiMark } from './components/Logo'
@@ -95,7 +90,7 @@ import { startRecording, type Recording } from './lib/voice'
 import { loadAudioPrefs, routeAudio } from './lib/audioDevices'
 import { creativeBus, decodeChatMedia, encodeChatMedia, type ChatMediaMeta } from './lib/creativeBus'
 import { creativeOptions, resolutionsFor } from './lib/creative'
-import { CLOUD_ONLY, fmtCredits, modelTags, priceLabel, refreshCloud, useCloud, vendorLabel } from './lib/cloud'
+import { fmtCredits, modelTags, priceLabel, refreshCloud, useCloud, vendorLabel } from './lib/cloud'
 import { ModelMenu } from './components/ModelMenu'
 import { ContextIdeas } from './components/ContextIdeas'
 import { chatItems, creativeItems } from './lib/menuItems'
@@ -127,10 +122,8 @@ import { activity, useActivities, type ActivityDone } from './lib/activity'
 
 const SettingsModal = lazy(() => import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal })))
 const CreatorStudio = lazy(() => import('./components/CreatorStudio').then((m) => ({ default: m.CreatorStudio })))
-const VoiceSettings = lazy(() => import('./components/VoiceInput').then((m) => ({ default: m.VoiceSettings })))
 const CreativeStudio = lazy(() => import('./components/CreativeStudio').then((m) => ({ default: m.CreativeStudio })))
 const UpdateCenter = lazy(() => import('./components/UpdateCenter').then((m) => ({ default: m.UpdateCenter })))
-const SetupWizard = lazy(() => import('./components/SetupWizard').then((m) => ({ default: m.SetupWizard })))
 const Explore = lazy(() => import('./components/Explore').then((m) => ({ default: m.Explore })))
 const MediaLibrary = lazy(() => import('./components/MediaLibrary').then((m) => ({ default: m.MediaLibrary })))
 const AudioStudio = lazy(() => import('./components/AudioStudio').then((m) => ({ default: m.AudioStudio })))
@@ -223,7 +216,6 @@ export default function App() {
     }
   })
   const [themeReady, setThemeReady] = useState(false)
-  const [setupOpen, setSetupOpen] = useState<null | number>(null)
   const [creativeMounted, setCreativeMounted] = useState(false)
   const [doneToast, setDoneToast] = useState<ActivityDone | null>(null)
   const activities = useActivities()
@@ -234,8 +226,6 @@ export default function App() {
   const [lang, setLangState] = useState<Lang>('en')
   const [webOn, setWebOn] = useState(false)
   const [voiceMode, setVoiceMode] = useState<VoiceMode | null>(null)
-  const [voicePicker, setVoicePicker] = useState<false | 'auto' | 'menu'>(false)
-  const [voiceOutFor, setVoiceOutFor] = useState<ChatMessage | null>(null)
   const [recording, setRecording] = useState<null | { rec: Recording; started: number }>(null)
   const [transcribing, setTranscribing] = useState(false)
   const [speaking, setSpeaking] = useState<string | null>(null)
@@ -256,7 +246,6 @@ export default function App() {
   const [studioIntent, setStudioIntent] = useState<StudioIntent | null>(null)
   const [servers, setServers] = useState<McpServer[]>([])
   const [plugins, setPlugins] = useState<Plugin[]>([])
-  const [localStatus, setLocalStatus] = useState<LocalStatus | null>(null)
   const [palette, setPalette] = useState<null | 'commands' | 'chats'>(null)
   const [findOpen, setFindOpen] = useState(false)
   const [findResult, setFindResult] = useState<{ matches: number; active: number } | null>(null)
@@ -276,7 +265,6 @@ export default function App() {
   useEffect(() => {
     api.getSetting<boolean>('toolsEnabled', true).then((v) => setToolsOn(v !== false))
   }, [])
-  const installedSig = useRef<string | null>(null)
   const activeSkills = useMemo(() => skills.filter((k) => k.enabled).map((k) => k.name), [skills])
   const [activeAgents, setActiveAgents] = useState<string[]>([])
   const [responseType, setResponseType] = useState<ResponseType>('Instant')
@@ -296,7 +284,7 @@ export default function App() {
   // Chat · Image · Video in the same box.
   const cloud = useCloud()
   // The name shown in the app: the Orbi account's name when signed in, else the computer's user name.
-  const shownName = (CLOUD_ONLY && cloud.state?.user?.name) || userName
+  const shownName = cloud.state?.user?.name || userName
   useEffect(() => {
     const open = () => setSettingsOpen('account')
     window.addEventListener('orbi:open-account', open)
@@ -362,14 +350,14 @@ export default function App() {
     return () => {
       activity.end(id, { ok: true, message: t('The answer is ready.') })
       // The server charges once the answer ends: refresh the balance so the cost shows up.
-      if (CLOUD_ONLY) setTimeout(() => refreshCloud(), 2500)
+      setTimeout(() => refreshCloud(), 2500)
     }
   }, [isStreaming])
   // Images and videos made anywhere (chat, Creative, workflows): refresh the balance when they finish.
   useEffect(
     () =>
       creativeBus.subscribe((u) => {
-        if (CLOUD_ONLY && (u.status === 'done' || u.status === 'error')) setTimeout(() => refreshCloud(), 3000)
+        if ((u.status === 'done' || u.status === 'error')) setTimeout(() => refreshCloud(), 3000)
       }),
     [],
   )
@@ -380,7 +368,7 @@ export default function App() {
       activity.onDone((a) => {
         // Only announce when the user is somewhere else.
         // Every answer or render spends credits: refresh the balance.
-        if (CLOUD_ONLY) setTimeout(() => refreshCloud(), 400)
+        setTimeout(() => refreshCloud(), 400)
         // Renders asked from the chat already show their result in the chat.
         if (activeNavRef.current !== a.area && !(a.from && activeNavRef.current === a.from)) setDoneToast(a)
       }),
@@ -416,7 +404,7 @@ export default function App() {
 
   // Orbi Cloud: when the catalog arrives (sign-in, reconnect, "Try again") and the list is still empty, load it.
   useEffect(() => {
-    if (CLOUD_ONLY && cloud.catalog && models.length === 0) loadModels()
+    if (cloud.catalog && models.length === 0) loadModels()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cloud.catalog])
 
@@ -476,14 +464,12 @@ export default function App() {
       const savedTheme = await api.getSetting<ThemeMode | null>('theme', null)
       if (savedTheme) setThemeMode(savedTheme)
       setThemeReady(true)
-      if (!CLOUD_ONLY && !(await api.getSetting('onboarded', false))) setSetupOpen(0)
       const l = await api.getSetting<Lang>('language', 'en')
       applyLang(l)
       setLangState(l)
       setVoiceMode(await api.getSetting<VoiceMode | null>('voiceMode', null))
       setWebOn(await api.getSetting('webSearch', false))
       setSelectedModel(await api.getSetting('selectedModel', ''))
-      api.localStatus().then(setLocalStatus)
       api.getSetting('terminalOpen', false).then((v) => v && openTerminal())
       setMemoryEnabled(await api.getSetting('memoryEnabled', true))
       // Chat preferences survive restarts and updates.
@@ -516,14 +502,6 @@ export default function App() {
   // live updates from the main process
   useEffect(() => {
     const offs = [
-      on('local:status', (s: LocalStatus) => {
-        setLocalStatus(s)
-        // A model finished downloading: refresh the model menus.
-        const sig = s.models.filter((m) => m.installed).map((m) => m.id).join(',')
-        if (installedSig.current !== null && installedSig.current !== sig) loadModels()
-        installedSig.current = sig
-      }),
-      on('local:error', (e: { id: string; message: string }) => setNotice(`${e.id}: ${e.message}`)),
       on('data:changed', () => refreshLists()),
       on('term:job', (event: Parameters<typeof receiveTaskTerminal>[0]) => { receiveTaskTerminal(event); if (event.phase === 'start') { setTermMounted(true); setTermOpen(true) } }),
       on('tool:approve', (id: string, req: { server: string; tool: string; message: string }) => setApproval({ id, ...req })),
@@ -872,8 +850,8 @@ export default function App() {
     if ((!content && !attachments.length) || isStreaming) return
     const currentModel = primaryModel()
     if (!currentModel) {
-      setNotice(models.length ? t('Pick a model first.') : t('Connect an AI provider to start chatting.'))
-      if (!models.length) setSettingsOpen('providers')
+      setNotice(models.length ? t('Pick a model first.') : t('The models did not load yet. Check your internet and try again.'))
+      if (!models.length) setSettingsOpen('account')
       return
     }
 
@@ -1018,8 +996,8 @@ export default function App() {
   }
   const startVoice = async (mode = voiceMode) => {
     if (recording) return finishVoice(false)
-    if (!mode && CLOUD_ONLY) mode = { type: 'cloud' }
-    if (!mode) return setVoicePicker('auto')
+    // Dictation always runs on Orbi Cloud (older saved choices pointed at local or personal-key engines).
+    if (mode?.type !== 'cloud') mode = { type: 'cloud' }
     if (!voiceMode) setVoiceMode(mode)
     try {
       const rec = await startRecording()
@@ -1068,7 +1046,7 @@ export default function App() {
   }
 
   // ---------- images and videos made from the chat ----------
-  const creativeOpts = useMemo(() => creativeOptions(localStatus, models, cloud.catalog), [localStatus, models, cloud.catalog])
+  const creativeOpts = useMemo(() => creativeOptions(models, cloud.catalog), [models, cloud.catalog])
   const submitComposer = (text: string) => {
     if (composeMode === 'chat' || /^\s*\//.test(text)) return sendMessage(text)
     return askRender({ mode: composeMode, prompt: text.trim() })
@@ -1080,8 +1058,8 @@ export default function App() {
     const list = creativeOpts.filter((o) => o.kind === kind)
     const o = list.find((x) => x.key === createSet.modelKey[kind]) ?? list[0]
     if (req.mode !== 'upscale' && !o) {
-      setNotice(req.mode === 'video' ? t('No video model is installed yet — open Models to download one.') : t('No image model is installed yet — open Models to download one.'))
-      setSettingsOpen('models')
+      setNotice(t('The models did not load yet. Check your internet and try again.'))
+      setSettingsOpen('account')
       return
     }
     let convId = conversationId
@@ -1317,7 +1295,7 @@ export default function App() {
     { id: 'file.import', category: 'File', label: 'Import to Media Library…', run: () => goNav('media') },
     { id: 'file.export', category: 'File', label: 'Export Chat as Markdown…', shortcut: 'Ctrl+S', enabled: !!conversationId, run: () => conversationId && api.exportConversation(conversationId).then((ok) => ok && setNotice(t('Chat exported.'))) },
     { id: 'file.settings', category: 'File', label: 'Settings', shortcut: 'Ctrl+,', run: () => setSettingsOpen('general') },
-    CLOUD_ONLY ? { id: 'file.account', category: 'File', label: 'Account & credits…', run: () => setSettingsOpen('account') } : { id: 'file.localAI', category: 'File', label: 'Local AI Models…', run: () => setSettingsOpen('models') },
+    { id: 'file.account', category: 'File', label: 'Account & credits…', run: () => setSettingsOpen('account') },
     { id: 'file.closeChat', category: 'File', label: 'Close Chat', shortcut: 'Ctrl+F4', run: () => startNewChat() },
     { id: 'file.closeWindow', category: 'File', label: 'Close Window', shortcut: 'Alt+F4', run: () => api.win.close() },
     { id: 'file.exit', category: 'File', label: 'Exit', run: () => api.win.quit() },
@@ -1374,7 +1352,6 @@ export default function App() {
     { id: 'term.workspace', category: 'Terminal', label: 'Open Workspace Folder in Terminal', run: async () => { const dir = await api.workspaceDir(); runInTerminal(`cd "${dir}"`) } },
     // Help
     { id: 'help.welcome', category: 'Help', label: 'Welcome', run: () => { setTemporaryChat(false); startNewChat(); setActiveNav('chats') } },
-    ...(CLOUD_ONLY ? [] : [{ id: 'help.setup', category: 'Help', label: 'Setup Assistant…', run: () => setSetupOpen(0) }]),
     { id: 'help.commands', category: 'Help', label: 'Show All Commands', shortcut: 'Ctrl+Shift+P', run: () => setPalette('commands') },
     { id: 'help.docs', category: 'Help', label: 'Documentation', run: () => api.openExternal('https://github.com/iwerry/chatorbit-app#readme') },
     { id: 'help.issue', category: 'Help', label: 'Report Issue', run: () => api.openExternal('https://github.com/iwerry/chatorbit-app/issues/new') },
@@ -1397,13 +1374,13 @@ export default function App() {
     setTimeout(() => window.dispatchEvent(new CustomEvent('orbi:audio-tab', { detail: tab })), 120)
   }
   const menus: MenuDef[] = [
-    { label: 'File', items: ['file.newChat', 'file.newTemp', 'file.newWindow', 'file.newProject', '-', 'file.openFile', 'file.import', '-', 'file.export', '-', 'file.settings', CLOUD_ONLY ? 'file.account' : 'file.localAI', '-', 'file.closeChat', 'file.closeWindow', '-', 'file.exit'] },
+    { label: 'File', items: ['file.newChat', 'file.newTemp', 'file.newWindow', 'file.newProject', '-', 'file.openFile', 'file.import', '-', 'file.export', '-', 'file.settings', 'file.account', '-', 'file.closeChat', 'file.closeWindow', '-', 'file.exit'] },
     { label: 'Edit', items: ['edit.undo', 'edit.redo', '-', 'edit.cut', 'edit.copy', 'edit.paste', '-', 'sel.all', 'sel.lastAnswer', 'sel.quote', '-', 'edit.find', 'edit.searchChats', '-', 'edit.copyAnswer', 'edit.clearComposer'] },
     { label: 'Create', items: ['create.image', 'create.video', '-', 'create.canvas', 'create.workflow', 'create.ideas', '-', 'create.voice', 'create.music', 'create.sfx', '-', 'go.media'] },
     { label: 'View', items: ['view.palette', '-', 'view.sidebar', 'view.workspace', 'view.terminal', '-', { label: 'Appearance', submenu: ['view.light', 'view.dark', 'view.terminalTheme'] }, '-', 'view.zoomIn', 'view.zoomOut', 'view.zoomReset', 'view.fullscreen'] },
     { label: 'Go', items: ['go.chats', 'go.creative', 'go.audio', 'go.media', '-', 'go.explore', 'go.studio', 'go.mcp', '-', 'go.scheduled', 'go.memory', 'go.bookmarks', '-', 'go.nextChat', 'go.prevChat', 'go.chat'] },
     { label: 'Terminal', items: ['term.new', 'term.toggle', '-', 'term.runSelection', 'term.runLastCode', 'term.workspace', '-', 'term.clear', 'term.kill'] },
-    { label: 'Help', items: ['help.welcome', ...(CLOUD_ONLY ? [] : ['help.setup']), 'help.commands', 'help.docs', '-', 'help.issue', '-', 'help.devtools', 'help.reload', 'help.data', '-', 'help.updates', 'help.about'] },
+    { label: 'Help', items: ['help.welcome', 'help.commands', 'help.docs', '-', 'help.issue', '-', 'help.devtools', 'help.reload', 'help.data', '-', 'help.updates', 'help.about'] },
   ]
 
   // keyboard shortcuts (native editing keys stay with the browser)
@@ -1440,18 +1417,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey, true)
   }, [])
 
-  const installTinyModel = async () => {
-    try {
-      setNotice(t('Downloading a tiny local AI (≈105 MB)…'))
-      await api.installLocalModel('smollm2-135m')
-      await loadModels()
-      setSelectedModel('orbi::smollm2-135m')
-      setNotice(t('Local AI ready — it runs on this PC, no key needed.'))
-    } catch (e) {
-      setNotice(cleanError(e))
-    }
-  }
-
   const activeConversation = conversations.find((c) => c.id === conversationId)
   const emptyLanding = messages.length === 0
   const showContext = contextOpen && !temporaryChat && messages.length > 0
@@ -1467,14 +1432,14 @@ export default function App() {
     // Orbi Cloud: popular models first (ChatGPT, Claude, Gemini, DeepSeek, Kimi…), then every model by maker,
     // in the catalog's order.
     let list = chatModels
-    if (CLOUD_ONLY && cloud.catalog) {
+    if (cloud.catalog) {
       const order = new Map(cloud.catalog.chat.map((m, i) => [m.id, i]))
       const featured = new Set(cloud.catalog.chat.filter((m) => m.featured).map((m) => m.id))
       list = [...chatModels].sort((a, b) => (order.get(a.id) ?? 1e6) - (order.get(b.id) ?? 1e6))
       if (!q) for (const m of list) if (featured.has(m.id)) add(t('Popular'), m)
     }
     for (const m of list) {
-      const group = CLOUD_ONLY ? vendorLabel(m.id.split('/')[0]) : m.providerName
+      const group = vendorLabel(m.id.split('/')[0])
       if (q && !`${m.name} ${m.id} ${group}`.toLowerCase().includes(q)) continue
       add(group, m)
     }
@@ -1485,7 +1450,7 @@ export default function App() {
   const chatMeta = useMemo(() => {
     const out = new Map<string, { price: string; tags: string[] }>()
     const cat = cloud.catalog
-    if (!CLOUD_ONLY || !cat) return out
+    if (!cat) return out
     const admin = !!cloud.state?.user?.admin
     const tags = modelTags(cat.chat.map((m) => ({ id: m.id, name: m.name, featured: m.featured, cost: m.usd ? m.usd.in + m.usd.out * 3 : undefined })))
     for (const m of cat.chat) out.set(m.id, { price: m.usd ? priceLabel(m.usd.in, 'M', admin, cat, m.usd.out) : '', tags: tags.get(m.id) || [] })
@@ -1609,7 +1574,7 @@ export default function App() {
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-white">{shownName}</p>
                 <p className="mt-0.5 truncate text-[11px] text-[color:var(--neo-faint)]">
-                  {CLOUD_ONLY && cloud.state?.user
+                  {cloud.state?.user
                     ? `${cloud.state.user.plan ? t('{plan} plan', { plan: cloud.state.user.plan.name }) : t('No plan yet')} · ${fmtCredits(cloud.state.user.credits.total)} ${t('credits')}`
                     : t('Local account')}{' '}
                   · Orbi {info?.version}
@@ -1622,12 +1587,11 @@ export default function App() {
               role="menuitem"
               onClick={() => {
                 setProfileOpen(false)
-                if (CLOUD_ONLY) setSettingsOpen('account')
-                else api.openExternal('https://orbix.com')
+                setSettingsOpen('account')
               }}
             >
               <Crown size={16} />
-              <span>{CLOUD_ONLY ? t('Plans and credits') : t('Upgrade plan')}</span>
+              <span>{t('Plans and credits')}</span>
             </button>
             <button
               className="profile-menu-item"
@@ -1716,8 +1680,7 @@ export default function App() {
               setPanelOpen(false)
             }}
             models={models}
-            localStatus={localStatus}
-            onOpenModels={() => setSettingsOpen(CLOUD_ONLY ? 'account' : 'models')}
+            onOpenModels={() => setSettingsOpen('account')}
             onOpenLibrary={() => { setActiveNav('media'); setPanelOpen(false) }}
             onMediaCreated={(m) => setMedia((cur) => (cur.some((x) => x.id === m.id) ? cur : [m, ...cur]))}
           />
@@ -1759,14 +1722,12 @@ export default function App() {
         <Suspense fallback={<main className="view-loading" />}>
           <MediaLibrary
             media={media}
-            localStatus={localStatus}
             onRefresh={refreshLists}
             onBack={() => {
               setActiveNav('chats')
               setPanelOpen(false)
             }}
             onOpenCreative={() => toggleNavigation('creative')}
-            onOpenModels={() => setSettingsOpen('models')}
             themeMode={themeMode}
             setThemeMode={setThemeMode}
           />
@@ -1837,7 +1798,6 @@ export default function App() {
                             <ModelMenu items={chatItems(chatModels, cloud.catalog)} value={selectedModel} onPick={(key) => { setSelectedModel(key); setHeaderMenu(null) }} />
                             {modelErrors.map((e) => <p key={e.provider} className="popover-error">{e.provider}: {e.message.slice(0, 140)}</p>)}
                             <div className="config-connect-actions">
-                              {CLOUD_ONLY ? (
                                 <button
                                   onClick={() => {
                                     setHeaderMenu(null)
@@ -1847,28 +1807,6 @@ export default function App() {
                                   <Wallet size={15} />
                                   <span>{t('Account & credits')}</span>
                                 </button>
-                              ) : (
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      setHeaderMenu(null)
-                                      setSettingsOpen('providers')
-                                    }}
-                                  >
-                                    <Plug size={15} />
-                                    <span>{t('Manage providers')}</span>
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setHeaderMenu(null)
-                                      setSettingsOpen('models')
-                                    }}
-                                  >
-                                    <Cpu size={15} />
-                                    <span>{t('Local models')}</span>
-                                  </button>
-                                </>
-                              )}
                               <button onClick={() => loadModels()}>
                                 <RotateCcw size={15} />
                                 <span>{t('Refresh list')}</span>
@@ -1953,26 +1891,6 @@ export default function App() {
                               </div>
                               <Plus size={17} />
                             </div>
-                            <div className="config-connect-actions">
-                              <button
-                                onClick={() => {
-                                  setHeaderMenu(null)
-                                  setSettingsOpen('providers')
-                                }}
-                              >
-                                <Plug size={15} />
-                                <span>{t('Connect API provider')}</span>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setHeaderMenu(null)
-                                  setSettingsOpen('models')
-                                }}
-                              >
-                                <Server size={15} />
-                                <span>{t('Add local model')}</span>
-                              </button>
-                            </div>
                             <label className="sidebar-search popover-search">
                               <Search size={14} />
                               <input value={modelSearch} onChange={(e) => setModelSearch(e.target.value)} placeholder={t('Search models')} />
@@ -2015,7 +1933,7 @@ export default function App() {
                     {t('New')}
                   </button>
                 )}
-                {CLOUD_ONLY && cloud.state?.user && (
+                {cloud.state?.user && (
                   <button
                     className={`credits-chip ${cloud.state.user.credits.total < 50 ? 'low' : ''}`}
                     onClick={() => setSettingsOpen('account')}
@@ -2169,7 +2087,7 @@ export default function App() {
                             <div className={`message-bubble message-${item.role} ${item.error ? 'message-error' : ''}`}>
                               {item.role === 'assistant' && !item.error ? <Markdown text={item.content} /> : <span className="whitespace-pre-wrap">{item.content}</span>}
                               {item.streaming && <span className="stream-caret" />}
-                              {item.error && CLOUD_ONLY && /credit/i.test(item.content) && (
+                              {item.error && /credit/i.test(item.content) && (
                                 <button className="orbi-btn orbi-btn-primary mt-2" onClick={() => setSettingsOpen('account')}>
                                   <Wallet size={13} /> {t('Plans and credits')}
                                 </button>
@@ -2196,7 +2114,7 @@ export default function App() {
                                     <button title={speaking === item.id ? t('Stop reading') : t('Read aloud')} onClick={() => speak(item)} className={speaking === item.id ? 'meta-active' : ''}>
                                       {speaking === item.id ? <VolumeX size={12} /> : <Volume2 size={12} />}
                                     </button>
-                                    <button title={t('Choose a voice')} aria-label={t('Choose a voice')} onClick={() => (CLOUD_ONLY ? setSettingsOpen('voice') : setVoiceOutFor(item))}>
+                                    <button title={t('Choose a voice')} aria-label={t('Choose a voice')} onClick={() => setSettingsOpen('voice')}>
                                       <ChevronDown size={11} />
                                     </button>
                                   </span>
@@ -2417,7 +2335,7 @@ export default function App() {
                     settings={createSet}
                     setSettings={setCreateSet}
                     resolutions={resolutionsFor(creativeOpts.find((o) => o.kind === composeMode && o.key === createSet.modelKey[composeMode]) ?? creativeOpts.find((o) => o.kind === composeMode), composeMode)}
-                    onOpenModels={() => setSettingsOpen('models')}
+                    onOpenModels={() => setSettingsOpen('account')}
                     enhancing={enhancing}
                     onEnhance={enhanceComposer}
                     empty={!message.trim()}
@@ -2478,7 +2396,7 @@ export default function App() {
                       {composeMode === 'chat' && <EffortControl value={effortStop} onChange={setEffortStop} model={currentModel?.name} />}
                       {!transcribing && (
                         <AudioMenu
-                          onVoiceSettings={() => (CLOUD_ONLY ? setSettingsOpen('voice') : setVoicePicker('menu'))}
+                          onVoiceSettings={() => setSettingsOpen('voice')}
                           onTest={async () => {
                             const choice = await api.getSetting<TtsChoice | null>('ttsVoice', null)
                             speak_(t('This is how Orbi sounds on this speaker.'), choice, lang).catch((e) => setNotice(cleanError(e)))
@@ -2516,7 +2434,6 @@ export default function App() {
               </form>
               {emptyLanding && catalogHint && <div className="composer-model-tip"><Sparkles size={13} /><RotatingHint lines={[catalogHint, t('Open the model menu to compare prices and choose.'), t('Use Image or Video to create without leaving the chat.')]} /></div>}
               {emptyLanding && !temporaryChat && !modelsLoading && models.length === 0 && (
-                CLOUD_ONLY ? (
                 <div className="connect-options connect-banner-below">
                   <button className="connect-banner" onClick={() => (setSettingsOpen('account'), loadModels())}>
                     <Wallet size={16} />
@@ -2527,42 +2444,6 @@ export default function App() {
                     <ChevronRight size={16} />
                   </button>
                 </div>
-                ) : (
-                <div className="connect-options connect-banner-below">
-                <button
-                  className="connect-banner"
-                  disabled={!!localStatus?.models.find((m) => m.id === 'smollm2-135m')?.downloading || !!localStatus?.engineDownloading}
-                  onClick={installTinyModel}
-                >
-                  {localStatus?.models.find((m) => m.id === 'smollm2-135m')?.downloading || localStatus?.engineDownloading ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                  <span>
-                    <strong>
-                      {(() => {
-                        const d = localStatus?.engineDownloading ?? localStatus?.models.find((m) => m.id === 'smollm2-135m')?.downloading
-                        return d ? `${t('Downloading local AI…')} ${d.total ? Math.round((d.received / d.total) * 100) : 0}%` : t('Try a free local AI (≈105 MB)')
-                      })()}
-                    </strong>
-                    <small>{t('SmolLM2 runs on this PC, offline, even with little memory. No key needed.')}</small>
-                  </span>
-                </button>
-                <button className="connect-banner" onClick={() => setSettingsOpen('models')}>
-                  <Cpu size={16} />
-                  <span>
-                    <strong>{t('Pick a model for this PC')}</strong>
-                    <small>{t('Light, medium and heavy models — Orbi checks what your hardware can run.')}</small>
-                  </span>
-                  <ChevronRight size={16} />
-                </button>
-                <button className="connect-banner" onClick={() => setSettingsOpen('providers')}>
-                  <Plug size={16} />
-                  <span>
-                    <strong>{t('Connect your first AI provider')}</strong>
-                    <small>{t('Paste an OpenRouter, OpenAI, Anthropic, Gemini or Groq key — or use Ollama locally for free.')}</small>
-                  </span>
-                  <ChevronRight size={16} />
-                </button>
-                </div>
-                )
               )}
               {emptyLanding && !temporaryChat && models.length > 0 && (
                 <div className="starter-prompts">
@@ -2696,92 +2577,18 @@ export default function App() {
             userName={userName}
             setUserName={setUserName}
             info={info}
-            localStatus={localStatus}
-            onLocalChanged={() => api.localStatus().then(setLocalStatus)}
             lang={lang}
             setLang={changeLang}
-            onOpenSetup={() => {
-              setSettingsOpen(null)
-              setSetupOpen(1)
-            }}
           />
         </Suspense>
       )}
-      {CLOUD_ONLY && cloud.state && !cloud.state.signedIn && (
+      {cloud.state && !cloud.state.signedIn && (
         <AccountGate
           onSignedIn={() => {
             loadModels()
             refreshLists()
           }}
         />
-      )}
-      {setupOpen !== null && (
-        <Suspense fallback={null}>
-          <SetupWizard
-            startStep={setupOpen}
-            status={localStatus}
-            userName={userName}
-            setUserName={setUserName}
-            lang={lang}
-            setLang={changeLang}
-            themeMode={themeMode}
-            setThemeMode={setThemeMode}
-            onDone={({ sttModel, ttsModel }) => {
-              if (ttsModel) api.getSetting('ttsVoice', null).then((v) => !v && api.setSetting('ttsVoice', { type: 'local', modelId: ttsModel, voice: defaultVoiceFor(localStatus?.models.find((m) => m.id === ttsModel), lang), rate: 1 }))
-              setSetupOpen(null)
-              api.setSetting('onboarded', true)
-              if (sttModel && !voiceMode) {
-                const m = { type: 'local' as const, modelId: sttModel }
-                api.setSetting('voiceMode', m)
-                setVoiceMode(m)
-              }
-              loadModels()
-            }}
-          />
-        </Suspense>
-      )}
-      {voicePicker && (
-        <div className="orbi-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setVoicePicker(false)}>
-          <div className="voice-dialog" role="dialog" aria-label={t('Voice input')}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3>{voicePicker === 'menu' ? t('Voice input') : t('Set up voice input')}</h3>
-                <p>{t('Choose how Orbi turns your voice into text, test it, and install or remove models.')}</p>
-              </div>
-              <button className="icon-button" onClick={() => setVoicePicker(false)} aria-label={t('Close')}>
-                <X size={16} />
-              </button>
-            </div>
-            <Suspense fallback={<div className="hub-skeleton" />}>
-              <VoiceSettings
-                status={localStatus}
-                onLocalChanged={() => api.localStatus().then(setLocalStatus)}
-                onPicked={(m) => {
-                  setVoiceMode(m)
-                  if (voicePicker === 'auto') {
-                    setVoicePicker(false)
-                    startVoice(m)
-                  }
-                }}
-              />
-            </Suspense>
-          </div>
-        </div>
-      )}
-
-      {voiceOutFor && (
-        <VoiceDialog title={t('Read-aloud voice')} subtitle={t('Choose, listen, install or remove voices. The voice you pick becomes the default.')} onClose={() => setVoiceOutFor(null)}>
-          <VoiceLibrary
-            status={localStatus}
-            onLocalChanged={() => api.localStatus().then(setLocalStatus)}
-            compact
-            onPick={() => {
-              const m = voiceOutFor
-              setVoiceOutFor(null)
-              setTimeout(() => speak(m), 50)
-            }}
-          />
-        </VoiceDialog>
       )}
 
       {notice && <div className="orbi-toast">{notice}</div>}
@@ -2826,7 +2633,7 @@ export default function App() {
       )}
     </div>
     </div>
-    {!termOpen && !(CLOUD_ONLY && cloud.state && !cloud.state.signedIn) && (
+    {!termOpen && !(cloud.state && !cloud.state.signedIn) && (
       <button className="grip grip-term" onPointerDown={startTermGrip} title={t('Pull up to open the terminal (Ctrl+`)')} aria-label={t('Open the terminal')}>
         <i />
         <i />
