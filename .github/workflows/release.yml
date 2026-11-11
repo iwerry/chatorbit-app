@@ -45,6 +45,7 @@ jobs:
       - name: Install tools
         if: steps.v.outputs.exists == 'false'
         run: |
+          bash build/apt-mirror.sh
           sudo apt-get update -qq
           sudo apt-get install -y -qq nsis
           pnpm install --frozen-lockfile

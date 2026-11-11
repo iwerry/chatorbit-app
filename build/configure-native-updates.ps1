@@ -25,7 +25,8 @@ $publicKey = (Get-Content -LiteralPath $publicFile -Raw).Trim()
 if ($publicKey -notmatch '^[A-Za-z0-9+/]+=*$') { throw 'Formato de chave publica inesperado. Use a chave gerada pelo CLI oficial do Tauri.' }
 if ($remoteKey -and $remoteKey.Trim() -ne $publicKey) { throw 'A chave local difere da chave publicada. A configuracao foi interrompida para preservar as atualizacoes existentes.' }
 # The private key travels over stdin to GitHub encrypted Secrets, never in a command argument or log.
-Get-Content -LiteralPath $signingFile -Raw | & gh secret set TAURI_SIGNING_PRIVATE_KEY --repo $Repository
+# cmd's redirect sends the file bytes as they are: a PowerShell pipe would prepend a BOM and break the key.
+& cmd.exe /c "gh secret set TAURI_SIGNING_PRIVATE_KEY --repo $Repository < `"$signingFile`""
 if ($LASTEXITCODE -ne 0) { throw 'Falha ao salvar a chave no GitHub Secrets.' }
 & gh variable set TAURI_UPDATER_PUBLIC_KEY --repo $Repository --body $publicKey
 if ($LASTEXITCODE -ne 0) { throw 'Falha ao salvar a chave publica no GitHub Variables.' }

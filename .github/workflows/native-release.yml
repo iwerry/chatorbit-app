@@ -63,7 +63,7 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with: { workspaces: 'src-tauri -> target', key: '${{ matrix.target }}' }
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential librsvg2-dev patchelf libssl-dev libdbus-1-dev libayatana-appindicator3-dev
+        run: bash build/apt-mirror.sh && sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential librsvg2-dev patchelf libssl-dev libdbus-1-dev libayatana-appindicator3-dev
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: node build/prepare-native.cjs
         env:
