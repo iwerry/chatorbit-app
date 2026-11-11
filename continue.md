@@ -16,7 +16,7 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
   3. Testar a passagem com dados reais (só com OK).
   4. Ligar a variable `ORBI_WINDOWS_NATIVE=true`.
   5. A próxima versão sai como `Orbi-Setup-<v>.exe` Tauri, e o updater do Electron instala por cima com `/UPDATE`.
-- Em 11/11 o job `Native updates` ainda pulava o build (a assinatura não estava configurada).
+- 11/11: assinatura configurada (secret `TAURI_SIGNING_PRIVATE_KEY` e variable `TAURI_UPDATER_PUBLIC_KEY`); chave privada em `%LOCALAPPDATA%OrbiBuildKeysPdater.key`, sem senha. O Daniel precisa guardar um backup.
 
 ## 11/11: 0.2.11-1 — Enhance prompt e Surprise me com IA
 
