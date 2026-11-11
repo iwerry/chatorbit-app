@@ -2,6 +2,22 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 11/11: decisão — só Tauri (o Electron sai)
+
+- O branch `claude/tauri-transition` foi rebaseado sobre o main (0.2.11-1) e ainda não foi mesclado. Ele contém:
+  - `mainBinaryName "Orbi"`;
+  - ganchos NSIS que removem o Electron, instalam o WebView2 e recriam os atalhos;
+  - Windows no `native-release.yml`;
+  - a chave `ORBI_WINDOWS_NATIVE`.
+- Proteção nova: com `ORBI_WINDOWS_NATIVE=true` e sem a assinatura configurada, o job `configuration` falha em vez de não publicar nada (o `release.yml` já fica parado nesse caso).
+- Ordem para desligar o Electron:
+  1. O Daniel configura a assinatura com `build/configure-native-updates.ps1` (requer `gh` e `pnpm`; cria o secret `TAURI_SIGNING_PRIVATE_KEY` e a variable `TAURI_UPDATER_PUBLIC_KEY`).
+  2. Mesclar o branch.
+  3. Testar a passagem com dados reais (só com OK).
+  4. Ligar a variable `ORBI_WINDOWS_NATIVE=true`.
+  5. A próxima versão sai como `Orbi-Setup-<v>.exe` Tauri, e o updater do Electron instala por cima com `/UPDATE`.
+- Em 11/11 o job `Native updates` ainda pulava o build (a assinatura não estava configurada).
+
 ## 11/11: 0.2.11-1 — Enhance prompt e Surprise me com IA
 
 - `lib/promptTools.ts`:

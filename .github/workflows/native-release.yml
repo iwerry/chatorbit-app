@@ -19,9 +19,14 @@ jobs:
         env:
           PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
+          WINDOWS_NATIVE: ${{ vars.ORBI_WINDOWS_NATIVE }}
         run: |
           if [ -n "$PRIVATE_KEY" ] && [ -n "$PUBLIC_KEY" ]; then
             echo 'ready=true' >> "$GITHUB_OUTPUT"
+          elif [ "$WINDOWS_NATIVE" = 'true' ]; then
+            # With the Windows switch on, release.yml stands down: without signing there would be no release at all.
+            echo '### ORBI_WINDOWS_NATIVE is on but signing is not configured: no Windows release can be published.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           else
             echo 'ready=false' >> "$GITHUB_OUTPUT"
             echo '### Signing setup required' >> "$GITHUB_STEP_SUMMARY"
