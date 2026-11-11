@@ -22,7 +22,7 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
   - A importação trouxe 12 conversas, 131 mensagens, 41 mídias, 3 workflows e 1 projeto, e o login continuou ativo.
   - Cuidado: o app Claude (MSIX) virtualiza o AppData. Comandos rodados por ele instalam numa pasta privada, então instaladores e chaves devem ser rodados via `explorer.exe` ou ficar no D:.
   - Backups estão em `D:\OrbiBackups`.
-  - Falta ligar `ORBI_WINDOWS_NATIVE=true`.
+  - `ORBI_WINDOWS_NATIVE=true` ligado em 11/11. A partir da próxima versão, o `release.yml` fica parado e o Windows estável sai do `native-release.yml` (Tauri, `Orbi-Setup-<v>.exe`).
 
 ## 11/11: 0.2.11-1 — Enhance prompt e Surprise me com IA
 
