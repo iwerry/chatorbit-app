@@ -2,7 +2,7 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
-## 10/11: 0.2.10-2 — Creative › Node (branch `claude/node-canvas`)
+## 10–11/11: 0.2.10-2 — Creative › Node (publicada, atualização rápida)
 
 - `NodeFlow.tsx`:
   - Barra flutuante `.flow-rail` com menus (`FlyItem`). Anotações (`Mark`: texto, retângulo, elipse, linha, seta e lápis) salvas em `marks` no workflow. Atalhos V/H/T/M/L/P/\/N.
@@ -11,6 +11,8 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
   - Inpaint na nuvem: a máscara vai como 2ª referência. Negativo liga/desliga (`negOff`). Vídeo usa `spec.durations`, `spec.resolutions` e `spec.audio`.
   - `fit()` lê as refs (antes os nós ficavam fora da tela depois de carregar um template).
 - Rust `media.rs`: `image/svg+xml` → `.svg`.
+- Ajustes de 11/11: a roda do mouse sobre os painéis (lista de nós, menu do botão direito, barra) não dá zoom; zoom de 10% a 300% com a grade de pontos subindo de passo; "Limpar anotações e desenhos"; os nós de carregar atualizam a biblioteca (`created()`, releitura ao voltar para a aba) e têm o botão "… do computador".
+- Release `v0.2.10-2` com a mesma `core` (`d263873f2dc6ec33`): o Electron recebe só a interface.
 - Não existem no OpenRouter e ficaram de fora: Mirelo, Sonilo, 3D, lip sync (VEED), Bria (fundo e green screen), Beeble SwitchX, Topaz e separação de camadas. Clonagem de voz e último quadro de vídeo existem no OpenRouter, mas exigem mudança no Electron e no Rust (o app só repassa campos fixos), então ficam para a versão Tauri.
 - Testado no Tauri isolado: barra, formas, lápis, texto, templates e nó Vetor gerando SVG real (375 créditos no Pro; o padrão agora é o não Pro). Impeccable sem anti-padrões.
 
