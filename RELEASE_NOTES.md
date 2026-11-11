@@ -1,4 +1,15 @@
-## Orbi 0.2.11-2
+## Orbi 0.2.11-3
+
+- **Uso de créditos (Usage):** nova tela em Configurações e no menu do seu avatar.
+  - Mostra quanto você gastou em 7, 30 ou 90 dias.
+  - Separa por tipo (texto, imagem, vídeo e áudio, cada um com sua cor), por dia e por modelo.
+- **Idioma no menu do avatar:** troque o idioma do Orbi em dois cliques; a mudança vale na hora.
+- **Visual mais limpo:** a marca do Orbi aparece uma vez só, no topo da barra lateral.
+- **Correções:**
+  - A dica de preço abaixo da caixa de mensagem não mostra mais valores quebrados de roteadores.
+  - Um exemplo do composer ainda citava IA local.
+
+## Orbi 0.2.11-2 (previous)
 
 - **Orbi agora é 100% nuvem.** Toda a IA vem do Orbi Cloud: chat, imagem, vídeo, voz e ditado. Não existe mais modelo rodando no seu computador.
   - Saíram as telas de modelos locais, o assistente que baixava modelos, as vozes offline, os motores locais e as conexões com Ollama e LM Studio.
@@ -7,7 +18,7 @@
 - **Windows:** esta versão chega como o novo Orbi, mais leve e rápido. A atualização instala por cima e mantém suas conversas, mídias, workflows e o login.
 - **Biblioteca de mídia:** o botão "Fazer um vídeo desta imagem" funciona direto com os modelos de vídeo da nuvem.
 
-## Orbi 0.2.11-1 (previous)
+## Orbi 0.2.11-1
 
 - **Surprise me de verdade, com IA:** os botões de prompt deixaram de sortear frases fixas. Agora um modelo de texto rápido e barato (Claude Haiku, Gemini Flash ou GPT mini) escreve o prompt, e só quando você clica.
 - **Canvas (Imagem e Vídeo):** um botão só, **Surprise me**.

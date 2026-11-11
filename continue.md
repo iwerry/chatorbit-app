@@ -9,7 +9,7 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
   - marca única: logo só na barra lateral (saiu da barra de título e do centro da tela inicial);
   - menu do avatar com **Usage** e **Language** (submenu com a lista de idiomas);
   - aba **Usage** nas Configurações (`UsagePanel.tsx`): 7/30/90 dias, total, por tipo (texto/imagem/vídeo/áudio), por dia e por modelo.
-- Rota nova no Edge Function: `GET /me/usage/summary?days=N` (agrega o `ledger`; junta "Voice (est.)" com "Voice") e canal Rust `cloud:usageSummary`. Enquanto a função não é publicada, o app monta o resumo com as últimas 100 transações.
+- Rota nova no Edge Function, publicada em 11/11: `GET /me/usage/summary?days=N` (agrega o `ledger`; junta "Voice (est.)" com "Voice"). Canal Rust `cloud:usageSummary`. Se a rota falhar, o app monta o resumo com as últimas 100 transações. Saiu na 0.2.11-3.
 - Script de traduções faltantes agora varre todo o `src` (antes só NodeFlow e CreativeStudio).
 
 ## 11/11: Electron removido do repositório

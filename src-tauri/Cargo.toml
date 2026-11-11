@@ -1,6 +1,6 @@
 [package]
 name = "orbi-native"
-version = "0.2.11-2"
+version = "0.2.11-3"
 edition = "2021"
 authors = ["Daniel Rodrigues — Draft Creative Studio Ltda"]
 license = "Apache-2.0"

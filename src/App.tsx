@@ -1170,7 +1170,7 @@ export default function App() {
       const ask = sk.tests?.positive?.[0] || t('help me with this')
       list.push({ parts: [{ text: `/${slug(sk.name)} `, kind: 'cmd' }, { text: quote(ask.length > 70 ? ask.slice(0, 68) + '…' : ask), kind: 'arg' }], insert: `/${slug(sk.name)} ${quote(ask)}`, note: t('to try this') })
     }
-    const web = t('what changed in local AI this week?')
+    const web = t('what changed in AI this week?')
     list.push({ parts: [{ text: '/web ', kind: 'cmd' }, { text: web, kind: 'arg' }], insert: `/web ${web}`, note: t('to try this') })
     const team = teams[0]
     if (team) list.push({ parts: [{ text: `${team.handle} `, kind: 'agent' }, { text: quote(t('review this plan from every angle')), kind: 'arg' }], insert: `${team.handle} ${quote(t('review this plan from every angle'))}`, note: t('to try this') })
@@ -1503,7 +1503,8 @@ export default function App() {
       : null
   const previewInfo = suggestList.length ? infoFor(suggestList[suggestIdx % suggestList.length].label) : null
   const pricedModels = (composeMode === 'chat' ? chatItems(chatModels, cloud.catalog) : creativeItems(creativeOpts.filter((m) => m.kind === composeMode)))
-    .filter((m) => m.usd !== undefined && Number.isFinite(m.usd))
+    // Routers list a negative price ("varies"); only real per-model prices count.
+    .filter((m) => m.usd !== undefined && Number.isFinite(m.usd) && m.usd > 0 && (m.usdOut ?? 0) >= 0)
     .sort((a, b) => (a.usd! + (a.usdOut ?? 0)) - (b.usd! + (b.usdOut ?? 0)))
   const lowerPrice = pricedModels[0]
   const catalogHint = lowerPrice ? t('Lower listed price: {model} · {price}', { model: lowerPrice.name, price: priceLabel(lowerPrice.usd, composeMode === 'chat' ? 'M' : composeMode === 'video' ? 's' : 'img', !!cloud.state?.user?.admin, cloud.catalog, lowerPrice.usdOut) || t('Free') }) : ''

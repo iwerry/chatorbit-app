@@ -268,7 +268,7 @@ const ROWS: [string, string, string, string][] = [
   ["a neon city at dawn, cinematic light", "uma cidade neon ao amanhecer, luz cinematográfica", "una ciudad de neón al amanecer, luz cinematográfica", "une ville néon à l’aube, lumière cinématographique"],
   ["to make it here", "para criar aqui", "para crearlo aquí", "pour le créer ici"],
   ["help me with this", "me ajude com isto", "ayúdame con esto", "aide-moi avec ça"],
-  ["what changed in local AI this week?", "o que mudou na IA local esta semana?", "¿qué cambió en la IA local esta semana?", "qu’est-ce qui a changé dans l’IA locale cette semaine ?"],
+  ["what changed in AI this week?", "o que mudou na IA esta semana?", "¿qué cambió en la IA esta semana?", "qu’est-ce qui a changé dans l’IA cette semaine ?"],
   ["review this plan from every angle", "revise este plano por todos os ângulos", "revisa este plan desde todos los ángulos", "examine ce plan sous tous les angles"],
   ["slow drone shot over a misty pine forest", "drone lento sobre uma floresta de pinheiros com neblina", "toma lenta de dron sobre un bosque de pinos con niebla", "plan de drone lent au-dessus d’une forêt de pins brumeuse"],
   ["what you need", "o que você precisa", "lo que necesitas", "ce dont vous avez besoin"],
