@@ -17,6 +17,7 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
   4. Ligar a variable `ORBI_WINDOWS_NATIVE=true`.
   5. A próxima versão sai como `Orbi-Setup-<v>.exe` Tauri, e o updater do Electron instala por cima com `/UPDATE`.
 - 11/11: assinatura configurada (secret `TAURI_SIGNING_PRIVATE_KEY` e variable `TAURI_UPDATER_PUBLIC_KEY`); chave privada em `%LOCALAPPDATA%OrbiBuildKeysPdater.key`, sem senha. O Daniel precisa guardar um backup.
+- 11/11, à tarde: a 0.2.11-1 foi publicada (o Ubuntu falhou duas vezes por causa do espelho da Azure, resolvido com `build/apt-mirror.sh`). Primeiro build nativo assinado completo em `native-v0.2.11-1`: Windows NSIS, macOS arm e x64, e Linux deb e AppImage, com o `latest.json` incluindo `windows-x86_64`. A chave tinha ido com BOM pelo pipe do PowerShell e foi reenviada pelo redirecionamento. Próximo passo: teste de passagem Electron → Tauri com dados reais (só com OK) e depois `ORBI_WINDOWS_NATIVE=true`.
 
 ## 11/11: 0.2.11-1 — Enhance prompt e Surprise me com IA
 
