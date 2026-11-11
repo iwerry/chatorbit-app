@@ -1,4 +1,14 @@
-## Orbi 0.2.11-4
+## Orbi 0.2.11-5
+
+- **Session:** um painel flutuante à direita que junta tudo do seu trabalho atual. Abra pelo botão novo no topo ou por Ctrl+Alt+B.
+  - **Context:** o que está ativo na conversa, o projeto, as fontes e os detalhes.
+  - **Terminal:** o terminal mora aqui agora (Ctrl+` abre direto nele) e continua rodando quando você troca de aba.
+  - **Outputs:** as imagens, vídeos e áudios que a conversa gerou.
+  - Arraste a borda para mudar a largura. O Orbi lembra como você deixou.
+- **Tela mais limpa:** saíram o painel que abria sozinho, os puxadores laterais e o terminal no rodapé.
+- **Correção:** o terminal não fica mais espremido depois de ser escondido.
+
+## Orbi 0.2.11-4 (previous)
 
 - **Contexto direto na caixa de mensagem:** abaixo dela, três botões.
   - **Project:** a conversa vai para um projeto (ou comece uma nova já dentro dele).
@@ -8,7 +18,7 @@
 - **Topo mais limpo:** o botão Skills foi para a caixa de mensagem. O puxador do terminal no rodapé saiu; o terminal continua no menu Terminal e em Ctrl+`.
 - **Correção:** ligar ou desligar um conector não apaga mais o nome e o endereço dele. DeepWiki e Context7 se recuperam sozinhos.
 
-## Orbi 0.2.11-3 (previous)
+## Orbi 0.2.11-3
 
 - **Uso de créditos (Usage):** nova tela em Configurações e no menu do seu avatar.
   - Mostra quanto você gastou em 7, 30 ou 90 dias.
