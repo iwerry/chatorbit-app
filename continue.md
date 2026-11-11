@@ -13,7 +13,7 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
 - `tts.speak` usa só as vozes do Orbi Cloud. `startVoice` força `{type:'cloud'}` (escolhas antigas locais são ignoradas). `creativeOptions(models, catalog)`.
 - Importar do ComfyUI continua, sem mapear checkpoints (cada nó usa o modelo da nuvem).
 - A pasta `electron/` ainda existe (o código local do Electron não é mais publicado, porque `ORBI_WINDOWS_NATIVE=true`). Pode ser apagada numa limpeza futura junto com os workflows do Electron.
-- Primeira release com o Windows só pelo Tauri: o updater do Electron baixa `Orbi-Setup-0.2.11-2.exe` (Tauri) e instala por cima.
+- Publicada em 11/11: a `v0.2.11-2` (latest) traz só o `Orbi-Setup-0.2.11-2.exe` Tauri (9 MB). O updater do Electron baixa e instala por cima, e o `native-channel` (`latest.json`) tem Windows, macOS e Linux na 0.2.11-2.
 
 ## 11/11: decisão — só Tauri (o Electron sai)
 
