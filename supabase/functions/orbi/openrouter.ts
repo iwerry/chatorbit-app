@@ -426,6 +426,12 @@ function audioKind(b: Uint8Array): string | null {
 }
 // Voice models that only answer in PCM (learned on the first refusal).
 const pcmOnly = new Set<string>(['google/gemini-3.8-flash-tts', 'google/gemini-3.8-flash-lite-tts', 'google/gemini-3.1-flash-tts-preview'])
+// Voice previews: the app asks for exactly this sentence (src/components/AudioStudio.tsx). Each model and voice
+// is generated once, kept in public.voice_samples and served free, so trying voices costs nobody credits.
+export const sampleText = (voice: string) => `Hi! This is ${voice.replace(/:.*$/, '').replace(/^English_/, '').replace(/[_-]+/g, ' ')}, one of the voices you can use in Orbi.`
+// Delivery style (tone, pace, emotion) travels in front of the text as "⟦style: …⟧", because installed apps
+// forward only text, model and voice. It becomes OpenRouter's `instructions` (Gemini TTS, Fish Audio, OpenAI).
+const STYLE = /^⟦style:\s*([^⟧]{1,300})⟧\s*/
 
 export async function speech(c: Caller, body: Record<string, unknown>): Promise<Response> {
   // Older apps may ask for a voice model that no longer exists: use the best one and its first voice.
@@ -438,9 +444,19 @@ export async function speech(c: Caller, body: Record<string, unknown>): Promise<
   }
   const purpose = body.purpose
   delete body.purpose
-  const est = ((model?.usd || 0) * String(body.input || body.text || '').length) / 1000
-  requireCredits(c.profile, needFor(est, 1))
+  const style = String(body.input || '').match(STYLE)
+  if (style) {
+    body.input = String(body.input).slice(style[0].length)
+    body.instructions = style[1].trim()
+  }
   const id = String(body.model || '')
+  const sample = !!model && model.voices.includes(String(body.voice || '')) && body.input === sampleText(String(body.voice))
+  if (sample) {
+    const [hit] = await sql<{ mime: string; audio: Uint8Array }[]>`select mime, audio from public.voice_samples where model = ${id} and voice = ${String(body.voice)}`
+    if (hit) return new Response(new Uint8Array(hit.audio), { headers: { 'Content-Type': hit.mime, 'X-Orbi-Sample': 'cached' } })
+  }
+  const est = sample ? 0 : ((model?.usd || 0) * String(body.input || body.text || '').length) / 1000
+  if (!sample) requireCredits(c.profile, needFor(est, 1))
   const ask = (format: string) => orFetch('/audio/speech', { method: 'POST', body: JSON.stringify({ ...body, response_format: format }) })
   let pcm = pcmOnly.has(id)
   let up = await ask(pcm ? 'pcm' : String(body.response_format || 'mp3'))
@@ -463,6 +479,11 @@ export async function speech(c: Caller, body: Record<string, unknown>): Promise<
     type = audioKind(buf) || 'audio/wav'
   }
   const genId = up.headers.get('x-generation-id') || ''
+  if (sample) {
+    // Orbi pays for the first preview of each voice; later requests read the stored copy.
+    await sql`insert into public.voice_samples (model, voice, mime, audio) values (${id}, ${String(body.voice)}, ${type}, ${buf}) on conflict do nothing`
+    return new Response(buf, { headers: { 'Content-Type': type, 'X-Orbi-Sample': 'new' } })
+  }
   const cost = genId ? await costOf(genId) : 0
   await charge(c, cost, id, purpose === 'sfx' ? 'Sound effect' : 'Voice', genId, est)
   return new Response(buf, { headers: { 'Content-Type': type } })

@@ -1,4 +1,11 @@
-## Orbi 0.2.2-2
+## Orbi 0.2.10-1
+
+- **Vozes com prévia:** cada modelo de voz mostra todas as vozes em uma grade, com busca. Aperte ▶ para ouvir uma amostra curta em inglês antes de escolher. As amostras são grátis.
+- **Interpretação da voz:** nos modelos que aceitam (Gemini TTS, Fish Audio), escreva o tom, o ritmo e a emoção, ou use os atalhos: acolhedora, animada, narração calma, sussurrando, jornal e devagar e clara. Nos outros, as indicações vão no próprio texto, como [whispering].
+- **Música com mais controle:** estilo (bossa nova, samba, sertanejo, jazz e outros), clima, andamento em BPM, duração (Lyria Pro), tipo de voz (instrumental, feminina, masculina, dueto ou coral), idioma da letra e botões para marcar a estrutura ([Verse], [Chorus], [Bridge]…).
+- **Efeitos sonoros:** duração, intensidade, ambiente (estúdio, sala, salão, ao ar livre, debaixo d’água, ao longe) e loop contínuo.
+
+## Orbi 0.2.2-2 (previous)
 
 - **Trocar a senha pelo app:** em Configurações › Geral, quem está conectado escolhe uma senha nova (duas vezes, pelo menos 8 caracteres), sem precisar de código por e-mail.
 - **E-mails com código:** os modelos de confirmação de conta e de troca de senha mostram o código de 6 dígitos em destaque. Ficam em `supabase/templates/` e são aplicados com `build/supabase-auth.mjs` (Management API, com token pessoal fora do Git).

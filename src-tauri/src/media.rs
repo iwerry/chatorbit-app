@@ -198,7 +198,13 @@ pub async fn handle(backend: &Backend, channel: &str, args: &[Value]) -> Option<
                 let body=json!({"model":preferred("model"),"input":a["text"].as_str().unwrap_or("").chars().take(4000).collect::<String>(),"voice":preferred("voice"),"purpose":a["purpose"],"response_format":"mp3"});
                 let (data,mime)=bytes(backend.cloud.request("/v1/audio/speech",Some(body)).await?).await?;
                 if channel=="cloud:speak" {Ok(json!(format!("data:{mime};base64,{}",base64::engine::general_purpose::STANDARD.encode(data))))}
-                else {save(backend,&data,&mime,&a,"audio")}
+                else {
+                    // Like Electron: the library shows what was read or described, and which model made it.
+                    let mut meta=a.clone();
+                    meta["prompt"]=json!(a["text"].as_str().unwrap_or("").chars().take(300).collect::<String>());
+                    meta["model"]=json!(preferred("model"));
+                    save(backend,&data,&mime,&meta,"audio")
+                }
             },
             "cloud:music"=>{
                 let response=backend.cloud.request("/v1/music",Some(a.clone())).await?;

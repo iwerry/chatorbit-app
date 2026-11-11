@@ -5548,6 +5548,73 @@ form.composer {
   border-color: var(--neo-accent);
   color: var(--neo-text);
 }
+.audio-chips button.active {
+  border-color: var(--neo-accent);
+  background: color-mix(in srgb, var(--neo-accent) 16%, transparent);
+  color: var(--neo-text);
+}
+.audio-sections button {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+}
+.audio-label-note {
+  margin-left: 6px;
+  font-weight: 500;
+  color: var(--neo-faint);
+}
+.audio-range {
+  width: 100%;
+  accent-color: var(--neo-accent);
+}
+.audio-voice-search {
+  height: 32px;
+}
+.audio-voices {
+  display: grid;
+  max-height: 232px;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 6px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.audio-voice {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--neo-line);
+  border-radius: 12px;
+  background: var(--neo-surface);
+  padding: 3px;
+}
+.audio-voice.active {
+  border-color: var(--neo-accent);
+  background: color-mix(in srgb, var(--neo-accent) 12%, var(--neo-surface));
+}
+.audio-voice-play {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--neo-muted);
+}
+.audio-voice-play:hover {
+  background: color-mix(in srgb, var(--neo-accent) 20%, transparent);
+  color: var(--neo-text);
+}
+.audio-voice-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  padding: 4px 6px;
+  font-size: 12px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--neo-text);
+}
 .audio-go {
   display: flex;
   align-items: center;

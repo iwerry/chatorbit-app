@@ -1,7 +1,7 @@
-import { useLayoutEffect, useRef, type TextareaHTMLAttributes } from 'react'
+import { useLayoutEffect, useRef, type Ref, type TextareaHTMLAttributes } from 'react'
 
 /** Expands with edits, generated prompts and container resizing. */
-export function AutoTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function AutoTextarea({ ref: outer, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement> & { ref?: Ref<HTMLTextAreaElement> }) {
   const ref = useRef<HTMLTextAreaElement>(null)
   useLayoutEffect(() => {
     const area = ref.current
@@ -18,5 +18,11 @@ export function AutoTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>)
     observer.observe(area)
     return () => observer.disconnect()
   }, [props.value])
-  return <textarea {...props} ref={ref} style={{ ...props.style, resize: 'none', overflowY: 'hidden' }} />
+  // The caller may want the element too (e.g. to insert text at the cursor).
+  const attach = (el: HTMLTextAreaElement | null) => {
+    ref.current = el
+    if (typeof outer === 'function') outer(el)
+    else if (outer) outer.current = el
+  }
+  return <textarea {...props} ref={attach} style={{ ...props.style, resize: 'none', overflowY: 'hidden' }} />
 }
