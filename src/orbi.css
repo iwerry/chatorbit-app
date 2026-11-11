@@ -2494,3 +2494,218 @@ html[data-theme='light'] .ctx-status-connected {
 .cpop-list.ctx-list button.on .ctx-check svg {
   color: var(--neo-accent-text);
 }
+
+/* ---------- Session: one floating panel on the right (context, terminal, outputs) ---------- */
+.session {
+  position: fixed;
+  top: calc(var(--tb-h, 34px) + 12px);
+  right: 12px;
+  bottom: 12px;
+  z-index: 260;
+  display: flex;
+  max-width: calc(100vw - 96px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--neo-border);
+  border-radius: 18px;
+  background: var(--neo-surface-solid, var(--neo-surface));
+  color: var(--neo-text);
+  box-shadow:
+    0 18px 48px var(--neo-shadow-dark),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  animation: session-in 180ms var(--ease-out, ease-out);
+}
+@keyframes session-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+.session-resize {
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: -3px;
+  z-index: 2;
+  width: 7px;
+  cursor: ew-resize;
+  border-radius: 999px;
+}
+.session-resize:hover,
+.session-resize:focus-visible {
+  background: color-mix(in srgb, var(--neo-accent) 55%, transparent);
+  outline: none;
+}
+.session-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--neo-line);
+  padding: 10px 10px 10px 12px;
+}
+.session-tabs {
+  display: flex;
+  min-width: 0;
+  gap: 2px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--neo-text) 5%, transparent);
+  padding: 3px;
+}
+.session-tabs button {
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--neo-muted);
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+.session-tabs button:hover {
+  color: var(--neo-text);
+}
+.session-tabs button.active {
+  background: var(--neo-surface);
+  color: var(--neo-text);
+  box-shadow: 0 1px 3px var(--neo-shadow-dark);
+}
+.session-tabs button:focus-visible,
+.session-close:focus-visible {
+  outline: 2px solid var(--neo-accent);
+  outline-offset: 1px;
+}
+.session-badge {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--neo-accent);
+  padding: 0 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--neo-accent-text);
+}
+.session-body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+}
+.session-body[hidden] {
+  display: none;
+}
+.session-body-terminal {
+  display: flex;
+  overflow: hidden;
+  padding: 0;
+}
+.session-body-terminal > * {
+  flex: 1;
+}
+.terminal-embedded {
+  height: 100%;
+  border-top: 0;
+}
+.terminal-embedded .term-body {
+  min-height: 0;
+  flex: 1;
+}
+.session-title {
+  margin-bottom: 14px;
+  font-family: Manrope, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--neo-text);
+}
+.session-context {
+  display: grid;
+  gap: 4px;
+}
+/* The context content came from the old side panel with fixed light-theme colors: follow the theme here. */
+.session-context p,
+.session-context h2 {
+  color: var(--neo-text);
+}
+.session-context .eyebrow,
+.session-context p[class*='text-[11px]'],
+.session-context p.text-xs[class*='6f7973'] {
+  color: var(--neo-faint);
+}
+.session-context svg[class*='text-[#'] {
+  color: var(--neo-faint);
+}
+.session-context .mt-8 {
+  margin-top: 24px;
+}
+.session-context [class*='border-[#e4e5df]'] {
+  border-color: var(--neo-line);
+}
+.session-context button[class*='text-[#537047]'] {
+  color: var(--neo-accent);
+}
+html[data-theme='light'] .session-context button[class*='text-[#537047]'] {
+  color: var(--neo-accent-text);
+}
+.session-empty {
+  margin: 24px 4px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--neo-muted);
+}
+.session-outputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+.session-output {
+  display: grid;
+  gap: 6px;
+  overflow: hidden;
+  border: 1px solid var(--neo-line);
+  border-radius: 12px;
+  background: var(--neo-surface);
+  padding: 6px;
+  text-align: left;
+  transition: border-color 160ms ease;
+}
+.session-output:hover,
+.session-output:focus-visible {
+  border-color: color-mix(in srgb, var(--neo-accent) 60%, transparent);
+  outline: none;
+}
+.session-output img,
+.session-output video,
+.session-output-icon {
+  aspect-ratio: 1;
+  width: 100%;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--neo-line);
+}
+.session-output-icon {
+  display: grid;
+  place-items: center;
+  color: var(--neo-muted);
+}
+.session-output small {
+  font-size: 11.5px;
+  color: var(--neo-muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .session {
+    animation: none;
+  }
+  .session-tabs button,
+  .session-output {
+    transition: none;
+  }
+}

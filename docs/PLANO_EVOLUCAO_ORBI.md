@@ -44,9 +44,9 @@ Cada passo termina em algo testável e vira uma versão (`0.M.D-N`) quando toca 
 
 ### A3. Painéis reorganizáveis (~3–4 dias)
 - [ ] A3.1 Dock manager próprio e leve: regiões esquerda/direita/baixo, abas, arrastar entre regiões, redimensionar, recolher, "restaurar padrão".
-- [ ] A3.2 Painel **Session** (Environment, Context, Connectors, Outputs) usando o que a conversa já sabe.
+- [x] A3.2 Painel **Session** (Environment, Context, Connectors, Outputs) usando o que a conversa já sabe.
 - [ ] A3.3 Persistência de layout por usuário e por projeto (`panel_layouts`), presets **Chat**, **Coding**, **Creative**.
-- [ ] A3.4 Terminal entra no dock: baixo (padrão), esquerda/direita, maximizar, abrir em janela própria (`window.rs`).
+- [x] A3.4 Terminal entra no dock: baixo (padrão), esquerda/direita, maximizar, abrir em janela própria (`window.rs`).
 
 ### A4. Ferramentas de projeto (~4–5 dias)
 - [ ] A4.1 Projeto com pasta raiz (`root_path`) escolhida pelo usuário; escopo de permissão por pasta (nada fora dela).

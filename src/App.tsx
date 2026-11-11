@@ -44,6 +44,8 @@ import {
   Video,
   WandSparkles,
   X,
+  PanelRight,
+  Music,
 } from 'lucide-react'
 import {
   api,
@@ -79,6 +81,7 @@ import {
 import type { StudioIntent } from './components/CreatorStudio'
 import { Markdown } from './components/Markdown'
 import { GhostIcon, OrbiMark } from './components/Logo'
+import { SESSION_MAX, SESSION_MIN, SessionPanel, type SessionTab } from './components/SessionPanel'
 import type { SettingsTab } from './components/SettingsModal'
 import { LANGUAGES, t, t as tr, setLang as applyLang, fmtDate, fmtTime, type Lang } from './lib/i18n'
 import { isPage, navItems, WorkspacePanel, type NavKey } from './components/WorkspacePanel'
@@ -259,7 +262,6 @@ export default function App() {
   const [findOpen, setFindOpen] = useState(false)
   const [findResult, setFindResult] = useState<{ matches: number; active: number } | null>(null)
   const [termMounted, setTermMounted] = useState(false)
-  const [termOpen, setTermOpen] = useState(false)
   const [termHeight, setTermHeight] = useState(280)
   const [termMax, setTermMax] = useState(false)
   const [approvalQueue, setApprovalQueue] = useState<{ id: string; server: string; tool: string; message: string }[]>([])
@@ -339,7 +341,13 @@ export default function App() {
   const [message, setMessage] = useState('')
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [temporaryChat, setTemporaryChat] = useState(false)
-  const [contextOpen, setContextOpen] = useState(false)
+  // The Session: one floating panel on the right (context, terminal, outputs). Remembered between launches.
+  const [sessionOpen, setSessionOpen] = useState(false)
+  const [sessionTab, setSessionTab] = useState<SessionTab>('context')
+  const [sessionWidth, setSessionWidth] = useState(380)
+  const [sessionReady, setSessionReady] = useState(false)
+  const termOpen = sessionOpen && sessionTab === 'terminal'
+  const setTermOpen = (open: boolean) => (open ? (setSessionTab('terminal'), setSessionOpen(true)) : setSessionOpen(false))
   const [leftPanelWidth, setLeftPanelWidth] = useState(252)
   const [rightPanelWidth, setRightPanelWidth] = useState(300)
   const [notice, setNotice] = useState<string | null>(null)
@@ -489,7 +497,13 @@ export default function App() {
       setVoiceMode(await api.getSetting<VoiceMode | null>('voiceMode', null))
       setWebOn(await api.getSetting('webSearch', false))
       setSelectedModel(await api.getSetting('selectedModel', ''))
-      api.getSetting('terminalOpen', false).then((v) => v && openTerminal())
+      api.getSetting<{ open?: boolean; tab?: SessionTab; width?: number } | null>('session', null).then((v) => {
+        if (v?.width) setSessionWidth(Math.min(SESSION_MAX, Math.max(SESSION_MIN, v.width)))
+        if (v?.tab) setSessionTab(v.tab)
+        if (v?.tab === 'terminal' && v.open) setTermMounted(true)
+        if (v?.open) setSessionOpen(true)
+        setSessionReady(true)
+      })
       setMemoryEnabled(await api.getSetting('memoryEnabled', true))
       // Chat preferences survive restarts and updates.
       const prefs = await api.getSetting<{ agents?: string[]; compare?: string[]; mode?: ResponseType; effort?: ReasoningEffort } | null>('chatPrefs', null)
@@ -541,10 +555,8 @@ export default function App() {
   }, [themeMode])
 
   useEffect(() => {
-    document.body.classList.toggle('term-open', termOpen)
-    document.documentElement.style.setProperty('--term-h', termOpen ? `${termMax ? Math.max(200, window.innerHeight - 140) : termHeight}px` : '0px')
-    if (termMounted) api.setSetting('terminalOpen', termOpen)
-  }, [termOpen, termHeight, termMax])
+    if (sessionReady) api.setSetting('session', { open: sessionOpen, tab: sessionTab, width: sessionWidth })
+  }, [sessionOpen, sessionTab, sessionWidth, sessionReady])
   useEffect(() => {
     api.setSetting('memoryEnabled', memoryEnabled)
   }, [memoryEnabled])
@@ -630,56 +642,6 @@ export default function App() {
       document.body.classList.remove('panel-is-resizing')
       window.removeEventListener('pointermove', move)
       window.removeEventListener('pointerup', stop)
-    }
-    document.body.classList.add('panel-is-resizing')
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', stop)
-  }
-
-  // Grips: "=" at the bottom pulls the terminal up; "||" on the right pulls the workspace panel out.
-  // A click opens it too.
-  const startTermGrip = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault()
-    const startY = event.clientY
-    let dragged = false
-    const move = (ev: PointerEvent) => {
-      const up = startY - ev.clientY
-      if (!dragged && up < 8) return
-      if (!dragged) {
-        dragged = true
-        setTermMax(false)
-        openTerminal()
-      }
-      setTermHeight(Math.min(window.innerHeight - 160, Math.max(140, window.innerHeight - ev.clientY)))
-    }
-    const stop = () => {
-      document.body.classList.remove('panel-is-resizing')
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', stop)
-      if (!dragged) openTerminal()
-    }
-    document.body.classList.add('panel-is-resizing')
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', stop)
-  }
-  const startWorkspaceGrip = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault()
-    const startX = event.clientX
-    let dragged = false
-    const move = (ev: PointerEvent) => {
-      const left = startX - ev.clientX
-      if (!dragged && left < 8) return
-      if (!dragged) {
-        dragged = true
-        setContextOpen(true)
-      }
-      setRightPanelWidth(Math.min(420, Math.max(260, window.innerWidth - ev.clientX)))
-    }
-    const stop = () => {
-      document.body.classList.remove('panel-is-resizing')
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', stop)
-      if (!dragged) setContextOpen(true)
     }
     document.body.classList.add('panel-is-resizing')
     window.addEventListener('pointermove', move)
@@ -1237,7 +1199,6 @@ export default function App() {
     setMessages([])
     setMessage('')
     setAttachments([])
-    setContextOpen(false)
     textareaRef.current?.focus()
   }
 
@@ -1245,8 +1206,7 @@ export default function App() {
     if (isPage(section)) {
       setActiveNav(section)
       setPanelOpen(false)
-      setContextOpen(false)
-      return
+        return
     }
     if (activeNav === section) {
       setPanelOpen((v) => !v)
@@ -1263,7 +1223,6 @@ export default function App() {
     setMessages([])
     setMessage('')
     setAttachments([])
-    setContextOpen(false)
   }
 
   const addFiles = async (files: FileList | File[]) => {
@@ -1339,7 +1298,7 @@ export default function App() {
     // View
     { id: 'view.palette', category: 'View', label: 'Command Palette…', shortcut: 'Ctrl+Shift+P', run: () => setPalette('commands') },
     { id: 'view.sidebar', category: 'View', label: 'Toggle Sidebar', shortcut: 'Ctrl+B', run: () => (isPage(activeNav) ? goNav('chats') : setPanelOpen((v) => !v)) },
-    { id: 'view.workspace', category: 'View', label: 'Toggle Workspace Panel', shortcut: 'Ctrl+Alt+B', run: () => setContextOpen((v) => !v) },
+    { id: 'view.workspace', category: 'View', label: 'Toggle Session', shortcut: 'Ctrl+Alt+B', run: () => setSessionOpen((v) => !v) },
     { id: 'view.terminal', category: 'View', label: 'Terminal', shortcut: 'Ctrl+`', checked: termOpen, run: () => (termOpen ? setTermOpen(false) : openTerminal()) },
     { id: 'view.light', category: 'View', label: 'Light Theme', checked: themeMode === 'light', run: () => setThemeMode('light') },
     { id: 'view.dark', category: 'View', label: 'Dark Theme', checked: themeMode === 'dark', run: () => setThemeMode('dark') },
@@ -1439,7 +1398,14 @@ export default function App() {
 
   const activeConversation = conversations.find((c) => c.id === conversationId)
   const emptyLanding = messages.length === 0
-  const showContext = contextOpen && !temporaryChat && messages.length > 0
+  // What this conversation produced (images, videos, audio made from the chat), newest first.
+  const conversationOutputs = useMemo(() => {
+    const ids = new Set<string>()
+    for (const m of messages) for (const id of decodeChatMedia(m.content)?.ids ?? []) ids.add(id)
+    return media.filter((x) => ids.has(x.id)).sort((a, b) => b.created_at - a.created_at)
+  }, [messages, media])
+  // In chats the Session takes its own column; over Creative, Audio and other pages it floats.
+  const showContext = sessionOpen && !isPage(activeNav)
   const responseMode = responseType === 'Thinking' ? `Thinking · ${reasoningEffort}` : 'Instant'
   const groupedModels = useMemo(() => {
     const q = modelSearch.toLowerCase()
@@ -1543,7 +1509,7 @@ export default function App() {
     <div className="app-frame">
     <div
       className="app-shell"
-      style={{ '--workspace-panel-size': `${leftPanelWidth}px`, '--context-panel-size': `${rightPanelWidth}px` } as CSSProperties}
+      style={{ '--workspace-panel-size': `${leftPanelWidth}px`, '--context-panel-size': `${sessionWidth + 24}px` } as CSSProperties}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         e.preventDefault()
@@ -1949,12 +1915,6 @@ export default function App() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {messages.length > 0 && !temporaryChat && !contextOpen && (
-                  <button className="header-action hidden sm:flex" onClick={() => setContextOpen(true)}>
-                    <PanelLeftClose size={16} />
-                    {t('Workspace')}
-                  </button>
-                )}
                 {messages.length > 0 && (
                   <button className="header-action hidden sm:flex" onClick={startNewChat} title="New chat">
                     <Plus size={16} />
@@ -1974,6 +1934,15 @@ export default function App() {
                   </button>
                 )}
                 <ThemeSwitcher themeMode={themeMode} setThemeMode={setThemeMode} />
+                <button
+                  className={`temporary-header session-toggle ${sessionOpen ? 'temporary-header-active' : ''}`}
+                  onClick={() => setSessionOpen((v) => !v)}
+                  aria-pressed={sessionOpen}
+                  aria-label={t('Session')}
+                  title={t('Session: context, terminal and outputs (Ctrl+Alt+B)')}
+                >
+                  <PanelRight size={18} />
+                </button>
                 <button
                   className={`temporary-header ${temporaryChat ? 'temporary-header-active' : ''}`}
                   onClick={toggleTemporaryChat}
@@ -2502,109 +2471,6 @@ export default function App() {
             </div>
           </main>
 
-          {showContext && (
-            <aside className="context-panel">
-              <button className="panel-resize-handle panel-resize-handle-right" onPointerDown={(e) => startPanelResize('right', e)} aria-label={t('Resize workspace panel')} />
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <h2 className="truncate font-display text-lg font-semibold tracking-[-0.03em] text-[#1b241f]">{activeConversation?.title ?? t('New conversation')}</h2>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button className="icon-button context-collapse" onClick={() => setContextOpen(false)} aria-label={t('Collapse workspace')}>
-                    <ChevronRight size={17} />
-                  </button>
-                  <button className="icon-button" aria-label={t('Settings')} onClick={() => setSettingsOpen('general')}>
-                    <MoreHorizontal size={18} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="context-card mt-7">
-                <div className="flex items-center gap-2 text-xs font-semibold">
-                  <Sparkles size={15} className="text-[#59734b]" />
-                  {t('Active context')}
-                </div>
-                <p className="mt-2 text-xs leading-relaxed text-[#6f7973]">
-                  {[activeSkills.length && t('{n} skills', { n: activeSkills.length }), activeAgents.length && activeAgents.join(', '), webOn && t('web search'), memoryEnabled && memories.length && t('{n} memories', { n: memories.length })]
-                    .filter(Boolean)
-                    .join(' · ') || t('No skills, agents or memories active.')}
-                </p>
-              </div>
-
-              <div className="mt-8">
-                <p className="eyebrow text-[#8a948e]">{t('Project')}</p>
-                <label className="context-select mt-3">
-                  <FolderKanban size={15} />
-                  <select
-                    value={activeConversation?.project_id ?? ''}
-                    onChange={async (e) => {
-                      if (!conversationId) return
-                      await api.updateConversation(conversationId, { project_id: e.target.value || null })
-                      refreshLists()
-                    }}
-                  >
-                    <option value="">{t('No project')}</option>
-                    {projects.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="mt-8">
-                <div className="flex items-center justify-between">
-                  <p className="eyebrow text-[#8a948e]">{t('Sources')}</p>
-                  <button className="text-[11px] font-semibold text-[#537047]" onClick={() => fileInput.current?.click()}>
-                    {t('Add')}
-                  </button>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {conversationSources.length === 0 && <p className="text-[11px] text-[color:var(--neo-faint)]">{t('Attach files or images to use them as context.')}</p>}
-                  {conversationSources.map((s, i) => (
-                    <div className="source-card" key={i}>
-                      <div className={`source-icon ${s.dataUrl ? 'source-icon-blue' : ''}`}>{s.dataUrl ? <ImageIcon size={17} /> : <FileText size={17} />}</div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-semibold text-[#26322b]">{s.name}</p>
-                        <p className="mt-0.5 text-[11px] text-[color:var(--neo-faint)]">{s.text ? t('{n}k characters', { n: Math.round(s.text.length / 1000) }) : s.mime}</p>
-                      </div>
-                      <Check size={14} className="text-[#658256]" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-8 border-t border-[#e4e5df] pt-6">
-                <p className="eyebrow text-[#8a948e]">{t('Details')}</p>
-                <div className="mt-4 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Clock3 size={15} className="text-[#8a948e]" />
-                    <div>
-                      <p className="text-[11px] text-[color:var(--neo-faint)]">{t('Created on')}</p>
-                      <p className="mt-0.5 text-xs font-medium text-[#465149]">{fmtDate(activeConversation?.created_at ?? Date.now(), 'long')}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Bot size={15} className="text-[#8a948e]" />
-                    <div className="min-w-0">
-                      <p className="text-[11px] text-[color:var(--neo-faint)]">{additionalModels.length ? t('Models') : t('Model')}</p>
-                      <p className="mt-0.5 truncate text-xs font-medium text-[#465149]">
-                        {[currentModel?.name, ...additionalModels.map((k) => models.find((m) => m.key === k)?.name)].filter(Boolean).join(', ') || '—'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <MessageSquareText size={15} className="text-[#8a948e]" />
-                    <div>
-                      <p className="text-[11px] text-[color:var(--neo-faint)]">{t('Messages')}</p>
-                      <p className="mt-0.5 text-xs font-medium text-[#465149]">{messages.length}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </aside>
-          )}
         </>
       )}
 
@@ -2678,25 +2544,136 @@ export default function App() {
     </div>
     </div>
     {/* The terminal opens from the Terminal menu or Ctrl+`; it moves into the session panel (plan step A3). */}
-    {!isPage(activeNav) && messages.length > 0 && !temporaryChat && !contextOpen && (
-      <button className="grip grip-workspace" onPointerDown={startWorkspaceGrip} title={t('Pull to open the workspace panel (Ctrl+Alt+B)')} aria-label={t('Open the workspace panel')}>
-        <i />
-        <i />
-      </button>
-    )}
-    {termMounted && (
-      <div className="term-dock" style={{ display: termOpen ? 'block' : 'none' }}>
-        <Suspense fallback={null}>
-        <TerminalPanel
-          ref={terminalRef}
-          height={termMax ? Math.max(200, window.innerHeight - 140) : termHeight}
-          setHeight={setTermHeight}
-          maximized={termMax}
-          setMaximized={setTermMax}
-          onClose={() => setTermOpen(false)}
-        />
-        </Suspense>
-      </div>
+    {sessionOpen && (
+      <SessionPanel
+        tab={sessionTab}
+        onTab={(x) => {
+          if (x === 'terminal') setTermMounted(true)
+          setSessionTab(x)
+        }}
+        width={sessionWidth}
+        onWidth={setSessionWidth}
+        onClose={() => setSessionOpen(false)}
+        badges={{ outputs: conversationOutputs.length }}
+        context={
+          <div className="session-context">
+            <h2 className="session-title truncate">{activeConversation?.title ?? t('New conversation')}</h2>
+            <div className="context-card">
+              <div className="flex items-center gap-2 text-xs font-semibold">
+                <Sparkles size={15} className="text-[#59734b]" />
+                {t('Active context')}
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-[#6f7973]">
+                {[activeSkills.length && t('{n} skills', { n: activeSkills.length }), activeAgents.length && activeAgents.join(', '), webOn && t('web search'), memoryEnabled && memories.length && t('{n} memories', { n: memories.length })]
+                  .filter(Boolean)
+                  .join(' · ') || t('No skills, agents or memories active.')}
+              </p>
+            </div>
+
+            <div className="mt-8">
+              <p className="eyebrow text-[#8a948e]">{t('Project')}</p>
+              <label className="context-select mt-3">
+                <FolderKanban size={15} />
+                <select
+                  value={activeConversation?.project_id ?? ''}
+                  onChange={async (e) => {
+                    if (!conversationId) return
+                    await api.updateConversation(conversationId, { project_id: e.target.value || null })
+                    refreshLists()
+                  }}
+                >
+                  <option value="">{t('No project')}</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-8">
+              <div className="flex items-center justify-between">
+                <p className="eyebrow text-[#8a948e]">{t('Sources')}</p>
+                <button className="text-[11px] font-semibold text-[#537047]" onClick={() => fileInput.current?.click()}>
+                  {t('Add')}
+                </button>
+              </div>
+              <div className="mt-3 space-y-2">
+                {conversationSources.length === 0 && <p className="text-[11px] text-[color:var(--neo-faint)]">{t('Attach files or images to use them as context.')}</p>}
+                {conversationSources.map((s, i) => (
+                  <div className="source-card" key={i}>
+                    <div className={`source-icon ${s.dataUrl ? 'source-icon-blue' : ''}`}>{s.dataUrl ? <ImageIcon size={17} /> : <FileText size={17} />}</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold text-[#26322b]">{s.name}</p>
+                      <p className="mt-0.5 text-[11px] text-[color:var(--neo-faint)]">{s.text ? t('{n}k characters', { n: Math.round(s.text.length / 1000) }) : s.mime}</p>
+                    </div>
+                    <Check size={14} className="text-[#658256]" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-8 border-t border-[#e4e5df] pt-6">
+              <p className="eyebrow text-[#8a948e]">{t('Details')}</p>
+              <div className="mt-4 space-y-4">
+                <div className="flex items-center gap-3">
+                  <Clock3 size={15} className="text-[#8a948e]" />
+                  <div>
+                    <p className="text-[11px] text-[color:var(--neo-faint)]">{t('Created on')}</p>
+                    <p className="mt-0.5 text-xs font-medium text-[#465149]">{fmtDate(activeConversation?.created_at ?? Date.now(), 'long')}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Bot size={15} className="text-[#8a948e]" />
+                  <div className="min-w-0">
+                    <p className="text-[11px] text-[color:var(--neo-faint)]">{additionalModels.length ? t('Models') : t('Model')}</p>
+                    <p className="mt-0.5 truncate text-xs font-medium text-[#465149]">
+                      {[currentModel?.name, ...additionalModels.map((k) => models.find((m) => m.key === k)?.name)].filter(Boolean).join(', ') || '—'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <MessageSquareText size={15} className="text-[#8a948e]" />
+                  <div>
+                    <p className="text-[11px] text-[color:var(--neo-faint)]">{t('Messages')}</p>
+                    <p className="mt-0.5 text-xs font-medium text-[#465149]">{messages.length}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+        terminal={
+          termMounted && (
+            <Suspense fallback={null}>
+              <TerminalPanel
+                ref={terminalRef}
+                embedded
+                height={termHeight}
+                setHeight={setTermHeight}
+                maximized={termMax}
+                setMaximized={setTermMax}
+                onClose={() => setSessionTab('context')}
+              />
+            </Suspense>
+          )
+        }
+        outputs={
+          conversationOutputs.length === 0 ? (
+            <p className="session-empty">{t('Images, videos and audio made in this conversation show up here.')}</p>
+          ) : (
+            <div className="session-outputs">
+              {conversationOutputs.map((m) => (
+                <button key={m.id} className="session-output" onClick={() => toggleNavigation('media')} title={m.prompt || m.name}>
+                  {m.kind === 'image' ? <img src={m.url} alt={m.name} loading="lazy" /> : m.kind === 'video' ? <video src={m.url} muted preload="metadata" /> : <span className="session-output-icon"><Music size={18} /></span>}
+                  <small className="truncate">{m.prompt || m.name}</small>
+                </button>
+              ))}
+            </div>
+          )
+        }
+      />
     )}
     {palette && (
       <CommandPalette

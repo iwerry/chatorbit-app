@@ -2,6 +2,17 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 12/11: passo A3 — Session flutuante
+
+- `SessionPanel.tsx`: cartão flutuante à direita (fixo, 12px das bordas, cantos de 18px), largura de 320 a 720px pelo canto esquerdo (também pelas setas do teclado), com três abas:
+  - **Context:** o conteúdo do antigo painel da direita (contexto ativo, projeto, fontes, detalhes), com cores que seguem o tema.
+  - **Terminal:** o `TerminalPanel` no modo `embedded` (sem puxador nem maximizar). Fica sempre montado, então os terminais continuam rodando nas outras abas.
+  - **Outputs:** mídias geradas na conversa (ids do `encodeChatMedia`), com contador.
+- Botão de Session na barra do topo, ao lado do chat temporário, mais Ctrl+Alt+B. Ctrl+` e "Run in terminal" abrem a aba Terminal.
+- Estado (aberta, aba, largura) salvo em `settings.session`. Em chats a Session ocupa coluna própria (`main-context-open` com `--context-panel-size`); nas páginas (Creative, Audio…) ela flutua.
+- Removidos: o painel de contexto que abria sozinho, o botão "Workspace", os puxadores do workspace e do terminal, e o terminal no rodapé.
+- Bug de terminal corrigido: com a Session oculta, o `ResizeObserver` encolhia o terminal para ~11 colunas e o PowerShell redesenhava espremido. Agora o ajuste de tamanho é ignorado enquanto o terminal não está visível.
+
 ## 11/11: passo A2 — barra de contexto no composer
 
 - `ContextBar` em `ComposerKit.tsx`, abaixo do composer no modo Chat e alinhada com ele (700px). Três botões:

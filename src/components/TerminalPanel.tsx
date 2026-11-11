@@ -91,6 +91,9 @@ function TermView({ session, active, onExit }: { session: Session; active: boole
     })
     api.termCreate({ id: session.id, cols: term.cols, rows: term.rows }).catch((e) => term.write(`\x1b[31m${String(e.message || e)}\x1b[0m\r\n`))
     const ro = new ResizeObserver(() => {
+      // Hidden (another Session tab, or the Session closed): keep the size, or the shell would reflow to a few columns.
+      const box = host.current?.getBoundingClientRect()
+      if (!box || box.width < 40 || box.height < 40) return
       try {
         f.fit()
         api.termResize(session.id, term.cols, term.rows)
@@ -111,6 +114,8 @@ function TermView({ session, active, onExit }: { session: Session; active: boole
   useEffect(() => {
     if (active) {
       requestAnimationFrame(() => {
+        const box = host.current?.getBoundingClientRect()
+        if (!box || box.width < 40 || box.height < 40) return
         try {
           fit.current?.fit()
           if (xterm.current) api.termResize(session.id, xterm.current.cols, xterm.current.rows)
@@ -125,8 +130,8 @@ function TermView({ session, active, onExit }: { session: Session; active: boole
   return <div ref={host} className="term-host" style={{ display: active ? 'block' : 'none' }} />
 }
 
-export const TerminalPanel = forwardRef<TerminalHandle, { height: number; setHeight: (h: number) => void; onClose: () => void; maximized: boolean; setMaximized: (v: boolean) => void }>(
-  function TerminalPanel({ height, setHeight, onClose, maximized, setMaximized }, ref) {
+export const TerminalPanel = forwardRef<TerminalHandle, { height: number; setHeight: (h: number) => void; onClose: () => void; maximized: boolean; setMaximized: (v: boolean) => void; embedded?: boolean }>(
+  function TerminalPanel({ height, setHeight, onClose, maximized, setMaximized, embedded }, ref) {
     const [sessions, setSessions] = useState<Session[]>([])
     const [active, setActive] = useState<string | null>(null)
     const [shellName, setShellName] = useState('shell')
@@ -195,8 +200,9 @@ export const TerminalPanel = forwardRef<TerminalHandle, { height: number; setHei
     }
 
     return (
-      <section className="terminal-panel" style={{ height }}>
-        <div className="term-resize" onPointerDown={startResize} />
+      // Inside the Session the panel fills its tab; docked at the bottom it has its own height and grip.
+      <section className={`terminal-panel ${embedded ? 'terminal-embedded' : ''}`} style={embedded ? undefined : { height }}>
+        {!embedded && <div className="term-resize" onPointerDown={startResize} />}
         <header className="term-header">
           <div className="term-tabs-left">
             <span className="term-title">{t('Terminal')}</span>
@@ -231,12 +237,16 @@ export const TerminalPanel = forwardRef<TerminalHandle, { height: number; setHei
             <button onClick={() => active && kill(active)} title={t('Kill terminal')}>
               <Trash2 size={14} />
             </button>
-            <button onClick={() => setMaximized(!maximized)} title={maximized ? 'Restore panel' : 'Maximize panel'}>
-              {maximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-            </button>
-            <button onClick={onClose} title={t('Hide panel (Ctrl+`)')}>
-              <X size={15} />
-            </button>
+            {!embedded && (
+              <>
+                <button onClick={() => setMaximized(!maximized)} title={maximized ? 'Restore panel' : 'Maximize panel'}>
+                  {maximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                </button>
+                <button onClick={onClose} title={t('Hide panel (Ctrl+`)')}>
+                  <X size={15} />
+                </button>
+              </>
+            )}
           </div>
         </header>
         <div className="term-body">
