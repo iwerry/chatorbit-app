@@ -6,14 +6,18 @@ if ($LASTEXITCODE -ne 0) { throw 'Entre no GitHub com gh auth login antes de con
 $signingDirectory = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'OrbiBuildKeys'
 $signingFile = Join-Path $signingDirectory 'updater.key'
 $publicFile = "$signingFile.pub"
+# A missing variable (first setup) answers 404; Windows PowerShell 5.1 would turn that stderr into a fatal error.
+$ErrorActionPreference = 'Continue'
 $remoteKey = & gh api "repos/$Repository/actions/variables/TAURI_UPDATER_PUBLIC_KEY" --jq '.value' 2>$null
+if ($LASTEXITCODE -ne 0) { $remoteKey = $null }
+$ErrorActionPreference = 'Stop'
 if (-not (Test-Path -LiteralPath $signingFile)) {
   if ($remoteKey) { throw 'Ja existe uma chave publica no GitHub. Recupere o backup da chave privada; nao gere outra chave para substituir os usuarios existentes.' }
   New-Item -ItemType Directory -Force -Path $signingDirectory | Out-Null
   $account = [Security.Principal.WindowsIdentity]::GetCurrent().Name
   & icacls.exe $signingDirectory '/inheritance:r' '/grant:r' ("{0}:(OI)(CI)F" -f $account) | Out-Null
   if ($LASTEXITCODE -ne 0) { throw 'Nao foi possivel proteger a pasta de assinatura.' }
-  & pnpm dlx '@tauri-apps/cli@2' signer generate --ci --write-keys $signingFile | Out-Null
+  & pnpm --package '@tauri-apps/cli@2' dlx tauri signer generate --ci --write-keys $signingFile | Out-Null
   if ($LASTEXITCODE -ne 0) { throw 'Falha ao gerar a chave de assinatura.' }
 }
 if (-not (Test-Path -LiteralPath $publicFile)) { throw 'O arquivo publico da chave nao foi encontrado.' }
