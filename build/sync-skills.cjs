@@ -1,4 +1,5 @@
-// Builds electron/library-github.json from the skill repositories listed in build/skill-sources.json.
+// Builds src-tauri/resources/library-github.json from the skill repositories listed in build/skill-sources.json
+// and merges those skills and agents into src-tauri/resources/library.json, which the app bundles.
 // Usage: node build/sync-skills.cjs <folder with the repos cloned as owner_name>
 //
 // Each skill gets a 1–5 star score from signals anyone can check in its repository:
@@ -203,7 +204,29 @@ const links = cfg.links.map((l) => {
 })
 const directories = cfg.directories.map((d) => ({ ...d, source: `https://github.com/${d.repo}` }))
 
-fs.writeFileSync(path.join(__dirname, '..', 'electron', 'library-github.json'), JSON.stringify({ skills, agents, links, directories }, null, 1) + '\n')
+const RES = path.join(__dirname, '..', 'src-tauri', 'resources')
+const ghFile = path.join(RES, 'library-github.json')
+const previous = fs.existsSync(ghFile) ? JSON.parse(fs.readFileSync(ghFile, 'utf8')) : { skills: [], agents: [] }
+fs.writeFileSync(ghFile, JSON.stringify({ skills, agents, links, directories }, null, 1) + '\n')
+// Merge into the bundled library: drop what the last sync added, then add this sync's skills and agents.
+const PLATFORMS = [
+  ['Instagram', /instagram|reels?\b|carousel|stories|story writer/i],
+  ['TikTok', /tiktok|short-form|shorts/i],
+  ['YouTube', /youtube|shorts|thumbnail|long-form/i],
+  ['LinkedIn', /linkedin|carousel/i],
+  ['Facebook', /facebook/i],
+  ['Threads', /threads/i],
+  ['X', /\bx growth|twitter|\bx\/|thread opener/i],
+]
+const libFile = path.join(RES, 'library.json')
+const lib = JSON.parse(fs.readFileSync(libFile, 'utf8'))
+const oldSkills = new Set(previous.skills.map((s) => s.id))
+const oldAgents = new Set(previous.agents.map((a) => a.id))
+lib.skills = [...lib.skills.filter((s) => !oldSkills.has(s.id)), ...skills.map((k) => ({ ...k, platforms: k.profession === 'social' ? PLATFORMS.filter(([, re]) => re.test(k.name + ' ' + k.description)).map(([n]) => n) : [] }))]
+lib.agents = [...lib.agents.filter((a) => !oldAgents.has(a.id)), ...agents.map((a) => ({ ...a, category: lib.professions.find((p) => p.id === a.profession)?.name || 'General' }))]
+lib.links = links
+lib.directories = directories
+fs.writeFileSync(libFile, JSON.stringify(lib))
 const by = {}
 for (const s of skills) (by[s.profession] ||= []).push(s)
 for (const [p, list] of Object.entries(by)) console.log(p.padEnd(12), list.length, list.map((s) => `${s.rating}★ ${s.name}`).join(' · '))
@@ -219,4 +242,4 @@ for (const repo of [...new Set([...cfg.skills, ...(cfg.agents || [])].map((s) =>
   notice.push(`## ${repo}`, '', `https://github.com/${repo}`, '')
   for (const f of files) notice.push('```', fs.readFileSync(f, 'utf8').trim().slice(0, 12000), '```', '')
 }
-fs.writeFileSync(path.join(__dirname, '..', 'electron', 'THIRD_PARTY_SKILLS.md'), notice.join('\n') + '\n')
+fs.writeFileSync(path.join(RES, 'THIRD_PARTY_SKILLS.md'), notice.join('\n') + '\n')

@@ -14,11 +14,15 @@ test('native channel requires every signed platform and preserves matching URLs'
     collect(linux,path.join(root,'out','linux'),'x86_64-unknown-linux-gnu')
     assert.throws(()=>merge(path.join(root,'out'),path.join(root,'latest.json')),/Missing signed target/)
     for(const arch of ['x86_64','aarch64']){const dir=path.join(root,arch);fs.mkdirSync(dir);fs.writeFileSync(path.join(dir,'Orbi.app.tar.gz'),'test');fs.writeFileSync(path.join(dir,'Orbi.app.tar.gz.sig'),'test-signature');collect(dir,path.join(root,'out',arch),`${arch}-apple-darwin`)}
+    // macOS and Linux alone are not enough: Windows is a required signed target too.
+    assert.throws(()=>merge(path.join(root,'out'),path.join(root,'latest.json')),/windows-x86_64/)
+    const win=path.join(root,'windows');fs.mkdirSync(win);fs.writeFileSync(path.join(win,'Orbi_x64-setup.exe'),'test');fs.writeFileSync(path.join(win,'Orbi_x64-setup.exe.sig'),'test-signature');collect(win,path.join(root,'out','windows'),'x86_64-pc-windows-msvc')
     merge(path.join(root,'out'),path.join(root,'latest.json'))
     const manifest=JSON.parse(fs.readFileSync(path.join(root,'latest.json'),'utf8'))
     assert.equal(manifest.version,version)
     assert.notEqual(manifest.platforms['darwin-aarch64'].url,manifest.platforms['darwin-x86_64'].url)
     assert.match(manifest.platforms['linux-x86_64-deb'].url,/native-v/)
+    assert.match(manifest.platforms['windows-x86_64'].url,/setup\.exe$/)
     const fragment=path.join(root,'out','linux','fragment-x86_64-unknown-linux-gnu.json');const data=JSON.parse(fs.readFileSync(fragment));data.version='9.9.9';fs.writeFileSync(fragment,JSON.stringify(data));assert.throws(()=>merge(path.join(root,'out'),path.join(root,'latest.json')),/mixed native versions/)
   } finally {cleanup(root)}
 })

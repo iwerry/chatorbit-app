@@ -6,60 +6,11 @@
   "author": "Draft Creative Studio Ltda",
   "private": true,
   "type": "module",
-  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "electron": "electron .",
-    "pack:win": "electron-builder --win --x64 --dir",
-    "dist:win": "node build/stamp.cjs && vite build && electron-builder --win --x64 --dir && node build/win-finish.cjs"
-  },
-  "build": {
-    "appId": "com.orbix.orbi",
-    "productName": "Orbi",
-    "files": [
-      "dist/**",
-      "electron/**",
-      "package.json",
-      "!**/node_modules/@lydell/**"
-    ],
-    "asar": true,
-    "win": {
-      "target": [
-        "dir"
-      ],
-      "signAndEditExecutable": false
-    },
-    "directories": {
-      "output": "release"
-    },
-    "extraResources": [
-      {
-        "from": "build/pty/win32-x64",
-        "to": "pty/win32-x64",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
-    "asarUnpack": [
-      "node_modules/**"
-    ]
-  },
-  "dependencies": {
-    "@lydell/node-pty": "1.2.0-beta.18",
-    "@modelcontextprotocol/sdk": "^1.32.2",
-    "@modelcontextprotocol/server-filesystem": "^2.0.1",
-    "@modelcontextprotocol/server-memory": "^2.0.0",
-    "@modelcontextprotocol/server-sequential-thinking": "^2.0.0",
-    "@playwright/mcp": "^0.0.83",
-    "fflate": "^0.8.3",
-    "sql.js": "^1.15.1",
-    "tar": "^7.5.22",
-    "unbzip2-stream": "1.4.3"
+    "build": "tsc --noEmit && vite build"
   },
   "devDependencies": {
-    "@electron/asar": "3.4.1",
     "@fontsource/dm-sans": "^5.3.0",
     "@fontsource/manrope": "^5.3.0",
     "@tailwindcss/vite": "^4.3.3",
@@ -69,14 +20,11 @@
     "@vitejs/plugin-react": "^6.1.2",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "electron": "^38.8.6",
-    "electron-builder": "^26.18.0",
     "lucide-react": "^1.61.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "resedit": "^3.1.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3",
     "vite": "^8.3.5"

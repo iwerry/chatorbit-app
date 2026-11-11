@@ -2,6 +2,18 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 11/11: Electron removido do repositório
+
+- Apagados:
+  - a pasta `electron/`;
+  - `build/installer.nsi`, `stamp.cjs`, `ui-pack.cjs` e `win-finish.cjs`;
+  - `.github/workflows/release.yml`;
+  - `tests/skill-runtime.cjs`.
+- `package.json` sem `main`, sem os scripts e a configuração do electron-builder, e sem as dependências do Electron (todas as dependências de runtime eram só dele; o Tauri roda os MCP por `npx`).
+- `native-release.yml` é o único pipeline: publica sempre a release estável do Windows e falha se a assinatura faltar. A variável `ORBI_WINDOWS_NATIVE` não é mais lida.
+- Skills: `library-github.json` e `THIRD_PARTY_SKILLS.md` agora ficam em `src-tauri/resources/`. O `sync-skills.cjs` mescla direto no `library.json` (testado: a mescla com os dados atuais reproduz o arquivo com 0 diferenças).
+- O `legacy.rs` continua importando `%APPDATA%\Orbi` para quem vem do Electron.
+
 ## 11/11: 0.2.11-2 — sem IA local (100% Orbi Cloud)
 
 - Removidos:

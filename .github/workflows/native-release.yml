@@ -19,18 +19,14 @@ jobs:
         env:
           PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           PUBLIC_KEY: ${{ vars.TAURI_UPDATER_PUBLIC_KEY }}
-          WINDOWS_NATIVE: ${{ vars.ORBI_WINDOWS_NATIVE }}
         run: |
           if [ -n "$PRIVATE_KEY" ] && [ -n "$PUBLIC_KEY" ]; then
             echo 'ready=true' >> "$GITHUB_OUTPUT"
-          elif [ "$WINDOWS_NATIVE" = 'true' ]; then
-            # With the Windows switch on, release.yml stands down: without signing there would be no release at all.
-            echo '### ORBI_WINDOWS_NATIVE is on but signing is not configured: no Windows release can be published.' >> "$GITHUB_STEP_SUMMARY"
-            exit 1
           else
-            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            # This is the only release pipeline: without signing nothing can be published, so fail visibly.
             echo '### Signing setup required' >> "$GITHUB_STEP_SUMMARY"
             echo 'Configure TAURI_SIGNING_PRIVATE_KEY (Secret) and TAURI_UPDATER_PUBLIC_KEY (Variable). Use build/configure-native-updates.ps1. No unsigned update will be published.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
   build:
     needs: configuration
@@ -106,12 +102,10 @@ jobs:
           gh release upload "native-v$V" release-native/*.* --clobber
           gh release view native-channel >/dev/null 2>&1 || gh release create native-channel --prerelease --latest=false --target "$GITHUB_SHA" --title 'Orbi native update channel' --notes 'Signed native update manifest. Windows Electron uses the stable release channel.'
           gh release upload native-channel latest.json --clobber
-      # Windows transition switch (repository variable ORBI_WINDOWS_NATIVE=true): the stable release gets the
-      # Tauri installer under the name Electron's updater downloads (Orbi-Setup-<version>.exe, run with /UPDATE).
-      # Its installer hooks remove the Electron install; the app imports %APPDATA%\Orbi on first launch.
-      # No orbi-ui pack is published, so Electron always takes the full installer. release.yml stands down.
-      - name: Publish the Windows stable release from the Tauri build
-        if: vars.ORBI_WINDOWS_NATIVE == 'true'
+      # The stable release carries the Windows installer as Orbi-Setup-<version>.exe: the name older Electron
+      # installs still look for, so they move to this app (the installer hooks remove Electron; the app imports
+      # %APPDATA%\Orbi on first launch).
+      - name: Publish the Windows stable release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

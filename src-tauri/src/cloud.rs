@@ -8,7 +8,7 @@ struct Session {
     access: String,
     expires: u64,
 }
-// Same wording as electron/cloud.cjs, so the frontend translations apply to both apps.
+// Error wording kept from the old Electron app, so the existing front-end translations still apply.
 fn auth_message(raw: String) -> String {
     match raw.as_str() {
         "Invalid login credentials" => "Wrong email or password.",

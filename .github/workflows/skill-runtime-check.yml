@@ -2,7 +2,7 @@ name: Skill runtime checks
 on:
   push:
     branches: [main, codex/tauri-rust]
-    paths: ['electron/**', 'src/**', 'tests/**', '.github/workflows/skill-runtime-check.yml']
+    paths: ['src/**', 'tests/**', '.github/workflows/skill-runtime-check.yml']
   pull_request:
   workflow_dispatch:
 permissions:
@@ -19,4 +19,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: node --test tests/skill-runtime.cjs tests/skill-runtime-frontend.mjs tests/native-manifest.cjs
+      - run: node --test tests/skill-runtime-frontend.mjs tests/native-manifest.cjs
