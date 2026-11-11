@@ -2,6 +2,18 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 10/11: 0.2.10-2 — Creative › Node (branch `claude/node-canvas`)
+
+- `NodeFlow.tsx`:
+  - Barra flutuante `.flow-rail` com menus (`FlyItem`). Anotações (`Mark`: texto, retângulo, elipse, linha, seta e lápis) salvas em `marks` no workflow. Atalhos V/H/T/M/L/P/\/N.
+  - Soltar e enviar arquivos com `importFiles` (`api.importMedia`), que cria nós `load`, `loadvideo` e `loadaudio`.
+  - Nós novos: `vector` (Recraft `-vector`, SVG), `recompose` (prompt do workflow `graphic_design_recomposer`), `extend` (`lastFrame()` do vídeo vira `frameImage`), `music` e `sfx` (`lib/audioPrompt.ts`, compartilhado com o Estúdio de Áudio).
+  - Inpaint na nuvem: a máscara vai como 2ª referência. Negativo liga/desliga (`negOff`). Vídeo usa `spec.durations`, `spec.resolutions` e `spec.audio`.
+  - `fit()` lê as refs (antes os nós ficavam fora da tela depois de carregar um template).
+- Rust `media.rs`: `image/svg+xml` → `.svg`.
+- Não existem no OpenRouter e ficaram de fora: Mirelo, Sonilo, 3D, lip sync (VEED), Bria (fundo e green screen), Beeble SwitchX, Topaz e separação de camadas. Clonagem de voz e último quadro de vídeo existem no OpenRouter, mas exigem mudança no Electron e no Rust (o app só repassa campos fixos), então ficam para a versão Tauri.
+- Testado no Tauri isolado: barra, formas, lápis, texto, templates e nó Vetor gerando SVG real (375 créditos no Pro; o padrão agora é o não Pro). Impeccable sem anti-padrões.
+
 ## 10/11: 0.2.10-1 — controles de áudio (publicada, atualização rápida)
 
 - `AudioStudio.tsx`: grade de vozes com busca e ▶ (prévia "Hi! This is <voz>…", cerca de 4 s); interpretação (`⟦style: …⟧` no início do texto) nos modelos com `instructions` (Gemini TTS, Fish); música com estilo, clima, BPM, duração (Pro), vocal, idioma e marcadores de estrutura; efeitos com duração, intensidade, ambiente e loop. Tudo vira direções no prompt (o Lyria e o Seed Audio leem do texto).

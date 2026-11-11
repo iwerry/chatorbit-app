@@ -49,6 +49,7 @@ fn extension(mime: &str) -> &'static str {
         "image/jpeg" => "jpg",
         "image/webp" => "webp",
         "image/gif" => "gif",
+        "image/svg+xml" => "svg",
         "video/mp4" => "mp4",
         "video/webm" => "webm",
         "audio/mpeg" => "mp3",

@@ -1,4 +1,25 @@
-## Orbi 0.2.10-1
+## Orbi 0.2.10-2
+
+- **Creative › Node (antes "Workflows"):** canvas livre no espírito do ComfyUI e do Firefly Boards.
+  - Barra de ferramentas flutuante à esquerda, que fica no lugar mesmo com zoom: selecionar e mão (V/H), adicionar nó (N), templates, texto (T), formas (retângulo, elipse, linha e seta), lápis com espessuras e cores, e mídia.
+  - Anote ideias, desenhe e ligue pensamentos no próprio canvas; tudo fica salvo com o workflow.
+  - Solte fotos, vídeos ou áudios no canvas: eles entram na biblioteca e viram um nó.
+- **Nós novos, cada um com o modelo certo do Orbi Cloud:**
+  - Carregar vídeo e carregar áudio, com busca na biblioteca e envio de arquivo.
+  - Vetor (Recraft), salvo como SVG.
+  - Recompor formato: adapta um design a outra proporção sem esticar.
+  - Estender vídeo: continua um clipe a partir do último quadro (Seedance, Kling, Veo, Wan).
+  - Música (Lyria), com estilo, clima, BPM, vocal, idioma e letra.
+  - Efeito sonoro (Seed Audio), com duração, intensidade, ambiente e loop.
+- **Nós existentes:**
+  - Locução com ▶ para ouvir a voz e com interpretação.
+  - Inpaint funcionando na nuvem (a máscara vai para o modelo de edição).
+  - Vídeo com as durações, resoluções e o som que cada modelo aceita.
+  - Imagem com resolução.
+  - Liga e desliga do prompt negativo em cada nó.
+- **Templates novos:** ampliar foto para 4K, recompor design, logo em vetor, estender vídeo e trilha com música, efeito e locução.
+
+## Orbi 0.2.10-1 (previous)
 
 - **Vozes com prévia:** cada modelo de voz mostra todas as vozes em uma grade, com busca. Aperte ▶ para ouvir uma amostra curta em inglês antes de escolher. As amostras são grátis.
 - **Interpretação da voz:** nos modelos que aceitam (Gemini TTS, Fish Audio), escreva o tom, o ritmo e a emoção, ou use os atalhos: acolhedora, animada, narração calma, sussurrando, jornal e devagar e clara. Nos outros, as indicações vão no próprio texto, como [whispering].

@@ -592,7 +592,7 @@ export function CreativeStudio({
   const tabs: { id: Tab; label: string; icon: typeof Rocket }[] = [
     { id: 'launchpad', label: 'Launchpad', icon: Rocket },
     { id: 'canvas', label: 'Canvas', icon: LayoutGrid },
-    { id: 'workflows', label: 'Workflows', icon: Workflow },
+    { id: 'workflows', label: 'Node', icon: Workflow },
     { id: 'gallery', label: 'Gallery', icon: Images },
   ]
   const localImage = options.filter((o) => o.local && o.kind === 'image').length

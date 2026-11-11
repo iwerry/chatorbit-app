@@ -9,6 +9,7 @@ import { fmtDate, t } from '../lib/i18n'
 import { audioItems } from '../lib/menuItems'
 import { CostChip, ModelSelect, type MenuItem } from './ModelMenu'
 import { AutoTextarea } from './AutoTextarea'
+import { GENRES, INTENSITY, LANGUAGES, MOODS, SECTIONS, SPACES, STYLES, VOCALS, musicPrompt, sampleCache as samples, sampleText, sfxPrompt, takesStyle, withStyle } from '../lib/audioPrompt'
 
 type Tab = 'voice' | 'music' | 'sfx'
 
@@ -22,25 +23,7 @@ const MUSIC_IDEAS = [
 const SFX_IDEAS = ['Heavy rain on a tin roof with distant thunder', 'Old wooden door creaking open slowly', 'Sci-fi spaceship engine powering up', 'Crowd cheering in a stadium after a goal', 'Notification chime, soft and friendly, short']
 const VOICE_IDEAS = ['Bem-vindo ao Orbi. Aqui você cria imagens, vídeos e áudio com os melhores modelos de IA, em um só lugar.', 'Introducing the new Orbi watch: calm design, all-day battery, and the details that matter.']
 
-// Voice previews: the server recognises exactly this sentence (supabase/functions/orbi/openrouter.ts sampleText),
-// makes it once per voice and serves it free to everyone.
-const sampleText = (voice: string) => `Hi! This is ${voice.replace(/:.*$/, '').replace(/^English_/, '').replace(/[_-]+/g, ' ')}, one of the voices you can use in Orbi.`
-const samples = new Map<string, string>()
-// Models that follow spoken delivery directions (OpenRouter `instructions`); others read [tags] inside the text.
-const takesStyle = (id = '') => /^google\/.*tts|^fish-audio\/|^openai\/.*tts/.test(id)
-const STYLES = ['Warm and friendly', 'Excited and upbeat', 'Calm narrator', 'Whispering', 'Serious news anchor', 'Slow and clear']
-
-// Music and sound-effect settings become plain directions in the prompt: Lyria and Seed Audio read them from the text.
-const GENRES = ['Pop', 'Rock', 'Hip hop', 'Lo-fi', 'Electronic', 'Bossa nova', 'Samba', 'Sertanejo', 'Funk', 'Jazz', 'Classical', 'Cinematic', 'Ambient', 'R&B', 'Reggae']
-const MOODS = ['Happy', 'Calm', 'Epic', 'Dark', 'Romantic', 'Energetic', 'Melancholic', 'Mysterious']
-const VOCALS = ['Instrumental', 'Female vocals', 'Male vocals', 'Duet', 'Choir'] as const
-const LANGUAGES = ['Any language', 'Portuguese', 'English', 'Spanish', 'French'] as const
-const SECTIONS = ['[Intro]', '[Verse]', '[Pre-chorus]', '[Chorus]', '[Bridge]', '[Outro]']
-const LENGTHS = [0, 60, 120, 180]
-const SPACES = ['Dry studio', 'Small room', 'Large hall', 'Outdoors', 'Underwater', 'Far away']
-const INTENSITY = ['Soft', 'Medium', 'Intense'] as const
-
-function Chips({ options, value, onChange, multi = false }: { options: readonly string[]; value: string[]; onChange: (v: string[]) => void; multi?: boolean }) {
+export function Chips({ options, value, onChange, multi = false }: { options: readonly string[]; value: string[]; onChange: (v: string[]) => void; multi?: boolean }) {
   return (
     <div className="audio-ideas audio-chips">
       {options.map((o) => {
@@ -56,7 +39,7 @@ function Chips({ options, value, onChange, multi = false }: { options: readonly 
 }
 
 // Voices of the chosen model, each with a short preview to hear before choosing.
-function VoicePicker({ model, voices, value, onChange }: { model: string; voices: string[]; value: string; onChange: (v: string) => void }) {
+export function VoicePicker({ model, voices, value, onChange }: { model: string; voices: string[]; value: string; onChange: (v: string) => void }) {
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState('')
   const [playing, setPlaying] = useState('')
@@ -135,7 +118,7 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount, visi
   const [voiceModel, setVoiceModel] = useState('')
   const [voice, setVoice] = useState('')
   const [style, setStyle] = useState('')
-  const [musicPrompt, setMusicPrompt] = useState('')
+  const [musicPromptText, setMusicPrompt] = useState('')
   const [lyrics, setLyrics] = useState('')
   const [genres, setGenres] = useState<string[]>([])
   const [moods, setMoods] = useState<string[]>([])
@@ -144,7 +127,7 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount, visi
   const [language, setLanguage] = useState<string>('Any language')
   const [length, setLength] = useState(0)
   const [musicModel, setMusicModel] = useState('')
-  const [sfxPrompt, setSfxPrompt] = useState('')
+  const [sfxPromptText, setSfxPrompt] = useState('')
   const [sfxSeconds, setSfxSeconds] = useState(5)
   const [sfxLoop, setSfxLoop] = useState(false)
   const [space, setSpace] = useState<string[]>([])
@@ -165,31 +148,8 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount, visi
   const musicItems: MenuItem[] = musicList.map((m) => ({ key: m.id, name: m.name.replace(/^[^:]+:\s*/, ''), sub: `${m.id} · ${m.seconds && m.seconds <= 30 ? t('30-second clip') : t('full song')}`, group: 'Google · Lyria', usd: m.usd, unit: 'song' }))
 
   const fullSong = !!mm && !(mm.seconds && mm.seconds <= 30)
-  const musicText = () => {
-    const sing = vocals !== 'Instrumental'
-    return [
-      musicPrompt.trim(),
-      genres.length ? `Genre: ${genres.join(', ')}.` : '',
-      moods.length ? `Mood: ${moods.join(', ').toLowerCase()}.` : '',
-      bpm ? `Tempo: about ${bpm} BPM.` : '',
-      sing ? `Vocals: ${vocals.toLowerCase()}.` : 'Instrumental only, no vocals.',
-      sing && language !== 'Any language' ? `Sing in ${language}.` : '',
-      fullSong && length ? `Length: about ${length / 60} minute${length > 60 ? 's' : ''}.` : '',
-      sing && lyrics.trim() ? `Lyrics (sing these words; the [tags] mark the song structure):\n${lyrics.trim()}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n')
-  }
-  const sfxText = () =>
-    [
-      `Sound effect only, no speech, no music: ${sfxPrompt.trim()}.`,
-      `About ${sfxSeconds} second${sfxSeconds > 1 ? 's' : ''} long.`,
-      intensity[0] && intensity[0] !== 'Medium' ? `${intensity[0]} intensity.` : '',
-      space[0] ? `Acoustics: ${space[0].toLowerCase()}.` : '',
-      sfxLoop ? 'Seamless loop: no fade in or out, the end joins the start.' : '',
-    ]
-      .filter(Boolean)
-      .join(' ')
+  const musicText = () => musicPrompt({ description: musicPromptText, genres, moods, bpm, vocals, language, length, lyrics, fullSong })
+  const sfxText = () => sfxPrompt({ description: sfxPromptText, seconds: sfxSeconds, intensity: intensity[0] || 'Medium', space: space[0] || '', loop: sfxLoop })
   const insertSection = (tag: string) => {
     const box = lyricsBox.current
     const at = box ? box.selectionStart : lyrics.length
@@ -210,16 +170,16 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount, visi
       if (tab === 'voice') {
         if (!script.trim()) throw new Error(t('Write the text to read.'))
         // The server turns the ⟦style⟧ prefix into the model's delivery instructions.
-        const text = takesStyle(vm?.id) && style.trim() ? `⟦style: ${style.trim().replace(/⟧/g, '')}⟧ ${script.trim()}` : script.trim()
+        const text = withStyle(vm?.id, style, script.trim())
         const item = await api.speech({ text, model: vm?.id, voice: v || undefined, source: 'audio' })
         onMediaCreated(item)
       } else if (tab === 'music') {
-        if (!musicPrompt.trim() && !genres.length) throw new Error(t('Describe the music or pick a genre.'))
+        if (!musicPromptText.trim() && !genres.length) throw new Error(t('Describe the music or pick a genre.'))
         const item = await api.cloudMusic({ model: mm?.id || 'google/lyria-3-clip-preview', prompt: musicText(), source: 'audio' })
         setLastLyrics(item.lyrics || '')
         onMediaCreated(item)
       } else {
-        if (!sfxPrompt.trim()) throw new Error(t('Describe the sound.'))
+        if (!sfxPromptText.trim()) throw new Error(t('Describe the sound.'))
         if (!sm) throw new Error(t('No sound-effect model is available right now.'))
         const item = await api.speech({ text: sfxText(), model: sm.id, voice: sm.voices[0], purpose: 'sfx', source: 'audio' })
         onMediaCreated(item)
@@ -307,7 +267,7 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount, visi
           {tab === 'music' && (
             <>
               <label className="audio-label">{t('Describe the music')}</label>
-              <AutoTextarea className="studio-prompt" rows={5} value={musicPrompt} onChange={(e) => setMusicPrompt(e.target.value)} placeholder={t('Genre, mood, instruments, tempo… e.g. calm lo-fi with soft piano, 80 bpm')} />
+              <AutoTextarea className="studio-prompt" rows={5} value={musicPromptText} onChange={(e) => setMusicPrompt(e.target.value)} placeholder={t('Genre, mood, instruments, tempo… e.g. calm lo-fi with soft piano, 80 bpm')} />
               <div className="audio-ideas">
                 {MUSIC_IDEAS.map((x) => (
                   <button key={x} onClick={() => setMusicPrompt(x)}>
@@ -328,7 +288,7 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount, visi
               {fullSong && (
                 <>
                   <label className="audio-label">{t('Length')}</label>
-                  <Chips options={LENGTHS.map((s) => (s ? `~${s / 60} min` : 'Model decides'))} value={[length ? `~${length / 60} min` : 'Model decides']} onChange={(x) => setLength(x[0] === 'Model decides' || !x[0] ? 0 : Number(x[0].replace(/\D/g, '')) * 60)} />
+                  <Chips options={[0, 60, 120, 180].map((s) => (s ? `~${s / 60} min` : 'Model decides'))} value={[length ? `~${length / 60} min` : 'Model decides']} onChange={(x) => setLength(x[0] === 'Model decides' || !x[0] ? 0 : Number(x[0].replace(/\D/g, '')) * 60)} />
                 </>
               )}
               <label className="audio-label">{t('Vocals')}</label>
@@ -354,7 +314,7 @@ export function AudioStudio({ media, onBack, onMediaCreated, onOpenAccount, visi
           {tab === 'sfx' && (
             <>
               <label className="audio-label">{t('Describe the sound')}</label>
-              <AutoTextarea className="studio-prompt" rows={5} value={sfxPrompt} onChange={(e) => setSfxPrompt(e.target.value)} placeholder={t('e.g. footsteps on gravel, slow, at night')} />
+              <AutoTextarea className="studio-prompt" rows={5} value={sfxPromptText} onChange={(e) => setSfxPrompt(e.target.value)} placeholder={t('e.g. footsteps on gravel, slow, at night')} />
               <div className="audio-ideas">
                 {SFX_IDEAS.map((x) => (
                   <button key={x} onClick={() => setSfxPrompt(x)}>

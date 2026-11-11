@@ -1994,6 +1994,263 @@ html[data-theme='light'] .update-card-head > svg {
 .flow-stage:active {
   cursor: grabbing;
 }
+.flow-stage.tool-text {
+  cursor: text;
+}
+.flow-stage.tool-rect,
+.flow-stage.tool-ellipse,
+.flow-stage.tool-line,
+.flow-stage.tool-arrow,
+.flow-stage.tool-pen {
+  cursor: crosshair;
+}
+
+/* Floating tool rail (stays fixed while the canvas pans and zooms). */
+.flow-rail {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--neo-line);
+  border-radius: 14px;
+  background: var(--neo-surface-solid);
+  padding: 5px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+  cursor: default;
+}
+.flow-rail-btn {
+  position: relative;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 12px;
+  color: var(--neo-muted);
+}
+.flow-rail-btn:hover {
+  background: var(--neo-surface-strong);
+  color: var(--neo-text);
+}
+.flow-rail-btn.active {
+  background: color-mix(in srgb, var(--neo-accent) 18%, var(--neo-surface-strong));
+  color: var(--neo-text);
+}
+/* Small corner tick on tools that open a menu. */
+.flow-rail-btn.more::after {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  content: '';
+  opacity: 0.7;
+}
+.flow-fly {
+  position: absolute;
+  left: 52px;
+  min-width: 200px;
+  border: 1px solid var(--neo-line);
+  border-radius: 14px;
+  background: var(--neo-surface-solid);
+  padding: 6px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.22);
+}
+.flow-fly-wide {
+  min-width: 270px;
+}
+.flow-fly-title {
+  padding: 4px 8px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--neo-text);
+}
+.flow-fly-note {
+  padding: 6px 8px 2px;
+  font-size: 11px;
+  color: var(--neo-faint);
+}
+.flow-fly-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 7px 8px;
+  font-size: 13px;
+  text-align: left;
+  color: var(--neo-text);
+}
+.flow-fly-item:hover {
+  background: var(--neo-surface-strong);
+}
+.flow-fly-check {
+  display: grid;
+  width: 14px;
+  place-items: center;
+  color: var(--neo-accent);
+}
+.flow-fly-item kbd {
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--neo-faint);
+}
+.flow-ink {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.flow-ink-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.flow-ink-row button:not(.flow-ink-dot) {
+  display: grid;
+  width: 34px;
+  height: 30px;
+  place-items: center;
+  border-radius: 8px;
+}
+.flow-ink-row button.active:not(.flow-ink-dot) {
+  background: var(--neo-surface-strong);
+}
+.flow-ink-row button i {
+  display: block;
+  width: 18px;
+  border-radius: 999px;
+  background: var(--neo-text);
+}
+.flow-ink-dot {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--neo-line);
+  border-radius: 999px;
+}
+.flow-ink-dot.active {
+  border-color: var(--neo-text);
+}
+.flow-ink-custom {
+  position: relative;
+  overflow: hidden;
+  background: conic-gradient(#e5484d, #f5a524, #c2ef4e, #3e63dd, #8e4ec6, #e5484d);
+  cursor: pointer;
+}
+.flow-ink-custom input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Annotations drawn on the canvas. */
+.flow-marks {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+}
+.flow-marks.pickable .flow-mark {
+  pointer-events: stroke;
+  cursor: move;
+}
+.flow-mark.selected {
+  filter: drop-shadow(0 0 3px var(--neo-accent));
+}
+.flow-text-mark {
+  position: absolute;
+  min-height: 24px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 4px 6px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: pre-wrap;
+  cursor: move;
+}
+.flow-text-mark.selected {
+  border-color: var(--neo-accent);
+}
+.flow-text-mark textarea {
+  width: 100%;
+  resize: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  outline: none;
+}
+
+/* Node setting chips and small controls. */
+.flow-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.flow-chips-label {
+  width: 100%;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--neo-muted);
+}
+.flow-chips button {
+  border: 1px solid var(--neo-line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--neo-muted);
+}
+.flow-chips button:hover {
+  color: var(--neo-text);
+}
+.flow-chips button.active {
+  border-color: var(--node-color, var(--neo-accent));
+  background: color-mix(in srgb, var(--node-color, var(--neo-accent)) 18%, transparent);
+  color: var(--neo-text);
+}
+.flow-toggle {
+  font-size: 11.5px;
+  color: var(--neo-muted);
+}
+.flow-search {
+  min-width: 0;
+  flex: 1;
+  height: 30px;
+}
+.flow-play {
+  flex: none;
+  padding: 0 9px;
+}
+.flow-audio-list {
+  display: grid;
+  max-height: 150px;
+  gap: 3px;
+  overflow-y: auto;
+}
+.flow-audio-list button {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 5px 7px;
+  font-size: 11.5px;
+  text-align: left;
+  color: var(--neo-muted);
+}
+.flow-audio-list button.active {
+  border-color: var(--node-color);
+  color: var(--neo-text);
+}
+.flow-picker video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .flow-world {
   position: absolute;
   inset: 0;
@@ -2293,7 +2550,7 @@ html[data-theme='light'] .update-card-head > svg {
   position: absolute;
   top: 12px;
   bottom: 12px;
-  left: 12px;
+  left: 68px;
   width: 230px;
   overflow-y: auto;
   border: 1px solid var(--neo-line);
