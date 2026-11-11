@@ -17,7 +17,12 @@ Documento principal de continuidade do projeto. Atualize este arquivo ao encerra
   4. Ligar a variable `ORBI_WINDOWS_NATIVE=true`.
   5. A próxima versão sai como `Orbi-Setup-<v>.exe` Tauri, e o updater do Electron instala por cima com `/UPDATE`.
 - 11/11: assinatura configurada (secret `TAURI_SIGNING_PRIVATE_KEY` e variable `TAURI_UPDATER_PUBLIC_KEY`); chave privada em `%LOCALAPPDATA%OrbiBuildKeysPdater.key`, sem senha. O Daniel precisa guardar um backup.
-- 11/11, à tarde: a 0.2.11-1 foi publicada (o Ubuntu falhou duas vezes por causa do espelho da Azure, resolvido com `build/apt-mirror.sh`). Primeiro build nativo assinado completo em `native-v0.2.11-1`: Windows NSIS, macOS arm e x64, e Linux deb e AppImage, com o `latest.json` incluindo `windows-x86_64`. A chave tinha ido com BOM pelo pipe do PowerShell e foi reenviada pelo redirecionamento. Próximo passo: teste de passagem Electron → Tauri com dados reais (só com OK) e depois `ORBI_WINDOWS_NATIVE=true`.
+- 11/11, à tarde: a 0.2.11-1 foi publicada (o Ubuntu falhou duas vezes por causa do espelho da Azure, resolvido com `build/apt-mirror.sh`). Primeiro build nativo assinado completo em `native-v0.2.11-1`: Windows NSIS, macOS arm e x64, e Linux deb e AppImage, com o `latest.json` incluindo `windows-x86_64`. A chave tinha ido com BOM pelo pipe do PowerShell e foi reenviada pelo redirecionamento. Teste de passagem Electron → Tauri feito na máquina do Daniel em 11/11 e aprovado:
+  - O instalador `-setup.exe /UPDATE` removeu o Electron, instalou o Tauri em `%LOCALAPPDATA%\Orbi` e recriou os atalhos.
+  - A importação trouxe 12 conversas, 131 mensagens, 41 mídias, 3 workflows e 1 projeto, e o login continuou ativo.
+  - Cuidado: o app Claude (MSIX) virtualiza o AppData. Comandos rodados por ele instalam numa pasta privada, então instaladores e chaves devem ser rodados via `explorer.exe` ou ficar no D:.
+  - Backups estão em `D:\OrbiBackups`.
+  - Falta ligar `ORBI_WINDOWS_NATIVE=true`.
 
 ## 11/11: 0.2.11-1 — Enhance prompt e Surprise me com IA
 
