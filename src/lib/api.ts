@@ -340,8 +340,8 @@ export const api = {
   installLibraryAgent: (id: string) => bridge.invoke('library:installAgent', id),
   installKit: (id: string) => bridge.invoke('library:installKit', id),
 
-  termInfo: (): Promise<{ shell: string; platform: string; available: boolean; error: string | null }> => bridge.invoke('term:info'),
-  termCreate: (o: { id: string; cols: number; rows: number; cwd?: string }): Promise<{ pid: number; shell: string; cwd: string }> => bridge.invoke('term:create', o),
+  termInfo: (): Promise<{ shell: string; shells?: { id: string; name: string; path: string }[]; platform: string; available: boolean; error: string | null }> => bridge.invoke('term:info'),
+  termCreate: (o: { id: string; cols: number; rows: number; cwd?: string; shell?: string }): Promise<{ pid: number; shell: string; cwd: string }> => bridge.invoke('term:create', o),
   termWrite: (id: string, data: string) => bridge.invoke('term:write', id, data),
   termResize: (id: string, cols: number, rows: number) => bridge.invoke('term:resize', id, cols, rows),
   termKill: (id: string) => bridge.invoke('term:kill', id),

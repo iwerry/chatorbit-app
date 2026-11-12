@@ -3,11 +3,12 @@ import { t } from '../lib/i18n'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
-import { ChevronDown, Maximize2, Minimize2, Plus, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, Maximize2, Minimize2, Plus, Trash2, X } from 'lucide-react'
 import { api, on, uid } from '../lib/api'
 import { useTaskTerminals } from '../lib/taskTerminal'
 
-type Session = { id: string; shell: string; exited?: boolean }
+type Session = { id: string; shell: string; shellId?: string; exited?: boolean }
+type ShellOption = { id: string; name: string; path: string }
 
 export type TerminalHandle = {
   newTerminal: () => void
@@ -89,7 +90,7 @@ function TermView({ session, active, onExit }: { session: Session; active: boole
       }
       return true
     })
-    api.termCreate({ id: session.id, cols: term.cols, rows: term.rows }).catch((e) => term.write(`\x1b[31m${String(e.message || e)}\x1b[0m\r\n`))
+    api.termCreate({ id: session.id, cols: term.cols, rows: term.rows, shell: session.shellId }).catch((e) => term.write(`\x1b[31m${String(e.message || e)}\x1b[0m\r\n`))
     const ro = new ResizeObserver(() => {
       // Hidden (another Session tab, or the Session closed): keep the size, or the shell would reflow to a few columns.
       const box = host.current?.getBoundingClientRect()
@@ -135,21 +136,48 @@ export const TerminalPanel = forwardRef<TerminalHandle, { height: number; setHei
     const [sessions, setSessions] = useState<Session[]>([])
     const [active, setActive] = useState<string | null>(null)
     const [shellName, setShellName] = useState('shell')
+    const [shells, setShells] = useState<ShellOption[]>([])
+    const [shellId, setShellId] = useState<string | null>(null)
+    const [shellMenu, setShellMenu] = useState(false)
+    const shellMenuRef = useRef<HTMLDivElement>(null)
     const [error, setError] = useState<string | null>(null)
     const jobs = useTaskTerminals()
     const latestJob = jobs.at(-1)?.id
     useEffect(() => { if (latestJob) setActive(latestJob) }, [latestJob])
     const activeJob = jobs.find((job) => job.id === active)
 
-    const newTerminal = () => {
-      const s = { id: uid(), shell: shellName }
+    const newTerminal = (pick?: ShellOption) => {
+      const chosen = pick ?? shells.find((x) => x.id === shellId) ?? shells[0]
+      const s = { id: uid(), shell: chosen?.name ?? shellName, shellId: chosen?.id }
       setSessions((cur) => [...cur, s])
       setActive(s.id)
     }
+    // Picking a shell opens a terminal with it and makes it the default for the + button.
+    const pickShell = (x: ShellOption) => {
+      setShellId(x.id)
+      api.setSetting('terminalShell', x.id)
+      setShellMenu(false)
+      newTerminal(x)
+    }
+    useEffect(() => {
+      if (!shellMenu) return
+      const close = (e: PointerEvent) => !shellMenuRef.current?.contains(e.target as Node) && setShellMenu(false)
+      const key = (e: KeyboardEvent) => e.key === 'Escape' && setShellMenu(false)
+      document.addEventListener('pointerdown', close)
+      document.addEventListener('keydown', key)
+      return () => {
+        document.removeEventListener('pointerdown', close)
+        document.removeEventListener('keydown', key)
+      }
+    }, [shellMenu])
 
     useEffect(() => {
-      api.termInfo().then((i) => {
-        setShellName(i.shell)
+      Promise.all([api.termInfo(), api.getSetting<string | null>('terminalShell', null)]).then(([i, saved]) => {
+        const list = i.shells ?? []
+        setShells(list)
+        const preferred = list.find((x) => x.id === saved) ?? list[0]
+        setShellId(preferred?.id ?? null)
+        setShellName(preferred?.name ?? i.shell)
         if (!i.available) setError(i.error || 'Terminal is not available on this system.')
       })
     }, [])
@@ -228,10 +256,23 @@ export const TerminalPanel = forwardRef<TerminalHandle, { height: number; setHei
             </button>)}
           </div>
           <div className="term-actions">
-            <span className="term-shell">
-              {shellName} <ChevronDown size={12} />
-            </span>
-            <button onClick={newTerminal} title={t('New terminal (Ctrl+Shift+`)')}>
+            <div className="term-shell-wrap" ref={shellMenuRef}>
+              <button className="term-shell" onClick={() => setShellMenu((v) => !v)} aria-haspopup="menu" aria-expanded={shellMenu} title={t('Choose a shell for new terminals')}>
+                {shells.find((x) => x.id === shellId)?.name ?? shellName} <ChevronDown size={12} />
+              </button>
+              {shellMenu && (
+                <div className="term-shell-menu" role="menu" aria-label={t('Open a new terminal with')}>
+                  <p className="term-shell-head">{t('Open a new terminal with')}</p>
+                  {shells.map((x) => (
+                    <button key={x.id} role="menuitemradio" aria-checked={x.id === shellId} className={x.id === shellId ? 'on' : ''} onClick={() => pickShell(x)} title={x.path}>
+                      <span className="term-shell-check">{x.id === shellId && <Check size={12} />}</span>
+                      <span className="term-shell-name">{x.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button onClick={() => newTerminal()} title={t('New terminal (Ctrl+Shift+`)')}>
               <Plus size={15} />
             </button>
             <button onClick={() => active && kill(active)} title={t('Kill terminal')}>

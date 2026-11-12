@@ -1223,12 +1223,69 @@ html[data-theme='terminal'] {
   background: #2a2e2c;
   color: #fff;
 }
+.term-shell-wrap {
+  position: relative;
+  margin-right: 4px;
+}
 .term-shell {
   display: inline-flex;
+  height: 26px;
   align-items: center;
   gap: 4px;
-  margin-right: 6px;
+  border-radius: 6px;
+  padding: 0 8px;
   color: #b8c1bc;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+.term-shell:hover,
+.term-shell[aria-expanded='true'] {
+  background: #232826;
+  color: #eef2ef;
+}
+.term-shell-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  min-width: 210px;
+  gap: 1px;
+  border: 1px solid #2f3532;
+  border-radius: 10px;
+  background: #1a1d1c;
+  padding: 5px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+}
+.term-shell-head {
+  margin: 2px 6px 4px;
+  font-size: 11px;
+  color: #8a948e;
+}
+.term-shell-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 7px;
+  padding: 7px 8px;
+  font-size: 12.5px;
+  color: #cfd6d2;
+  text-align: left;
+}
+.term-shell-menu button:hover,
+.term-shell-menu button:focus-visible {
+  background: #262b29;
+  color: #ffffff;
+  outline: none;
+}
+.term-shell-menu button.on {
+  color: #ffffff;
+  font-weight: 650;
+}
+.term-shell-check {
+  display: inline-grid;
+  width: 14px;
+  place-items: center;
+  color: #c8f04a;
 }
 .term-body {
   position: relative;
@@ -2708,4 +2765,50 @@ html[data-theme='light'] .session-context button[class*='text-[#537047]'] {
   .session-output {
     transition: none;
   }
+}
+
+/* Terminal header with many tabs: the tab strip scrolls sideways, the shell menu and buttons stay put. */
+.term-tabs-left {
+  flex: 1 1 auto;
+  scrollbar-width: thin;
+}
+.term-actions {
+  flex: none;
+  margin-left: 8px;
+}
+.term-actions .term-shell {
+  display: inline-flex;
+  width: auto;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+.term-actions .term-shell-menu button {
+  display: flex;
+  width: 100%;
+  height: auto;
+  place-items: initial;
+  justify-content: flex-start;
+}
+/* Inside the Session the tab already says Terminal. */
+.terminal-embedded .term-title {
+  display: none;
+}
+.terminal-embedded .term-header {
+  padding-left: 8px;
+}
+.term-shell-menu button,
+.term-shell-name {
+  white-space: nowrap;
+}
+/* The terminal never grows wider than the Session (xterm's canvas would push it a few pixels out). */
+.session-body-terminal > * {
+  min-width: 0;
+  width: 100%;
+}
+.terminal-embedded {
+  min-width: 0;
+  overflow: hidden;
+}
+.terminal-embedded .term-header {
+  padding-right: 8px;
 }

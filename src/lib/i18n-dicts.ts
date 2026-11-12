@@ -1585,6 +1585,8 @@ const ROWS: [string, string, string, string][] = [
   ['Surprise me: AI reimagines your idea in an unexpected way', 'Surpreenda-me: a IA reinventa sua ideia de um jeito inesperado', 'Sorpréndeme: la IA reinventa tu idea de forma inesperada', 'Surprenez-moi : l’IA réinvente votre idée'],
   ['Surprise me: AI invents a new idea every time', 'Surpreenda-me: a IA cria uma ideia nova a cada clique', 'Sorpréndeme: la IA crea una idea nueva en cada clic', 'Surprenez-moi : une idée nouvelle à chaque clic'],
   ['Surprise me: AI improves your idea with a creative twist and writes the positive and negative prompts', 'Surpreenda-me: a IA melhora sua ideia com um toque criativo e escreve os prompts positivo e negativo', 'Sorpréndeme: la IA mejora tu idea con un toque creativo y escribe los prompts positivo y negativo', 'Surprenez-moi : l’IA améliore votre idée avec une touche créative et écrit les prompts positif et négatif'],
+  ['Choose a shell for new terminals', 'Escolha o shell dos novos terminais', 'Elige el shell de las nuevas terminales', 'Choisir le shell des nouveaux terminaux'],
+  ['Open a new terminal with', 'Abrir um novo terminal com', 'Abrir una nueva terminal con', 'Ouvrir un nouveau terminal avec'],
   ['Session', 'Sessão', 'Sesión', 'Session'],
   ['Hide session', 'Ocultar sessão', 'Ocultar sesión', 'Masquer la session'],
   ['Hide session (Ctrl+Alt+B)', 'Ocultar sessão (Ctrl+Alt+B)', 'Ocultar sesión (Ctrl+Alt+B)', 'Masquer la session (Ctrl+Alt+B)'],

@@ -17,18 +17,93 @@ struct Session {
 pub struct Terminals {
     sessions: Arc<Mutex<HashMap<String, Session>>>,
 }
-fn shell() -> String {
-    if cfg!(windows) {
-        "powershell.exe".into()
-    } else {
-        std::env::var("SHELL").unwrap_or_else(|_| {
-            if cfg!(target_os = "macos") {
-                "/bin/zsh".into()
-            } else {
-                "/bin/bash".into()
-            }
-        })
+// A shell installed on this machine that the terminal can open.
+#[derive(Clone)]
+struct ShellInfo {
+    id: &'static str,
+    name: &'static str,
+    path: String,
+    args: Vec<&'static str>,
+}
+fn existing(path: impl Into<std::path::PathBuf>) -> Option<String> {
+    let path = path.into();
+    path.is_file().then(|| path.to_string_lossy().into_owned())
+}
+// Looks a program up on PATH (like `where`/`which`), without running it.
+fn on_path(program: &str) -> Option<String> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path).find_map(|dir| existing(dir.join(program)))
+}
+#[cfg(windows)]
+fn detect() -> Vec<ShellInfo> {
+    use std::path::PathBuf;
+    let mut list = Vec::new();
+    let system = PathBuf::from(std::env::var("SystemRoot").unwrap_or_else(|_| String::from("C:/Windows")));
+    let ps = existing(system.join("System32").join("WindowsPowerShell").join("v1.0").join("powershell.exe")).unwrap_or_else(|| "powershell.exe".into());
+    list.push(ShellInfo { id: "powershell", name: "PowerShell", path: ps, args: vec!["-NoLogo"] });
+    let program_files = PathBuf::from(std::env::var("ProgramFiles").unwrap_or_else(|_| String::from("C:/Program Files")));
+    if let Some(path) = on_path("pwsh.exe").or_else(|| existing(program_files.join("PowerShell").join("7").join("pwsh.exe"))) {
+        list.push(ShellInfo { id: "pwsh", name: "PowerShell 7", path, args: vec!["-NoLogo"] });
     }
+    let cmd = std::env::var("ComSpec").ok().and_then(existing).unwrap_or_else(|| "cmd.exe".into());
+    list.push(ShellInfo { id: "cmd", name: "Command Prompt", path: cmd, args: vec![] });
+    let git_bash = existing(program_files.join("Git").join("bin").join("bash.exe")).or_else(|| {
+        // Git installed elsewhere: <git>/cmd/git.exe -> <git>/bin/bash.exe
+        on_path("git.exe").and_then(|git| {
+            let root = std::path::Path::new(&git).parent()?.parent()?.to_path_buf();
+            existing(root.join("bin").join("bash.exe"))
+        })
+    });
+    if let Some(path) = git_bash {
+        list.push(ShellInfo { id: "gitbash", name: "Git Bash", path, args: vec!["--login", "-i"] });
+    }
+    // WSL counts only when a Linux distribution is installed (wsl.exe exists on many machines without one).
+    if let Some(path) = existing(system.join("System32").join("wsl.exe")) {
+        let has_distro = {
+            use std::os::windows::process::CommandExt;
+            std::process::Command::new(&path)
+                .args(["--list", "--quiet"])
+                .creation_flags(0x0800_0000)
+                .output()
+                .map(|o| o.status.success() && o.stdout.iter().any(|b| b.is_ascii_alphanumeric()))
+                .unwrap_or(false)
+        };
+        if has_distro {
+            list.push(ShellInfo { id: "wsl", name: "WSL (Linux)", path, args: vec![] });
+        }
+    }
+    list
+}
+#[cfg(not(windows))]
+fn detect() -> Vec<ShellInfo> {
+    let mut list = Vec::new();
+    let default = std::env::var("SHELL").ok();
+    let known: [(&'static str, &'static str, &'static str); 4] = [("zsh", "zsh", "zsh"), ("bash", "Bash", "bash"), ("fish", "fish", "fish"), ("sh", "sh", "sh")];
+    for (id, name, program) in known {
+        let path = ["/bin", "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin"].iter().find_map(|d| existing(format!("{d}/{program}"))).or_else(|| on_path(program));
+        if let Some(path) = path {
+            list.push(ShellInfo { id, name, path, args: vec!["-l"] });
+        }
+    }
+    // The person's login shell first.
+    if let Some(default) = default {
+        if let Some(i) = list.iter().position(|s| default.ends_with(&format!("/{}", s.id))) {
+            let s = list.remove(i);
+            list.insert(0, s);
+        }
+    }
+    if list.is_empty() {
+        list.push(ShellInfo { id: "sh", name: "sh", path: "/bin/sh".into(), args: vec![] });
+    }
+    list
+}
+fn shells() -> &'static [ShellInfo] {
+    static SHELLS: std::sync::OnceLock<Vec<ShellInfo>> = std::sync::OnceLock::new();
+    SHELLS.get_or_init(detect)
+}
+fn shell_for(id: Option<&str>) -> ShellInfo {
+    let list = shells();
+    id.and_then(|id| list.iter().find(|s| s.id == id)).unwrap_or(&list[0]).clone()
 }
 fn size(value: &Value) -> PtySize {
     PtySize {
@@ -51,8 +126,9 @@ impl Terminals {
         let a = args.first().cloned().unwrap_or(Value::Null);
         Some((|| {
             if channel == "term:info" {
+                let list: Vec<Value> = shells().iter().map(|s| json!({"id":s.id,"name":s.name,"path":s.path})).collect();
                 return Ok(
-                    json!({"shell":shell(),"platform":std::env::consts::OS,"available":true,"error":null}),
+                    json!({"shell":shells()[0].name,"shells":list,"platform":std::env::consts::OS,"available":true,"error":null}),
                 );
             }
             if channel == "term:create" {
@@ -65,9 +141,12 @@ impl Terminals {
                 let pty = native_pty_system()
                     .openpty(size(&a))
                     .map_err(|e| e.to_string())?;
-                let executable = shell();
-                let mut command = CommandBuilder::new(&executable);
-                command.arg(if cfg!(windows) { "-NoLogo" } else { "-l" });
+                let chosen = shell_for(a["shell"].as_str());
+                let executable = chosen.name.to_string();
+                let mut command = CommandBuilder::new(&chosen.path);
+                for arg in &chosen.args {
+                    command.arg(arg);
+                }
                 command.env("TERM", "xterm-256color");
                 command.env("COLORTERM", "truecolor");
                 command.env("TERM_PROGRAM", "Orbi");

@@ -2,6 +2,15 @@
 
 Documento principal de continuidade do projeto. Atualize este arquivo ao encerrar uma sessão, seja com Claude ou Codex. Não crie outro arquivo que difira deste nome apenas por maiúsculas/minúsculas.
 
+## 12/11: terminal com os shells da máquina
+
+- `terminal.rs` detecta os shells instalados (`detect()`, em cache no `OnceLock`):
+  - **Windows:** PowerShell, PowerShell 7 (`pwsh`), Command Prompt (`ComSpec`), Git Bash (Program Files ou ao lado do `git.exe` no PATH) e WSL (só se `wsl --list --quiet` tiver uma distro);
+  - **macOS e Linux:** zsh, bash, fish e sh, com o shell de login primeiro.
+- `term:info` devolve `shells`. `term:create` aceita `shell` (id) e abre o executável com os argumentos certos (`-NoLogo`, `--login -i`, `-l`).
+- No cabeçalho do terminal, o rótulo virou um menu "Open a new terminal with": escolher um shell abre um terminal com ele e o torna padrão do + (`settings.terminalShell`). As abas mostram o nome amigável ("PowerShell", "Command Prompt", "Git Bash", "WSL (Linux)").
+- Layout: a faixa de abas rola para o lado e os botões ficam fixos; o terminal não fica mais largo que a Session. Testado na máquina do Daniel com os 4 shells (o WSL responde, mas só desenha o prompt depois da primeira tecla).
+
 ## 12/11: passo A3 — Session flutuante
 
 - `SessionPanel.tsx`: cartão flutuante à direita (fixo, 12px das bordas, cantos de 18px), largura de 320 a 720px pelo canto esquerdo (também pelas setas do teclado), com três abas:
